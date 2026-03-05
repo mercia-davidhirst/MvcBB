@@ -175,15 +175,7 @@ namespace MvcBB.API.Controllers
         [HttpGet]
         public ActionResult<IEnumerable<UserResponse>> GetUsers()
         {
-            return Ok(_users.Select(u => new UserResponse
-            {
-                Id = u.Id,
-                Username = u.Username,
-                CreatedAt = u.CreatedAt,
-                ThreadCount = _threads.Count(t => t.CreatedByUserId == u.Username),
-                PostCount = _posts.Count(p => p.CreatedByUserId == u.Username),
-                Role = u.Role
-            }));
+            return Ok(_users.Select(u => MapToUserResponse(u)));
         }
 
         [HttpGet("members")]
@@ -234,21 +226,9 @@ namespace MvcBB.API.Controllers
             var totalPages = (int)Math.Ceiling(totalMembers / (double)pageSize);
             var skip = (page - 1) * pageSize;
 
-            // Get paginated results
-            var members = query
-                .Skip(skip)
-                .Take(pageSize)
-                .Select(u => new UserResponse
-                {
-                    Id = u.Id,
-                    Username = u.Username,
-                    CreatedAt = u.CreatedAt,
-                    LastLoginAt = u.LastLoginAt,
-                    ThreadCount = _threads.Count(t => t.CreatedByUserId == u.Username),
-                    PostCount = _posts.Count(p => p.CreatedByUserId == u.Username),
-                    Role = u.Role
-                })
-                .ToList();
+            // Get paginated results (materialize then map so MapToUserResponse is not in expression tree)
+            var memberUsers = query.Skip(skip).Take(pageSize).ToList();
+            var members = memberUsers.Select(u => MapToUserResponse(u, false)).ToList();
 
             return Ok(new MemberResponse
             {
@@ -272,15 +252,88 @@ namespace MvcBB.API.Controllers
                 return NotFound(new { message = "User not found" });
             }
 
-            return new UserResponse
+            return MapToUserResponse(user, includeEmail: true);
+        }
+
+        [Authorize]
+        [HttpPut("{userId}")]
+        public ActionResult UpdateProfile(int userId, [FromBody] UpdateUserRequest request)
+        {
+            if (!ModelState.IsValid)
             {
-                Id = user.Id,
-                Username = user.Username,
-                Email = user.Email,
-                CreatedAt = user.CreatedAt,
-                LastLoginAt = user.LastLoginAt,
-                Role = user.Role
-            };
+                return BadRequest(ModelState);
+            }
+
+            // Client credentials (ApiClient) can update any userId (trusted app); user JWT must match userId
+            if (!User.IsInRole("ApiClient"))
+            {
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (userId != currentUserId)
+                {
+                    return Forbid();
+                }
+            }
+
+            var user = _users.FirstOrDefault(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            if (!user.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase) &&
+                _users.Any(u => u.Id != userId && u.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase)))
+            {
+                return BadRequest(new { message = "Username is already taken" });
+            }
+
+            if (!user.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase) &&
+                _users.Any(u => u.Id != userId && u.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase)))
+            {
+                return BadRequest(new { message = "Email is already registered" });
+            }
+
+            user.Username = request.Username;
+            user.Email = request.Email;
+            user.Signature = request.Signature;
+            user.Bio = request.Bio;
+            user.AvatarUrl = request.AvatarUrl;
+            user.ShowEmail = request.ShowEmail;
+
+            return NoContent();
+        }
+
+        [Authorize]
+        [HttpPost("{userId}/change-password")]
+        public ActionResult ChangePassword(int userId, [FromBody] ChangePasswordRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            // Client credentials (ApiClient) can change password for any userId (trusted app); user JWT must match userId
+            if (!User.IsInRole("ApiClient"))
+            {
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (userId != currentUserId)
+                {
+                    return Forbid();
+                }
+            }
+
+            var user = _users.FirstOrDefault(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            if (!VerifyPassword(request.CurrentPassword, user.PasswordHash))
+            {
+                return BadRequest(new { message = "Current password is incorrect" });
+            }
+
+            user.PasswordHash = HashPassword(request.NewPassword);
+            return NoContent();
         }
 
         [Authorize(Roles = "Administrator")]
@@ -307,6 +360,25 @@ namespace MvcBB.API.Controllers
 
             user.Role = request.NewRole;
             return Ok(new { message = "User role updated successfully" });
+        }
+
+        private UserResponse MapToUserResponse(User u, bool includeEmail = false)
+        {
+            return new UserResponse
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Email = includeEmail ? u.Email : string.Empty,
+                CreatedAt = u.CreatedAt,
+                LastLoginAt = u.LastLoginAt,
+                ThreadCount = _threads.Count(t => t.CreatedByUserId == u.Username),
+                PostCount = _posts.Count(p => p.CreatedByUserId == u.Username),
+                Role = u.Role,
+                Signature = u.Signature,
+                Bio = u.Bio,
+                AvatarUrl = u.AvatarUrl,
+                ShowEmail = u.ShowEmail
+            };
         }
     }
 } 

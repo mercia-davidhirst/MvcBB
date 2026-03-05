@@ -1,4 +1,4 @@
-﻿namespace MvcBB.Shared.Models.User
+namespace MvcBB.Shared.Models.User
 {
     public class UserResponse
     {
@@ -11,5 +11,9 @@
         public int PostCount { get; set; }
         public UserRole Role { get; set; }
         public string RoleName => Role.ToString();
+        public string? Signature { get; set; }
+        public string? Bio { get; set; }
+        public string? AvatarUrl { get; set; }
+        public bool ShowEmail { get; set; }
     }
 }

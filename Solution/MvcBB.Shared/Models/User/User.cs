@@ -13,5 +13,9 @@ namespace MvcBB.Shared.Models.User
         public UserRole Role { get; set; } = UserRole.User;
         public int ThreadCount { get; set; }
         public int PostCount { get; set; }
+        public string? Signature { get; set; }
+        public string? Bio { get; set; }
+        public string? AvatarUrl { get; set; }
+        public bool ShowEmail { get; set; }
     }
 } 
