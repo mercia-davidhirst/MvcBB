@@ -1,0 +1,98 @@
+@model IEnumerable<MvcBB.Shared.Models.User.UserResponse>
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<div class="container">
+    <h2>User Management</h2>
+    
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th>Last Login</th>
+                    <th>Activity</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model)
+                {
+                    <tr>
+                        <td>@user.Username</td>
+                        <td>@user.Email</td>
+                        <td>
+                            <span class="badge bg-@(user.Role == UserRole.Administrator ? "danger" : 
+                                                  user.Role == UserRole.Moderator ? "warning" : "primary")">
+                                @user.RoleName
+                            </span>
+                        </td>
+                        <td>@user.CreatedAt.ToLocalTime().ToString("g")</td>
+                        <td>@(user.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</td>
+                        <td>
+                            <small>
+                                Threads: @user.ThreadCount<br />
+                                Posts: @user.PostCount
+                            </small>
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                    Change Role
+                                </button>
+                                <ul class="dropdown-menu">
+                                    @foreach (UserRole role in Enum.GetValues(typeof(UserRole)))
+                                    {
+                                        @if (role != user.Role)
+                                        {
+                                            <li>
+                                                <form asp-action="UpdateUserRole" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="userId" value="@user.Id" />
+                                                    <input type="hidden" name="newRole" value="@((int)role)" />
+                                                    <button type="submit" class="dropdown-item">
+                                                        Make @role.ToString()
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        }
+                                    }
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-close alerts after 5 seconds
+        setTimeout(function () {
+            $('.alert').alert('close');
+        }, 5000);
+    </script>
+} 

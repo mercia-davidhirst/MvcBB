@@ -1,0 +1,75 @@
+@using MvcBB.Shared.Models.BBCode
+@model BBCodeTagModel
+@{
+    ViewData["Title"] = "Edit BBCode Tag";
+    Layout = "_AdminLayout";
+}
+
+<div class="card">
+    <div class="card-body">
+        <form asp-action="EditBBCode" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+                <small class="form-text text-muted">The name of the BBCode tag (e.g., "Bold", "Italic", etc.)</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Pattern" class="form-label"></label>
+                <input asp-for="Pattern" class="form-control" />
+                <span asp-validation-for="Pattern" class="text-danger"></span>
+                <small class="form-text text-muted">The regex pattern for the BBCode tag (e.g., "\[b\](.*?)\[/b\]")</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Replacement" class="form-label"></label>
+                <input asp-for="Replacement" class="form-control" />
+                <span asp-validation-for="Replacement" class="text-danger"></span>
+                <small class="form-text text-muted">The HTML replacement pattern (e.g., "&lt;strong&gt;$1&lt;/strong&gt;")</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label"></label>
+                <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+                <small class="form-text text-muted">A brief description of what this BBCode tag does</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Example" class="form-label"></label>
+                <input asp-for="Example" class="form-control" />
+                <span asp-validation-for="Example" class="text-danger"></span>
+                <small class="form-text text-muted">An example of how to use this BBCode tag</small>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input asp-for="IsActive" class="form-check-input" />
+                    <label asp-for="IsActive" class="form-check-label"></label>
+                </div>
+                <small class="form-text text-muted">Whether this BBCode tag is currently active</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SortOrder" class="form-label"></label>
+                <input asp-for="SortOrder" class="form-control" type="number" />
+                <span asp-validation-for="SortOrder" class="text-danger"></span>
+                <small class="form-text text-muted">The order in which this tag appears in lists (lower numbers first)</small>
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a asp-action="BBCode" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+} 

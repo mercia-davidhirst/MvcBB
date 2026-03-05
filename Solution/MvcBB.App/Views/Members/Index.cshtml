@@ -1,0 +1,157 @@
+@model MvcBB.App.Models.MembersViewModel
+@{
+    ViewData["Title"] = "Members";
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Members</h1>
+            <p class="text-muted">Browse our community members</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col">
+            <form method="get" class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="search" value="@Model.Search" 
+                               placeholder="Search members...">
+                        <button class="btn btn-primary" type="submit">Search</button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="role" onchange="this.form.submit()">
+                        <option value="">All Roles</option>
+                        @foreach (UserRole role in Enum.GetValues(typeof(UserRole)))
+                        {
+                            <option value="@((int)role)" selected="@(Model.Role == role)">
+                                @role.ToString()
+                            </option>
+                        }
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            @if (!Model.Members.Any())
+            {
+                <div class="alert alert-info">
+                    No members found matching your criteria.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <a href="@Model.GetSortUrl("username", Url)" class="text-dark text-decoration-none">
+                                        Username <i class="bi @Model.GetSortIcon("username")"></i>
+                                    </a>
+                                </th>
+                                <th>Role</th>
+                                <th>
+                                    <a href="@Model.GetSortUrl("joined", Url)" class="text-dark text-decoration-none">
+                                        Joined <i class="bi @Model.GetSortIcon("joined")"></i>
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="@Model.GetSortUrl("posts", Url)" class="text-dark text-decoration-none">
+                                        Posts <i class="bi @Model.GetSortIcon("posts")"></i>
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="@Model.GetSortUrl("threads", Url)" class="text-dark text-decoration-none">
+                                        Threads <i class="bi @Model.GetSortIcon("threads")"></i>
+                                    </a>
+                                </th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var member in Model.Members)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-person-circle fs-4 me-2"></i>
+                                            <a asp-controller="Account" asp-action="Profile" 
+                                               asp-route-username="@member.Username">
+                                                @member.Username
+                                            </a>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@(member.Role == UserRole.Administrator ? "danger" : 
+                                                              member.Role == UserRole.Moderator ? "warning" : "primary")">
+                                            @member.Role.ToString()
+                                        </span>
+                                    </td>
+                                    <td>@member.CreatedAt.ToLocalTime().ToString("g")</td>
+                                    <td>@member.PostCount</td>
+                                    <td>@member.ThreadCount</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a asp-controller="Search" asp-action="Index" 
+                                               asp-route-q="@member.Username"
+                                               asp-route-type="threads"
+                                               class="btn btn-sm btn-outline-primary"
+                                               title="View threads by @member.Username">
+                                                <i class="bi bi-chat-right-text"></i>
+                                            </a>
+                                            <a asp-controller="Search" asp-action="Index" 
+                                               asp-route-q="@member.Username"
+                                               asp-route-type="posts"
+                                               class="btn btn-sm btn-outline-info"
+                                               title="View posts by @member.Username">
+                                                <i class="bi bi-chat-right"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (Model.TotalPages > 1)
+                {
+                    <nav aria-label="Member pages" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            @for (var i = 1; i <= Model.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == Model.Page ? "active" : "")">
+                                    <a class="page-link" href="@Url.Action("Index", new { 
+                                        search = Model.Search, 
+                                        role = Model.Role, 
+                                        sortBy = Model.SortBy,
+                                        sortDirection = Model.SortDirection,
+                                        page = i 
+                                    })">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                }
+
+                <div class="text-muted text-center mt-2">
+                    Showing @((Model.Page - 1) * Model.PageSize + 1) to 
+                    @Math.Min(Model.Page * Model.PageSize, Model.TotalMembers) of 
+                    @Model.TotalMembers members
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+} 

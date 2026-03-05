@@ -1,0 +1,55 @@
+@model IEnumerable<ThreadResponse>
+
+<div class="list-group">
+    @foreach (var thread in Model.OrderByDescending(t => t.IsSticky).ThenByDescending(t => t.LastPostAt ?? t.CreatedAt))
+    {
+        <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between align-items-start">
+                <div>
+                    <h5 class="mb-1">
+                        @if (thread.IsSticky)
+                        {
+                            <i class="bi bi-pin-angle-fill text-primary me-1" title="Sticky Thread"></i>
+                        }
+                        @if (thread.IsLocked)
+                        {
+                            <i class="bi bi-lock-fill text-warning me-1" title="Locked Thread"></i>
+                        }
+                        <a asp-controller="Threads" asp-action="Details" asp-route-id="@thread.Id" 
+                           class="text-decoration-none">
+                            @thread.Title
+                        </a>
+                    </h5>
+                    <p class="mb-1">
+                        <small class="text-muted">
+                            Started by 
+                            <a asp-controller="Account" asp-action="Profile" asp-route-username="@thread.CreatedByUsername" 
+                               class="text-decoration-none">
+                                @thread.CreatedByUsername
+                            </a>
+                            on @thread.CreatedAt.ToLocalTime().ToString("g")
+                        </small>
+                    </p>
+                </div>
+                <div class="text-end">
+                    <small class="d-block text-muted">Replies: @(thread.ReplyCount)</small>
+                    <small class="d-block text-muted">Views: @thread.ViewCount</small>
+                </div>
+            </div>
+
+            @if (thread.LastPostAt.HasValue)
+            {
+                <div class="mt-2 border-top pt-2">
+                    <small class="text-muted">
+                        Last post by 
+                        <a asp-controller="Account" asp-action="Profile" asp-route-username="@thread.LastPostByUsername" 
+                           class="text-decoration-none">
+                            @thread.LastPostByUsername
+                        </a>
+                        on @thread.LastPostAt.Value.ToLocalTime().ToString("g")
+                    </small>
+                </div>
+            }
+        </div>
+    }
+</div> 

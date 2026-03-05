@@ -1,0 +1,79 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+/* BBCode and Smilie Styles */
+.smilie {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    vertical-align: text-bottom;
+    margin: 0 2px;
+}
+
+.bbcode-toolbar {
+    border: 1px solid #dee2e6;
+    border-bottom: none;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-radius: 4px 4px 0 0;
+}
+
+.bbcode-toolbar button {
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+.bbcode-toolbar .smilie-btn {
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    line-height: 1;
+}
+
+.bbcode-toolbar .smilie-btn img {
+    width: 16px;
+    height: 16px;
+}
+
+.bbcode-preview {
+    border: 1px solid #dee2e6;
+    padding: 15px;
+    margin-top: 10px;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+blockquote {
+    border-left: 3px solid #dee2e6;
+    padding-left: 1rem;
+    margin-left: 0;
+    color: #6c757d;
+}
+
+pre code {
+    display: block;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    white-space: pre-wrap;
+}

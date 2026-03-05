@@ -1,0 +1,116 @@
+@using MvcBB.App.Interfaces
+@inject IMvcBBCodeService BBCodeService
+
+<div class="bbcode-toolbar">
+    <div class="btn-group mb-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('b')" title="Bold">
+            <i class="bi bi-type-bold"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('i')" title="Italic">
+            <i class="bi bi-type-italic"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('u')" title="Underline">
+            <i class="bi bi-type-underline"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('s')" title="Strike">
+            <i class="bi bi-type-strikethrough"></i>
+        </button>
+    </div>
+
+    <div class="btn-group mb-2 ms-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('url')" title="URL">
+            <i class="bi bi-link-45deg"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('img')" title="Image">
+            <i class="bi bi-image"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('quote')" title="Quote">
+            <i class="bi bi-chat-quote"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('code')" title="Code">
+            <i class="bi bi-code-slash"></i>
+        </button>
+    </div>
+
+    <div class="btn-group mb-2 ms-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('center')" title="Center">
+            <i class="bi bi-text-center"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('right')" title="Right">
+            <i class="bi bi-text-right"></i>
+        </button>
+    </div>
+
+    <div class="btn-group mb-2 ms-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+            Color
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="insertBBCode('color=red')">Red</a></li>
+            <li><a class="dropdown-item" href="#" onclick="insertBBCode('color=blue')">Blue</a></li>
+            <li><a class="dropdown-item" href="#" onclick="insertBBCode('color=green')">Green</a></li>
+            <li><a class="dropdown-item" href="#" onclick="insertBBCode('color=purple')">Purple</a></li>
+        </ul>
+    </div>
+
+    <div class="btn-group mb-2 ms-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+            Size
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="insertBBCode('size=10')">Small</a></li>
+            <li><a class="dropdown-item" href="#" onclick="insertBBCode('size=14')">Normal</a></li>
+            <li><a class="dropdown-item" href="#" onclick="insertBBCode('size=18')">Large</a></li>
+            <li><a class="dropdown-item" href="#" onclick="insertBBCode('size=24')">Huge</a></li>
+        </ul>
+    </div>
+
+    <div class="mt-2">
+        @foreach (var smilie in BBCodeService.GetAvailableSmilies())
+        {
+            <button type="button" class="btn btn-sm btn-outline-light smilie-btn" 
+                    onclick="insertSmilie('@smilie.Key')" 
+                    title="@smilie.Key">
+                @Html.Raw(smilie.Value)
+            </button>
+        }
+    </div>
+</div>
+
+<script>
+function insertBBCode(tag, defaultText = '') {
+    const textarea = document.getElementById('Content');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end) || defaultText;
+    
+    let insertText;
+    if (tag.includes('=')) {
+        const [tagName, value] = tag.split('=');
+        insertText = `[${tag}]${selectedText}[/${tagName}]`;
+    } else {
+        insertText = `[${tag}]${selectedText}[/${tag}]`;
+    }
+    
+    textarea.value = textarea.value.substring(0, start) + insertText + textarea.value.substring(end);
+    textarea.focus();
+    
+    // Update preview if it exists
+    if (typeof updatePreview === 'function') {
+        updatePreview();
+    }
+}
+
+function insertSmilie(smilie) {
+    const textarea = document.getElementById('Content');
+    const start = textarea.selectionStart;
+    
+    textarea.value = textarea.value.substring(0, start) + smilie + textarea.value.substring(start);
+    textarea.focus();
+    
+    // Update preview if it exists
+    if (typeof updatePreview === 'function') {
+        updatePreview();
+    }
+}
+</script> 

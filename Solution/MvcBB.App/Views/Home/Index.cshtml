@@ -1,0 +1,144 @@
+﻿@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="jumbotron bg-light p-5 rounded">
+                <h1 class="display-4">Welcome to MvcBB</h1>
+                <p class="lead">A modern bulletin board system for engaging discussions and community building.</p>
+                @if (!User.Identity?.IsAuthenticated == true)
+                {
+                    <hr class="my-4">
+                    <p>Join our community today to participate in discussions!</p>
+                    <a class="btn btn-primary btn-lg" asp-controller="Account" asp-action="Register" role="button">Sign Up</a>
+                    <a class="btn btn-outline-primary btn-lg" asp-controller="Account" asp-action="Login" role="button">Login</a>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Three Panel Layout -->
+    <div class="row">
+        <!-- Left Panel (15%) -->
+        <div class="col-12 col-md-2">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Quick Links</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a asp-controller="Boards" asp-action="Index" class="list-group-item list-group-item-action">
+                            <i class="bi bi-grid-3x3-gap me-2"></i> All Boards
+                        </a>
+                        <a asp-controller="Members" asp-action="Index" class="list-group-item list-group-item-action">
+                            <i class="bi bi-people me-2"></i> Members
+                        </a>
+                        <a asp-controller="Team" asp-action="Index" class="list-group-item list-group-item-action">
+                            <i class="bi bi-shield-check me-2"></i> Team
+                        </a>
+                        <a asp-controller="Search" asp-action="Index" class="list-group-item list-group-item-action">
+                            <i class="bi bi-search me-2"></i> Search
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel (70%) -->
+        <div class="col-12 col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Latest Discussions</h5>
+                    <a asp-controller="Boards" asp-action="Index" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    @if (Model?.LatestThreads?.Any() == true)
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var thread in Model.LatestThreads)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">
+                                            <a asp-controller="Threads" asp-action="Details" asp-route-id="@thread.Id" 
+                                               class="text-decoration-none">@thread.Title</a>
+                                        </h6>
+                                        <small class="text-muted">@thread.CreatedAt.ToLocalTime().ToString("g")</small>
+                                    </div>
+                                    <p class="mb-1">
+                                        <small>
+                                            Posted by @thread.CreatedByUserId in 
+                                            <a asp-controller="Boards" asp-action="Details" asp-route-id="@thread.BoardId" 
+                                               class="text-decoration-none">@thread.BoardName</a>
+                                        </small>
+                                    </p>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center my-4">No discussions found.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel (15%) -->
+        <div class="col-12 col-md-2">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item">
+                            <small class="d-block text-muted">Members</small>
+                            <strong>@(Model?.Stats?.TotalMembers ?? 0)</strong>
+                        </div>
+                        <div class="list-group-item">
+                            <small class="d-block text-muted">Threads</small>
+                            <strong>@(Model?.Stats?.TotalThreads ?? 0)</strong>
+                        </div>
+                        <div class="list-group-item">
+                            <small class="d-block text-muted">Posts</small>
+                            <strong>@(Model?.Stats?.TotalPosts ?? 0)</strong>
+                        </div>
+                        <div class="list-group-item">
+                            <small class="d-block text-muted">Active Users</small>
+                            <strong>@(Model?.Stats?.ActiveUsers ?? 0)</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (Model?.NewestMembers?.Any() == true)
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Newest Members</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            @foreach (var member in Model.NewestMembers)
+                            {
+                                <a asp-controller="Account" asp-action="Profile" asp-route-username="@member.Username"
+                                   class="list-group-item list-group-item-action">
+                                    <i class="bi bi-person-circle me-2"></i>
+                                    @member.Username
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+}

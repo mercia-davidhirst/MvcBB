@@ -1,0 +1,139 @@
+@model MvcBB.App.Models.SearchViewModel
+@{
+    ViewData["Title"] = "Search";
+}
+
+<div class="container">
+    <h2>Search</h2>
+
+    <form method="get" class="mb-4">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="q" value="@Model.Query" 
+                           placeholder="Search for threads, posts, or users..." required>
+                    <button class="btn btn-primary" type="submit">Search</button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" name="type">
+                    <option value="" selected>All Content</option>
+                    <option value="threads" selected="@(Model.Type == "threads")">Threads</option>
+                    <option value="posts" selected="@(Model.Type == "posts")">Posts</option>
+                    <option value="users" selected="@(Model.Type == "users")">Users</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" name="boardId">
+                    <option value="">All Boards</option>
+                    @foreach (var board in Model.Boards)
+                    {
+                        <option value="@board.Id" selected="@(Model.BoardId == board.Id)">
+                            @board.Name
+                        </option>
+                    }
+                </select>
+            </div>
+        </div>
+    </form>
+
+    @if (!string.IsNullOrEmpty(Model.Query))
+    {
+        <div class="mb-3">
+            <h5>Search Results</h5>
+            <p class="text-muted">
+                Found @Model.TotalResults results for "@Model.Query"
+                @if (!string.IsNullOrEmpty(Model.Type))
+                {
+                    <span>in @Model.Type</span>
+                }
+                @if (Model.BoardId.HasValue)
+                {
+                    var board = Model.Boards.FirstOrDefault(b => b.Id == Model.BoardId);
+                    if (board != null)
+                    {
+                        <span>in @board.Name</span>
+                    }
+                }
+            </p>
+        </div>
+
+        @if (Model.Results.Any())
+        {
+            <div class="list-group mb-4">
+                @foreach (var result in Model.Results)
+                {
+                    <div class="list-group-item">
+                        @switch (result.Type)
+                        {
+                            case "thread":
+                                <h5 class="mb-1">
+                                    <a asp-controller="Threads" asp-action="Details" asp-route-id="@result.Id">
+                                        @result.Title
+                                    </a>
+                                </h5>
+                                <p class="mb-1">
+                                    <small class="text-muted">
+                                        Posted by @result.Author in @result.BoardName
+                                        on @result.CreatedAt.ToLocalTime().ToString("g")
+                                    </small>
+                                </p>
+                                break;
+
+                            case "post":
+                                <h5 class="mb-1">
+                                    <a asp-controller="Threads" asp-action="Details" 
+                                       asp-route-id="@result.ThreadId" asp-fragment="post-@result.Id">
+                                        Re: @result.ThreadTitle
+                                    </a>
+                                </h5>
+                                <p class="mb-1">@result.Content</p>
+                                <p class="mb-1">
+                                    <small class="text-muted">
+                                        Posted by @result.Author in @result.BoardName
+                                        on @result.CreatedAt.ToLocalTime().ToString("g")
+                                    </small>
+                                </p>
+                                break;
+
+                            case "user":
+                                <h5 class="mb-1">
+                                    <a asp-controller="Account" asp-action="Profile" asp-route-username="@result.Title">
+                                        @result.Title
+                                    </a>
+                                </h5>
+                                <p class="mb-1">
+                                    <small class="text-muted">
+                                        Joined @result.CreatedAt.ToLocalTime().ToString("g")
+                                    </small>
+                                </p>
+                                break;
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="Search results pages">
+                    <ul class="pagination">
+                        @for (var i = 1; i <= Model.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == Model.Page ? "active" : "")">
+                                <a class="page-link" href="@Url.Action("Index", new { q = Model.Query, type = Model.Type, boardId = Model.BoardId, page = i })">
+                                    @i
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        }
+        else
+        {
+            <div class="alert alert-info">
+                No results found. Try different search terms or filters.
+            </div>
+        }
+    }
+</div> 
