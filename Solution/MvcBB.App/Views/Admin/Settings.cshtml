@@ -1,0 +1,48 @@
+@using MvcBB.Shared.Models.Settings
+@model DisplaySettings
+@{
+    ViewData["Title"] = "Display Settings";
+    Layout = "_AdminLayout";
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Display settings</h5>
+    </div>
+    <div class="card-body">
+        <form asp-action="Settings" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="ThreadsPerPage" class="form-label">Threads per page</label>
+                <input asp-for="ThreadsPerPage" class="form-control" type="number" min="1" max="100" />
+                <span asp-validation-for="ThreadsPerPage" class="text-danger"></span>
+                <small class="form-text text-muted">When listing all threads, this many threads are shown per page (1–100). Used when the number of threads exceeds this value.</small>
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Save settings</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

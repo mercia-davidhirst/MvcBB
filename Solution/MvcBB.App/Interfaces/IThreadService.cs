@@ -5,7 +5,7 @@ namespace MvcBB.App.Interfaces
 {
     public interface IThreadService
     {
-        Task<IEnumerable<ThreadResponse>> GetThreadsAsync(int? boardId = null);
+        Task<ThreadListResponse> GetThreadsAsync(int? boardId = null, int page = 1, int? pageSize = null);
         Task<ThreadResponse> GetThreadAsync(int id);
         Task<ThreadResponse> CreateThreadAsync(CreateForumThreadRequest request);
         Task UpdateThreadAsync(int id, UpdateForumThreadRequest request);

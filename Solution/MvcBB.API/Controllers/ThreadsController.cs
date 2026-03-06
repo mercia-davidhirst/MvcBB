@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MvcBB.Shared.Models.Board;
-using System.Security.Claims;
 using MvcBB.Shared.Models.ForumThread;
+using MvcBB.Shared.Interfaces;
+using System.Security.Claims;
 
 namespace MvcBB.API.Controllers
 {
@@ -10,38 +11,74 @@ namespace MvcBB.API.Controllers
     [Route("api/[controller]")]
     public class ThreadsController : ControllerBase
     {
-        private static readonly List<ForumThread> _threads = new();
-        private static readonly List<Board> _boards = new();
+        private readonly IForumThreadRepository _threadRepository;
+        private readonly IBoardRepository _boardRepository;
+        private readonly MvcBB.API.Services.IDisplaySettingsService _displaySettingsService;
+
+        public ThreadsController(
+            IForumThreadRepository threadRepository,
+            IBoardRepository boardRepository,
+            MvcBB.API.Services.IDisplaySettingsService displaySettingsService)
+        {
+            _threadRepository = threadRepository;
+            _boardRepository = boardRepository;
+            _displaySettingsService = displaySettingsService;
+        }
+
+        [HttpGet]
+        public ActionResult<ThreadListResponse> GetThreads([FromQuery] int page = 1, [FromQuery] int? pageSize = null)
+        {
+            var displaySettings = _displaySettingsService.GetDisplaySettings();
+            var effectivePageSize = pageSize ?? displaySettings.ThreadsPerPage;
+            effectivePageSize = Math.Clamp(effectivePageSize, 1, 100);
+            page = Math.Max(1, page);
+
+            var ordered = _threadRepository.GetAll()
+                .OrderByDescending(t => t.IsSticky)
+                .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
+                .ToList();
+
+            var totalThreads = ordered.Count;
+            var totalPages = totalThreads == 0 ? 1 : (int)Math.Ceiling(totalThreads / (double)effectivePageSize);
+            var skip = (page - 1) * effectivePageSize;
+            var pageOfThreads = ordered.Skip(skip).Take(effectivePageSize).ToList();
+
+            var threadResponses = pageOfThreads.Select(t => MapToThreadResponse(t)).ToList();
+
+            return Ok(new ThreadListResponse
+            {
+                Threads = threadResponses,
+                TotalThreads = totalThreads,
+                Page = page,
+                PageSize = effectivePageSize,
+                TotalPages = totalPages
+            });
+        }
 
         [HttpGet("board/{boardId}")]
         public ActionResult<IEnumerable<ForumThread>> GetBoardThreads(int boardId)
         {
-            var board = _boards.FirstOrDefault(b => b.Id == boardId);
+            var board = _boardRepository.GetById(boardId);
             if (board == null)
             {
                 return NotFound(new { message = "Board not found" });
             }
 
-            var threads = _threads
-                .Where(t => t.BoardId == boardId)
-                .OrderByDescending(t => t.IsSticky)
-                .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
-                .ToList();
-
+            var threads = _threadRepository.GetByBoardId(boardId);
             return Ok(threads);
         }
 
         [HttpGet("{id}")]
         public ActionResult<ForumThread> GetThread(int id)
         {
-            var thread = _threads.FirstOrDefault(t => t.Id == id);
+            var thread = _threadRepository.GetById(id);
             if (thread == null)
             {
                 return NotFound(new { message = "Thread not found" });
             }
 
-            // Increment view count
             thread.ViewCount++;
+            _threadRepository.Update(thread);
 
             return Ok(thread);
         }
@@ -55,7 +92,7 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            var board = _boards.FirstOrDefault(b => b.Id == request.BoardId);
+            var board = _boardRepository.GetById(request.BoardId);
             if (board == null)
             {
                 return NotFound(new { message = "Board not found" });
@@ -69,7 +106,6 @@ namespace MvcBB.API.Controllers
 
             var thread = new ForumThread
             {
-                Id = _threads.Count + 1,
                 Title = request.Title,
                 BoardId = request.BoardId,
                 CreatedByUserId = userId,
@@ -78,12 +114,12 @@ namespace MvcBB.API.Controllers
                 LastPostByUserId = userId
             };
 
-            _threads.Add(thread);
+            thread = _threadRepository.Add(thread);
 
-            // Update board statistics
             board.ThreadCount++;
             board.LastPostAt = thread.CreatedAt;
             board.LastPostByUserId = userId;
+            _boardRepository.Update(board);
 
             return CreatedAtAction(nameof(GetThread), new { id = thread.Id }, thread);
         }
@@ -97,7 +133,7 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            var thread = _threads.FirstOrDefault(t => t.Id == id);
+            var thread = _threadRepository.GetById(id);
             if (thread == null)
             {
                 return NotFound(new { message = "Thread not found" });
@@ -109,9 +145,8 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
-            // Check if user is the thread author or has moderator/admin role
-            if (thread.CreatedByUserId != userId && 
-                !User.IsInRole("Administrator") && 
+            if (thread.CreatedByUserId != userId &&
+                !User.IsInRole("Administrator") &&
                 !User.IsInRole("Moderator"))
             {
                 return Forbid();
@@ -121,6 +156,7 @@ namespace MvcBB.API.Controllers
             thread.IsSticky = request.IsSticky;
             thread.IsLocked = request.IsLocked;
             thread.UpdatedAt = DateTime.UtcNow;
+            _threadRepository.Update(thread);
 
             return Ok(thread);
         }
@@ -129,20 +165,44 @@ namespace MvcBB.API.Controllers
         [Authorize(Roles = "Administrator,Moderator")]
         public ActionResult DeleteThread(int id)
         {
-            var thread = _threads.FirstOrDefault(t => t.Id == id);
+            var thread = _threadRepository.GetById(id);
             if (thread == null)
             {
                 return NotFound(new { message = "Thread not found" });
             }
 
-            var board = _boards.FirstOrDefault(b => b.Id == thread.BoardId);
+            var board = _boardRepository.GetById(thread.BoardId);
             if (board != null)
             {
                 board.ThreadCount--;
+                _boardRepository.Update(board);
             }
 
-            _threads.Remove(thread);
+            _threadRepository.Remove(thread);
             return Ok(new { message = "Thread deleted successfully" });
         }
+
+        private ThreadResponse MapToThreadResponse(ForumThread t)
+        {
+            var board = _boardRepository.GetById(t.BoardId);
+            return new ThreadResponse
+            {
+                Id = t.Id,
+                Title = t.Title,
+                BoardId = t.BoardId,
+                BoardName = board?.Name ?? string.Empty,
+                CreatedByUserId = t.CreatedByUserId,
+                CreatedByUsername = t.CreatedByUserId,
+                CreatedAt = t.CreatedAt,
+                UpdatedAt = t.UpdatedAt,
+                IsSticky = t.IsSticky,
+                IsLocked = t.IsLocked,
+                ViewCount = t.ViewCount,
+                ReplyCount = t.PostCount,
+                LastPostAt = t.LastPostAt,
+                LastPostByUserId = t.LastPostByUserId,
+                LastPostByUsername = t.LastPostByUserId
+            };
+        }
     }
-} 
+}

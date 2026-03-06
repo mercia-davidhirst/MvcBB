@@ -4,14 +4,19 @@ using System.Text;
 using MvcBB.Shared.Services;
 using Microsoft.AspNetCore.Diagnostics;
 using MvcBB.Shared.Interfaces;
+using MvcBB.API.InMemory;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 
+// Register data layer (swap to MvcBB.API.SQL and AddSqlRepositories() for SQL)
+builder.Services.AddInMemoryRepositories();
+
 // Register services
 builder.Services.AddSingleton<ICoreBBCodeService, CoreBBCodeService>();
+builder.Services.AddSingleton<MvcBB.API.Services.IDisplaySettingsService, MvcBB.API.Services.DisplaySettingsService>();
 
 // Configure JWT Authentication
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] 

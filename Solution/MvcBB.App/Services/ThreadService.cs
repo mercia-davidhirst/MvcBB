@@ -34,19 +34,37 @@ namespace MvcBB.App.Services
         }
 
         /// <summary>
-        /// Gets all threads, optionally filtered by board ID
+        /// Gets threads, optionally filtered by board ID. When boardId is null, returns a paginated result from api/threads.
         /// </summary>
-        public async Task<IEnumerable<ThreadResponse>> GetThreadsAsync(int? boardId = null)
+        public async Task<ThreadListResponse> GetThreadsAsync(int? boardId = null, int page = 1, int? pageSize = null)
         {
             try
             {
-                var url = boardId.HasValue ? $"api/threads?boardId={boardId}" : "api/threads";
-                var response = await _httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-                
-                var content = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<IEnumerable<ThreadResponse>>(content, _jsonOptions) 
-                    ?? Array.Empty<ThreadResponse>();
+                if (boardId.HasValue)
+                {
+                    var response = await _httpClient.GetAsync($"api/threads/board/{boardId}");
+                    response.EnsureSuccessStatusCode();
+                    var content = await response.Content.ReadAsStringAsync();
+                    var threads = JsonSerializer.Deserialize<List<ThreadResponse>>(content, _jsonOptions) ?? new List<ThreadResponse>();
+                    return new ThreadListResponse
+                    {
+                        Threads = threads,
+                        TotalThreads = threads.Count,
+                        Page = 1,
+                        PageSize = threads.Count,
+                        TotalPages = threads.Count == 0 ? 1 : 1
+                    };
+                }
+
+                var query = new List<string> { $"page={page}" };
+                if (pageSize.HasValue)
+                    query.Add($"pageSize={pageSize.Value}");
+                var url = "api/threads?" + string.Join("&", query);
+                var listResponse = await _httpClient.GetAsync(url);
+                listResponse.EnsureSuccessStatusCode();
+                var listContent = await listResponse.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<ThreadListResponse>(listContent, _jsonOptions)
+                    ?? new ThreadListResponse();
             }
             catch (HttpRequestException ex)
             {

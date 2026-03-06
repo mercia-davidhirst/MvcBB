@@ -15,8 +15,8 @@ namespace MvcBB.App.ViewComponents
 
         public async Task<IViewComponentResult> InvokeAsync(int boardId)
         {
-            var threads = await _threadService.GetThreadsAsync(boardId);
-            return View(threads);
+            var result = await _threadService.GetThreadsAsync(boardId);
+            return View(result.Threads);
         }
     }
 } 

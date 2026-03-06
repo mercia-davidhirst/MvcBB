@@ -35,9 +35,9 @@ namespace MvcBB.App.Controllers
             try
             {
                 var board = await _boardService.GetBoardAsync(id);
-                var threads = await _threadService.GetThreadsAsync(id);
+                var threadResult = await _threadService.GetThreadsAsync(id);
                 
-                ViewData["Threads"] = threads;
+                ViewData["Threads"] = threadResult.Threads;
                 return View(board);
             }
             catch (Exception ex)

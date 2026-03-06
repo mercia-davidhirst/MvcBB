@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MvcBB.Shared.Models.Report;
+using MvcBB.Shared.Interfaces;
 using System.Security.Claims;
 
 namespace MvcBB.API.Controllers
@@ -9,20 +10,25 @@ namespace MvcBB.API.Controllers
     [Route("api/[controller]")]
     public class ReportsController : ControllerBase
     {
-        private static readonly List<Report> _reports = new();
+        private readonly IReportRepository _reportRepository;
+
+        public ReportsController(IReportRepository reportRepository)
+        {
+            _reportRepository = reportRepository;
+        }
 
         [HttpGet]
         [Authorize(Roles = "Administrator,Moderator")]
         public ActionResult<IEnumerable<Report>> GetReports()
         {
-            return Ok(_reports.OrderByDescending(r => r.CreatedAt));
+            return Ok(_reportRepository.GetAll());
         }
 
         [HttpGet("{id}")]
         [Authorize(Roles = "Administrator,Moderator")]
         public ActionResult<Report> GetReport(int id)
         {
-            var report = _reports.FirstOrDefault(r => r.Id == id);
+            var report = _reportRepository.GetById(id);
             if (report == null)
             {
                 return NotFound(new { message = "Report not found" });
@@ -48,7 +54,6 @@ namespace MvcBB.API.Controllers
 
             var report = new Report
             {
-                Id = _reports.Count + 1,
                 Reason = request.Reason,
                 Type = request.Type,
                 ContentId = request.ContentId,
@@ -57,7 +62,7 @@ namespace MvcBB.API.Controllers
                 Status = ReportStatus.Pending
             };
 
-            _reports.Add(report);
+            report = _reportRepository.Add(report);
 
             return CreatedAtAction(nameof(GetReport), new { id = report.Id }, report);
         }
@@ -71,7 +76,7 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            var report = _reports.FirstOrDefault(r => r.Id == id);
+            var report = _reportRepository.GetById(id);
             if (report == null)
             {
                 return NotFound(new { message = "Report not found" });
@@ -87,6 +92,7 @@ namespace MvcBB.API.Controllers
             report.ModeratorNotes = request.ModeratorNotes;
             report.ResolvedByUserId = userId;
             report.ResolvedAt = DateTime.UtcNow;
+            _reportRepository.Update(report);
 
             return Ok(report);
         }
@@ -97,20 +103,20 @@ namespace MvcBB.API.Controllers
         {
             var stats = new
             {
-                TotalReports = _reports.Count,
-                PendingReports = _reports.Count(r => r.Status == ReportStatus.Pending),
-                InvestigatingReports = _reports.Count(r => r.Status == ReportStatus.Investigating),
-                ResolvedReports = _reports.Count(r => r.Status == ReportStatus.Resolved),
-                DismissedReports = _reports.Count(r => r.Status == ReportStatus.Dismissed),
+                TotalReports = _reportRepository.Count(),
+                PendingReports = _reportRepository.CountByStatus(ReportStatus.Pending),
+                InvestigatingReports = _reportRepository.CountByStatus(ReportStatus.Investigating),
+                ResolvedReports = _reportRepository.CountByStatus(ReportStatus.Resolved),
+                DismissedReports = _reportRepository.CountByStatus(ReportStatus.Dismissed),
                 ReportsByType = new
                 {
-                    ThreadReports = _reports.Count(r => r.Type == ReportType.Thread),
-                    PostReports = _reports.Count(r => r.Type == ReportType.Post),
-                    MessageReports = _reports.Count(r => r.Type == ReportType.Message)
+                    ThreadReports = _reportRepository.CountByType(ReportType.Thread),
+                    PostReports = _reportRepository.CountByType(ReportType.Post),
+                    MessageReports = _reportRepository.CountByType(ReportType.Message)
                 }
             };
 
             return Ok(stats);
         }
     }
-} 
+}

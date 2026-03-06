@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MvcBB.Shared.Models.Post;
-using System.Security.Claims;
 using MvcBB.Shared.Models.ForumThread;
+using MvcBB.Shared.Interfaces;
+using System.Security.Claims;
 
 namespace MvcBB.API.Controllers
 {
@@ -10,30 +11,32 @@ namespace MvcBB.API.Controllers
     [Route("api/[controller]")]
     public class PostsController : ControllerBase
     {
-        private static readonly List<Post> _posts = new();
-        private static readonly List<ForumThread> _threads = new();
+        private readonly IPostRepository _postRepository;
+        private readonly IForumThreadRepository _threadRepository;
+
+        public PostsController(IPostRepository postRepository, IForumThreadRepository threadRepository)
+        {
+            _postRepository = postRepository;
+            _threadRepository = threadRepository;
+        }
 
         [HttpGet("thread/{threadId}")]
         public ActionResult<IEnumerable<Post>> GetThreadPosts(int threadId)
         {
-            var thread = _threads.FirstOrDefault(t => t.Id == threadId);
+            var thread = _threadRepository.GetById(threadId);
             if (thread == null)
             {
                 return NotFound(new { message = "Thread not found" });
             }
 
-            var posts = _posts
-                .Where(p => p.ThreadId == threadId)
-                .OrderBy(p => p.CreatedAt)
-                .ToList();
-
+            var posts = _postRepository.GetByThreadId(threadId);
             return Ok(posts);
         }
 
         [HttpGet("{id}")]
         public ActionResult<Post> GetPost(int id)
         {
-            var post = _posts.FirstOrDefault(p => p.Id == id);
+            var post = _postRepository.GetById(id);
             if (post == null)
             {
                 return NotFound(new { message = "Post not found" });
@@ -45,7 +48,7 @@ namespace MvcBB.API.Controllers
         [HttpGet("{id}/quote")]
         public ActionResult<string> GetQuoteContent(int id)
         {
-            var post = _posts.FirstOrDefault(p => p.Id == id);
+            var post = _postRepository.GetById(id);
             if (post == null)
             {
                 return NotFound();
@@ -64,7 +67,7 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            var thread = _threads.FirstOrDefault(t => t.Id == request.ThreadId);
+            var thread = _threadRepository.GetById(request.ThreadId);
             if (thread == null)
             {
                 return NotFound(new { message = "Thread not found" });
@@ -83,19 +86,18 @@ namespace MvcBB.API.Controllers
 
             var post = new Post
             {
-                Id = _posts.Count + 1,
                 Content = request.Content,
                 ThreadId = request.ThreadId,
                 CreatedByUserId = userId,
                 CreatedAt = DateTime.UtcNow
             };
 
-            _posts.Add(post);
+            post = _postRepository.Add(post);
 
-            // Update thread's last post info
             thread.LastPostAt = post.CreatedAt;
             thread.LastPostByUserId = userId;
             thread.PostCount++;
+            _threadRepository.Update(thread);
 
             return CreatedAtAction(nameof(GetPost), new { id = post.Id }, post);
         }
@@ -109,7 +111,7 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            var post = _posts.FirstOrDefault(p => p.Id == id);
+            var post = _postRepository.GetById(id);
             if (post == null)
             {
                 return NotFound(new { message = "Post not found" });
@@ -121,15 +123,14 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
-            // Check if user is the post author or has moderator/admin role
-            if (post.CreatedByUserId != userId && 
-                !User.IsInRole("Administrator") && 
+            if (post.CreatedByUserId != userId &&
+                !User.IsInRole("Administrator") &&
                 !User.IsInRole("Moderator"))
             {
                 return Forbid();
             }
 
-            var thread = _threads.FirstOrDefault(t => t.Id == post.ThreadId);
+            var thread = _threadRepository.GetById(post.ThreadId);
             if (thread?.IsLocked == true)
             {
                 return BadRequest(new { message = "Thread is locked" });
@@ -138,6 +139,7 @@ namespace MvcBB.API.Controllers
             post.Content = request.Content;
             post.UpdatedAt = DateTime.UtcNow;
             post.UpdatedByUserId = userId;
+            _postRepository.Update(post);
 
             return Ok(post);
         }
@@ -146,7 +148,7 @@ namespace MvcBB.API.Controllers
         [Authorize(Roles = "Administrator,Moderator")]
         public ActionResult DeletePost(int id, string reason)
         {
-            var post = _posts.FirstOrDefault(p => p.Id == id);
+            var post = _postRepository.GetById(id);
             if (post == null)
             {
                 return NotFound(new { message = "Post not found" });
@@ -162,8 +164,9 @@ namespace MvcBB.API.Controllers
             post.DeletedByUserId = userId;
             post.DeletedAt = DateTime.UtcNow;
             post.DeleteReason = reason;
+            _postRepository.Update(post);
 
             return Ok(new { message = "Post deleted successfully" });
         }
     }
-} 
+}

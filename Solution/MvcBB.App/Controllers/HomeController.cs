@@ -28,9 +28,9 @@ public class HomeController : Controller
     {
         try
         {
-            // Get latest threads
-            var threads = await _threadService.GetThreadsAsync();
-            var latestThreads = threads
+            // Get latest threads (first page, 10 per page for home)
+            var threadResult = await _threadService.GetThreadsAsync(boardId: null, page: 1, pageSize: 10);
+            var latestThreads = threadResult.Threads
                 .OrderByDescending(t => t.CreatedAt)
                 .Take(10)
                 .ToList();
@@ -46,8 +46,8 @@ public class HomeController : Controller
             var stats = new ForumStatistics
             {
                 TotalMembers = users.Count(),
-                TotalThreads = threads.Count(),
-                TotalPosts = threads.Sum(t => t.ReplyCount),
+                TotalThreads = threadResult.TotalThreads,
+                TotalPosts = threadResult.Threads.Sum(t => t.ReplyCount),
                 ActiveUsers = users.Count(u => u.LastLoginAt >= DateTime.UtcNow.AddDays(-7))
             };
 

@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
 using MvcBB.Shared.Interfaces;
 using MvcBB.Shared.Models.BBCode;
+using MvcBB.Shared.Models.Settings;
 
 namespace MvcBB.App.Controllers
 {
@@ -11,11 +13,13 @@ namespace MvcBB.App.Controllers
     {
         private readonly IBBCodeManagementService _bbCodeService;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly ISettingsService _settingsService;
 
-        public AdminController(IBBCodeManagementService bbCodeService, IWebHostEnvironment webHostEnvironment)
+        public AdminController(IBBCodeManagementService bbCodeService, IWebHostEnvironment webHostEnvironment, ISettingsService settingsService)
         {
             _bbCodeService = bbCodeService;
             _webHostEnvironment = webHostEnvironment;
+            _settingsService = settingsService;
         }
 
         public IActionResult Dashboard()
@@ -249,9 +253,39 @@ namespace MvcBB.App.Controllers
             return RedirectToAction(nameof(Smilies));
         }
 
-        public IActionResult Settings()
+        public async Task<IActionResult> Settings()
         {
-            return View();
+            try
+            {
+                var settings = await _settingsService.GetDisplaySettingsAsync();
+                return View(settings);
+            }
+            catch
+            {
+                return View(new DisplaySettings());
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Settings(DisplaySettings model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            try
+            {
+                await _settingsService.UpdateDisplaySettingsAsync(model);
+                TempData["Success"] = "Display settings saved successfully.";
+            }
+            catch
+            {
+                TempData["Error"] = "Failed to save display settings.";
+            }
+
+            return RedirectToAction(nameof(Settings));
         }
     }
 } 

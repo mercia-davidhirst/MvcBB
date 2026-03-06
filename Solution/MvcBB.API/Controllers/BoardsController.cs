@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MvcBB.Shared.Models.Board;
-using System.Security.Claims;
+using MvcBB.Shared.Interfaces;
 
 namespace MvcBB.API.Controllers
 {
@@ -9,18 +9,23 @@ namespace MvcBB.API.Controllers
     [Route("api/[controller]")]
     public class BoardsController : ControllerBase
     {
-        private static readonly List<Board> _boards = new();
+        private readonly IBoardRepository _boardRepository;
+
+        public BoardsController(IBoardRepository boardRepository)
+        {
+            _boardRepository = boardRepository;
+        }
 
         [HttpGet]
         public ActionResult<IEnumerable<Board>> GetBoards()
         {
-            return Ok(_boards.OrderBy(b => b.SortOrder));
+            return Ok(_boardRepository.GetAll());
         }
 
         [HttpGet("{id}")]
         public ActionResult<Board> GetBoard(int id)
         {
-            var board = _boards.FirstOrDefault(b => b.Id == id);
+            var board = _boardRepository.GetById(id);
             if (board == null)
             {
                 return NotFound(new { message = "Board not found" });
@@ -40,7 +45,6 @@ namespace MvcBB.API.Controllers
 
             var board = new Board
             {
-                Id = _boards.Count + 1,
                 Name = request.Name,
                 Description = request.Description,
                 SortOrder = request.SortOrder,
@@ -48,7 +52,7 @@ namespace MvcBB.API.Controllers
                 IsActive = true
             };
 
-            _boards.Add(board);
+            board = _boardRepository.Add(board);
 
             return CreatedAtAction(nameof(GetBoard), new { id = board.Id }, board);
         }
@@ -62,7 +66,7 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            var board = _boards.FirstOrDefault(b => b.Id == id);
+            var board = _boardRepository.GetById(id);
             if (board == null)
             {
                 return NotFound(new { message = "Board not found" });
@@ -73,6 +77,7 @@ namespace MvcBB.API.Controllers
             board.SortOrder = request.SortOrder;
             board.IsActive = request.IsActive;
             board.UpdatedAt = DateTime.UtcNow;
+            _boardRepository.Update(board);
 
             return Ok(board);
         }
@@ -80,15 +85,15 @@ namespace MvcBB.API.Controllers
         [HttpDelete("{id}")]
         public IActionResult DeleteBoard(int id)
         {
-            var board = _boards.FirstOrDefault(b => b.Id == id);
+            var board = _boardRepository.GetById(id);
             if (board == null)
             {
                 return NotFound();
             }
 
-            _boards.Remove(board);
+            _boardRepository.Remove(board);
 
             return NoContent();
         }
     }
-} 
+}

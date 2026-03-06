@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MvcBB.Shared.Models.Message;
+using MvcBB.Shared.Interfaces;
 using System.Security.Claims;
 
 namespace MvcBB.API.Controllers
@@ -10,7 +11,12 @@ namespace MvcBB.API.Controllers
     [Authorize]
     public class MessagesController : ControllerBase
     {
-        private static readonly List<MessageResponse> _messages = new();
+        private readonly IMessageRepository _messageRepository;
+
+        public MessagesController(IMessageRepository messageRepository)
+        {
+            _messageRepository = messageRepository;
+        }
 
         [HttpGet]
         public ActionResult<IEnumerable<MessageResponse>> GetMessages(bool? unreadOnly = false)
@@ -21,15 +27,11 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var query = _messages.Where(m => m.RecipientUserId == userId && !m.IsRead);
-            if (!unreadOnly.GetValueOrDefault())
-            {
-                query = _messages.Where(m => 
-                    m.RecipientUserId == userId || 
-                    m.SenderUserId == userId);
-            }
+            var messages = unreadOnly == true
+                ? _messageRepository.GetByRecipientUserId(userId, unreadOnly: true)
+                : _messageRepository.GetByRecipientOrSenderUserId(userId);
 
-            return Ok(query.OrderByDescending(m => m.CreatedAt));
+            return Ok(messages.Select(MapToResponse));
         }
 
         [HttpGet("{id}")]
@@ -41,7 +43,7 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var message = _messages.FirstOrDefault(m => m.Id == id);
+            var message = _messageRepository.GetById(id);
             if (message == null)
             {
                 return NotFound(new { message = "Message not found" });
@@ -52,13 +54,13 @@ namespace MvcBB.API.Controllers
                 return Forbid();
             }
 
-            // Mark as read if recipient is viewing
-            if (message.RecipientUserId == userId && !message.IsRead)
+            if (message.RecipientUserId == userId && !message.ReadAt.HasValue)
             {
                 message.ReadAt = DateTime.UtcNow;
+                _messageRepository.Update(message);
             }
 
-            return Ok(message);
+            return Ok(MapToResponse(message));
         }
 
         [HttpPost]
@@ -75,9 +77,8 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var message = new MessageResponse
+            var message = new Message
             {
-                Id = _messages.Count + 1,
                 Subject = request.Subject,
                 Content = request.Content,
                 SenderUserId = userId,
@@ -85,9 +86,9 @@ namespace MvcBB.API.Controllers
                 CreatedAt = DateTime.UtcNow
             };
 
-            _messages.Add(message);
+            message = _messageRepository.Add(message);
 
-            return CreatedAtAction(nameof(GetMessage), new { id = message.Id }, message);
+            return CreatedAtAction(nameof(GetMessage), new { id = message.Id }, MapToResponse(message));
         }
 
         [HttpDelete("{id}")]
@@ -99,7 +100,7 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var message = _messages.FirstOrDefault(m => m.Id == id);
+            var message = _messageRepository.GetById(id);
             if (message == null)
             {
                 return NotFound(new { message = "Message not found" });
@@ -110,7 +111,7 @@ namespace MvcBB.API.Controllers
                 return Forbid();
             }
 
-            _messages.Remove(message);
+            _messageRepository.Remove(message);
             return Ok(new { message = "Message deleted successfully" });
         }
 
@@ -123,11 +124,23 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var unreadCount = _messages.Count(m => 
-                m.RecipientUserId == userId && 
-                !m.IsRead);
+            var unreadCount = _messageRepository.GetUnreadCountByRecipientUserId(userId);
 
             return Ok(new { unreadCount });
         }
+
+        private static MessageResponse MapToResponse(Message m)
+        {
+            return new MessageResponse
+            {
+                Id = m.Id,
+                Subject = m.Subject,
+                Content = m.Content,
+                SenderUserId = m.SenderUserId,
+                RecipientUserId = m.RecipientUserId,
+                CreatedAt = m.CreatedAt,
+                ReadAt = m.ReadAt
+            };
+        }
     }
-} 
+}
