@@ -34,7 +34,16 @@ namespace MvcBB.API.Services
 
         public BBCodeTagModel GetBBCodeTag(int id) => _tagRepository.GetById(id);
 
-        public void AddBBCodeTag(BBCodeTagModel model) => _tagRepository.Add(model);
+        public void AddBBCodeTag(BBCodeTagModel model)
+        {
+            // Add() returns a new object with the generated Id populated rather
+            // than necessarily mutating `model` in place (InMemoryBBCodeTagRepository
+            // happens to do the latter, but SqlBBCodeTagRepository/PostgreSqlBBCodeTagRepository
+            // construct a fresh object from the insert result) - copy it back so
+            // callers relying on this void-returning method still see model.Id set.
+            var created = _tagRepository.Add(model);
+            model.Id = created.Id;
+        }
 
         public void UpdateBBCodeTag(int id, BBCodeTagModel model)
         {
@@ -53,7 +62,13 @@ namespace MvcBB.API.Services
 
         public SmilieModel GetSmilie(int id) => _smilieRepository.GetById(id);
 
-        public void AddSmilie(SmilieModel model) => _smilieRepository.Add(model);
+        public void AddSmilie(SmilieModel model)
+        {
+            // See AddBBCodeTag for why the repository's return value needs to
+            // be copied back rather than discarded.
+            var created = _smilieRepository.Add(model);
+            model.Id = created.Id;
+        }
 
         public void UpdateSmilie(int id, SmilieModel model)
         {

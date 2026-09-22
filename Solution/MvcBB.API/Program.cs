@@ -5,15 +5,34 @@ using MvcBB.Shared.Services;
 using Microsoft.AspNetCore.Diagnostics;
 using MvcBB.Shared.Interfaces;
 using MvcBB.API.InMemory;
+using MvcBB.API.SQL;
+using MvcBB.API.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Register data layer (swap to MvcBB.API.SQL and AddSqlRepositories() for SQL Server,
-// or MvcBB.API.PostgreSql and AddPostgreSqlRepositories() for PostgreSQL)
-builder.Services.AddInMemoryRepositories();
+// Register data layer. DataProvider selects which backing store the API runs
+// against; defaults to "InMemory" (no configuration/external dependency
+// required) if unset. "Sql" needs ConnectionStrings:SqlServer and the schema
+// in Database/SQL deployed; "PostgreSql" needs ConnectionStrings:PostgreSql
+// and the schema in Database/PostGresSql deployed.
+var dataProvider = builder.Configuration["DataProvider"] ?? "InMemory";
+switch (dataProvider)
+{
+    case "Sql":
+        builder.Services.AddSqlRepositories(builder.Configuration);
+        break;
+    case "PostgreSql":
+        builder.Services.AddPostgreSqlRepositories(builder.Configuration);
+        break;
+    case "InMemory":
+        builder.Services.AddInMemoryRepositories();
+        break;
+    default:
+        throw new InvalidOperationException($"Unknown DataProvider '{dataProvider}'. Expected 'InMemory', 'Sql' or 'PostgreSql'.");
+}
 
 // Register services
 builder.Services.AddSingleton<ICoreBBCodeService, CoreBBCodeService>();
