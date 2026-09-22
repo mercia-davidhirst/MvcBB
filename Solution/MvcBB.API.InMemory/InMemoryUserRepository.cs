@@ -43,10 +43,24 @@ namespace MvcBB.API.InMemory
         public bool ExistsWithEmail(string email, int? excludeUserId = null) =>
             _store.Users.Any(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase) && u.Id != excludeUserId);
 
-        public int CountPostsByUsername(string username) =>
-            _store.Posts.Count(p => p.CreatedByUserId == username);
+        public int CountPostsByUsername(string username)
+        {
+            var user = GetByUsername(username);
+            if (user == null)
+                return 0;
 
-        public int CountThreadsByUsername(string username) =>
-            _store.Threads.Count(t => t.CreatedByUserId == username);
+            var userId = user.Id.ToString();
+            return _store.Posts.Count(p => p.CreatedByUserId == userId && !p.IsDeleted);
+        }
+
+        public int CountThreadsByUsername(string username)
+        {
+            var user = GetByUsername(username);
+            if (user == null)
+                return 0;
+
+            var userId = user.Id.ToString();
+            return _store.Threads.Count(t => t.CreatedByUserId == userId);
+        }
     }
 }

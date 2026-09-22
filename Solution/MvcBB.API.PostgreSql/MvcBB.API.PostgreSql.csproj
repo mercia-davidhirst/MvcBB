@@ -4,14 +4,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>MvcBB.API.SQL</RootNamespace>
+    <RootNamespace>MvcBB.API.PostgreSql</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
-    <!-- Add EF Core or Dapper when implementing:
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.x" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.x" />
+    <!-- Add Npgsql when implementing:
+    <PackageReference Include="Npgsql" Version="9.0.x" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.x" />
     -->
   </ItemGroup>
 

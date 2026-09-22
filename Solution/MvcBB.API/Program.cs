@@ -11,7 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Register data layer (swap to MvcBB.API.SQL and AddSqlRepositories() for SQL)
+// Register data layer (swap to MvcBB.API.SQL and AddSqlRepositories() for SQL Server,
+// or MvcBB.API.PostgreSql and AddPostgreSqlRepositories() for PostgreSQL)
 builder.Services.AddInMemoryRepositories();
 
 // Register services
