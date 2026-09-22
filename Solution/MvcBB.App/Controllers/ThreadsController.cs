@@ -12,15 +12,18 @@ namespace MvcBB.App.Controllers
     {
         private readonly IThreadService _threadService;
         private readonly IBoardService _boardService;
+        private readonly IMvcBBCodeService _bbCodeService;
         private readonly ILogger<ThreadsController> _logger;
 
         public ThreadsController(
-            IThreadService threadService, 
+            IThreadService threadService,
             IBoardService boardService,
+            IMvcBBCodeService bbCodeService,
             ILogger<ThreadsController> logger)
         {
             _threadService = threadService;
             _boardService = boardService;
+            _bbCodeService = bbCodeService;
             _logger = logger;
         }
 
@@ -30,8 +33,9 @@ namespace MvcBB.App.Controllers
             {
                 var thread = await _threadService.GetThreadAsync(id);
                 var posts = await _threadService.GetThreadPostsAsync(id);
-                
+
                 ViewData["Posts"] = posts;
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
                 return View(thread);
             }
             catch (ServiceException ex)
@@ -49,9 +53,10 @@ namespace MvcBB.App.Controllers
             {
                 var thread = await _threadService.GetThreadAsync(threadId);
                 var quotedPost = await _threadService.GetPostAsync(postId);
-                
+
                 ViewData["QuotedPost"] = quotedPost;
                 ViewData["ThreadTitle"] = thread.Title;
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
                 return View("Reply");
             }
             catch (ServiceException ex)

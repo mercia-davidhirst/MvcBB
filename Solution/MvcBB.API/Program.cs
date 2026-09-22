@@ -17,6 +17,7 @@ builder.Services.AddInMemoryRepositories();
 
 // Register services
 builder.Services.AddSingleton<ICoreBBCodeService, CoreBBCodeService>();
+builder.Services.AddScoped<IBBCodeManagementService, MvcBB.API.Services.BBCodeManagementService>();
 builder.Services.AddSingleton<MvcBB.API.Services.IDisplaySettingsService, MvcBB.API.Services.DisplaySettingsService>();
 
 // Configure JWT Authentication
@@ -46,12 +47,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure CORS
+// Configure CORS.
+// This is a distinct concern from the "AllowedHosts" setting below: AllowedHosts
+// controls ASP.NET Core's built-in Host-header filtering (a bare pattern like
+// "*" or "localhost"), while CORS needs full origin URLs (scheme + host + port)
+// for the MVC app(s) allowed to call this API from the browser.
+var corsAllowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (corsAllowedOrigins == null || corsAllowedOrigins.Length == 0)
+    throw new InvalidOperationException("Cors:AllowedOrigins is not configured");
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowMvcApp", policy =>
     {
-        policy.WithOrigins(builder.Configuration["AllowedHosts"])
+        policy.WithOrigins(corsAllowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader();
     });

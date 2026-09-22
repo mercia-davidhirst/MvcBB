@@ -18,7 +18,7 @@ public class PostService : IPostService
     private readonly HttpClient _httpClient;
     private readonly IAuthService _authService;
     private readonly IConfiguration _configuration;
-    private readonly IBBCodeManagementService _bbCodeService;
+    private readonly IBBCodeService _bbCodeService;
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -28,7 +28,7 @@ public class PostService : IPostService
         IHttpClientFactory httpClientFactory,
         IAuthService authService,
         IConfiguration configuration,
-        IBBCodeManagementService bbCodeService)
+        IBBCodeService bbCodeService)
     {
         _httpClient = httpClientFactory.CreateClient("MvcBBApi");
         _authService = authService;

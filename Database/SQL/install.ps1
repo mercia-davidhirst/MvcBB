@@ -1,14 +1,16 @@
 <#
 .SYNOPSIS
     Deploys the MvcBB SQL Server schema (Database/SQL) in dependency order:
-    Tables -> Functions -> Views -> Stored Procedures.
+    Tables -> Functions -> Views -> Stored Procedures -> Seed Data.
 
 .DESCRIPTION
     Runs every .sql script under this folder through sqlcmd, in the order
     required by their DROP/CREATE dependencies (a table must exist before a
     view or function can reference it, a function must exist before a view
     or procedure calls it, etc). Each script already contains its own
-    "DROP ... IF EXISTS" header, so this is safe to re-run.
+    "DROP ... IF EXISTS" header, so this is safe to re-run. Seed Data scripts
+    only insert when their target table is empty, so re-running won't
+    resurrect rows an admin has since edited or deleted.
 
 .PARAMETER ServerInstance
     SQL Server instance to connect to, e.g. "localhost" or ".\SQLEXPRESS".
@@ -113,6 +115,11 @@ try {
 
     Write-Host "`n4) Stored Procedures"
     Get-ChildItem -Path (Join-Path $root "Stored Procedures") -Filter *.sql | Sort-Object Name | ForEach-Object {
+        Invoke-SqlFile -Path $_.FullName -TargetDatabase $Database
+    }
+
+    Write-Host "`n5) Seed Data"
+    Get-ChildItem -Path (Join-Path $root "Seed Data") -Filter *.sql | Sort-Object Name | ForEach-Object {
         Invoke-SqlFile -Path $_.FullName -TargetDatabase $Database
     }
 

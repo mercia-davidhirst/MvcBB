@@ -55,11 +55,15 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add BBCode services
-builder.Services.AddSingleton<ICoreBBCodeService, CoreBBCodeService>();
-builder.Services.AddSingleton<IMvcBBCodeService, BBCodeService>();
-builder.Services.AddSingleton<IBBCodeService>(sp => sp.GetRequiredService<IMvcBBCodeService>());
-builder.Services.AddSingleton<IBBCodeManagementService>(sp => sp.GetRequiredService<IMvcBBCodeService>());
+// Add BBCode services.
+// Parse/strip/validate are stateless and stay local (CoreBBCodeService implements
+// IBBCodeService directly, so both interfaces resolve to the same instance).
+// Tag/smilie management now lives behind MvcBB.API's repository layer, so
+// IMvcBBCodeService is an HTTP client instead of an in-memory store.
+builder.Services.AddSingleton<CoreBBCodeService>();
+builder.Services.AddSingleton<ICoreBBCodeService>(sp => sp.GetRequiredService<CoreBBCodeService>());
+builder.Services.AddSingleton<IBBCodeService>(sp => sp.GetRequiredService<CoreBBCodeService>());
+builder.Services.AddScoped<IMvcBBCodeService, BBCodeService>();
 
 // Register API services
 builder.Services.AddScoped<IAuthService, AuthService>();

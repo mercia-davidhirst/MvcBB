@@ -5,6 +5,7 @@
     ViewData["Title"] = "Reply to Thread";
     var quotedPost = ViewData["QuotedPost"] as Post;
     var threadTitle = ViewData["ThreadTitle"] as string;
+    var smilies = ViewData["Smilies"] as Dictionary<string, string>;
 }
 
 <div class="container mt-4">
@@ -40,7 +41,7 @@
                 }
                 <div class="form-group">
                     <label for="Content">Your Reply</label>
-                    <partial name="_BBCodeToolbar" />
+                    <partial name="_BBCodeToolbar" model="smilies" />
                     <textarea name="Content" id="Content" class="form-control" rows="10" required 
                               oninput="updatePreview()"></textarea>
                     

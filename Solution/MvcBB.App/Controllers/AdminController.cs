@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
-using MvcBB.Shared.Interfaces;
 using MvcBB.Shared.Models.BBCode;
 using MvcBB.Shared.Models.Settings;
 
@@ -11,11 +10,11 @@ namespace MvcBB.App.Controllers
     [Authorize(Policy = "RequireAdmin")]
     public class AdminController : Controller
     {
-        private readonly IBBCodeManagementService _bbCodeService;
+        private readonly IMvcBBCodeService _bbCodeService;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly ISettingsService _settingsService;
 
-        public AdminController(IBBCodeManagementService bbCodeService, IWebHostEnvironment webHostEnvironment, ISettingsService settingsService)
+        public AdminController(IMvcBBCodeService bbCodeService, IWebHostEnvironment webHostEnvironment, ISettingsService settingsService)
         {
             _bbCodeService = bbCodeService;
             _webHostEnvironment = webHostEnvironment;
@@ -27,9 +26,9 @@ namespace MvcBB.App.Controllers
             return View();
         }
 
-        public IActionResult BBCode()
+        public async Task<IActionResult> BBCode()
         {
-            var tags = _bbCodeService.GetBBCodeTags();
+            var tags = await _bbCodeService.GetBBCodeTagsAsync();
             return View(tags);
         }
 
@@ -40,7 +39,7 @@ namespace MvcBB.App.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult AddBBCode(BBCodeTagModel model)
+        public async Task<IActionResult> AddBBCode(BBCodeTagModel model)
         {
             if (!ModelState.IsValid)
             {
@@ -49,7 +48,7 @@ namespace MvcBB.App.Controllers
 
             try
             {
-                _bbCodeService.AddBBCodeTag(model);
+                await _bbCodeService.AddBBCodeTagAsync(model);
                 TempData["Success"] = "BBCode tag added successfully.";
                 return RedirectToAction(nameof(BBCode));
             }
@@ -60,9 +59,9 @@ namespace MvcBB.App.Controllers
             }
         }
 
-        public IActionResult EditBBCode(int id)
+        public async Task<IActionResult> EditBBCode(int id)
         {
-            var tag = _bbCodeService.GetBBCodeTag(id);
+            var tag = await _bbCodeService.GetBBCodeTagAsync(id);
             if (tag == null)
             {
                 return NotFound();
@@ -72,7 +71,7 @@ namespace MvcBB.App.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult EditBBCode(int id, BBCodeTagModel model)
+        public async Task<IActionResult> EditBBCode(int id, BBCodeTagModel model)
         {
             if (!ModelState.IsValid)
             {
@@ -81,7 +80,7 @@ namespace MvcBB.App.Controllers
 
             try
             {
-                _bbCodeService.UpdateBBCodeTag(id, model);
+                await _bbCodeService.UpdateBBCodeTagAsync(id, model);
                 TempData["Success"] = "BBCode tag updated successfully.";
                 return RedirectToAction(nameof(BBCode));
             }
@@ -94,11 +93,11 @@ namespace MvcBB.App.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult DeleteBBCode(int id)
+        public async Task<IActionResult> DeleteBBCode(int id)
         {
             try
             {
-                _bbCodeService.DeleteBBCodeTag(id);
+                await _bbCodeService.DeleteBBCodeTagAsync(id);
                 TempData["Success"] = "BBCode tag deleted successfully.";
             }
             catch (Exception ex)
@@ -108,9 +107,9 @@ namespace MvcBB.App.Controllers
             return RedirectToAction(nameof(BBCode));
         }
 
-        public IActionResult Smilies()
+        public async Task<IActionResult> Smilies()
         {
-            var smilies = _bbCodeService.GetSmilies();
+            var smilies = await _bbCodeService.GetSmiliesAsync();
             return View(smilies);
         }
 
@@ -147,7 +146,7 @@ namespace MvcBB.App.Controllers
                     model.ImagePath = $"/images/smilies/{uniqueFileName}";
                 }
 
-                _bbCodeService.AddSmilie(model);
+                await _bbCodeService.AddSmilieAsync(model);
                 TempData["Success"] = "Smilie added successfully.";
                 return RedirectToAction(nameof(Smilies));
             }
@@ -158,9 +157,9 @@ namespace MvcBB.App.Controllers
             }
         }
 
-        public IActionResult EditSmilie(int id)
+        public async Task<IActionResult> EditSmilie(int id)
         {
-            var smilie = _bbCodeService.GetSmilie(id);
+            var smilie = await _bbCodeService.GetSmilieAsync(id);
             if (smilie == null)
             {
                 return NotFound();
@@ -191,7 +190,7 @@ namespace MvcBB.App.Controllers
                 if (model.ImageFile != null)
                 {
                     // Delete old image if it exists
-                    var oldSmilie = _bbCodeService.GetSmilie(id);
+                    var oldSmilie = await _bbCodeService.GetSmilieAsync(id);
                     if (oldSmilie != null && !string.IsNullOrEmpty(oldSmilie.ImagePath))
                     {
                         var oldFilePath = Path.Combine(_webHostEnvironment.WebRootPath, oldSmilie.ImagePath.TrimStart('/'));
@@ -216,7 +215,7 @@ namespace MvcBB.App.Controllers
                     model.ImagePath = $"/images/smilies/{uniqueFileName}";
                 }
 
-                _bbCodeService.UpdateSmilie(id, model);
+                await _bbCodeService.UpdateSmilieAsync(id, model);
                 TempData["Success"] = "Smilie updated successfully.";
                 return RedirectToAction(nameof(Smilies));
             }
@@ -229,11 +228,11 @@ namespace MvcBB.App.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult DeleteSmilie(int id)
+        public async Task<IActionResult> DeleteSmilie(int id)
         {
             try
             {
-                var smilie = _bbCodeService.GetSmilie(id);
+                var smilie = await _bbCodeService.GetSmilieAsync(id);
                 if (smilie != null && !string.IsNullOrEmpty(smilie.ImagePath))
                 {
                     var filePath = Path.Combine(_webHostEnvironment.WebRootPath, smilie.ImagePath.TrimStart('/'));
@@ -243,7 +242,7 @@ namespace MvcBB.App.Controllers
                     }
                 }
 
-                _bbCodeService.DeleteSmilie(id);
+                await _bbCodeService.DeleteSmilieAsync(id);
                 TempData["Success"] = "Smilie deleted successfully.";
             }
             catch (Exception ex)

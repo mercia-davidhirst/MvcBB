@@ -3,7 +3,12 @@ using MvcBB.Shared.Interfaces;
 
 namespace MvcBB.Shared.Services
 {
-    public class CoreBBCodeService : ICoreBBCodeService
+    /// <summary>
+    /// Implements IBBCodeService (not just ICoreBBCodeService) so a single
+    /// instance can satisfy either interface without a wrapper - MvcBB.App
+    /// injects it directly as IBBCodeService in views for parse/strip/validate.
+    /// </summary>
+    public class CoreBBCodeService : IBBCodeService
     {
         private static readonly Regex BBCodePattern = new(@"\[([^\]]+)\]([^\[]*)\[/\1\]", RegexOptions.Compiled);
         private static readonly Regex BBCodeStripPattern = new(@"\[.*?\]", RegexOptions.Compiled);

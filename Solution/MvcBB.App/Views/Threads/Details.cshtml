@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = Model.Title;
     var posts = (IEnumerable<PostResponse>)ViewData["Posts"];
+    var smilies = ViewData["Smilies"] as Dictionary<string, string>;
 }
 
 <div class="container mt-4">
@@ -99,7 +100,7 @@
                 <form asp-action="CreatePost" asp-route-threadId="@Model.Id" method="post">
                     @Html.AntiForgeryToken()
                     <div class="form-group">
-                        <partial name="_BBCodeToolbar" />
+                        <partial name="_BBCodeToolbar" model="smilies" />
                         <textarea name="Content" id="Content" class="form-control" rows="5" required 
                                   oninput="updatePreview()"></textarea>
                         

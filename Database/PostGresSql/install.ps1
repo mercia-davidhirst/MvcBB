@@ -2,13 +2,14 @@
 .SYNOPSIS
     Deploys the MvcBB PostgreSQL schema (Database/PostGresSql) in dependency
     order: Tables -> helper Functions -> Views -> remaining Functions ->
-    Stored Procedures.
+    Stored Procedures -> Seed Data.
 
 .DESCRIPTION
     Runs every .sql script under this folder through psql, in the order
     required by their DROP/CREATE dependencies:
-      1. Tables (00_extensions.sql enables citext, then 01-06 create tables
-         in FK order).
+      1. Tables (00_extensions.sql enables citext, then 01-06 create the
+         forum tables in FK order, 07-08 create the standalone BBCode tag /
+         smilie tables).
       2. fn_role_name and fn_report_content_exists - helper functions that
          vw_post_details and sp_report_insert depend on, so they must exist
          before step 3.
@@ -17,6 +18,9 @@
       4. The remaining Functions, including the fn_post_* ones which query
          the view created in step 3.
       5. Stored Procedures.
+      6. Seed Data - only inserts when its target table is empty, so
+         re-running won't resurrect rows an admin has since edited or
+         deleted.
     Each script already contains its own "DROP ... IF EXISTS" header, so this
     is safe to re-run.
 
@@ -132,6 +136,11 @@ try {
 
     Write-Host "`n5) Stored Procedures"
     Get-ChildItem -Path (Join-Path $root "Stored Procedures") -Filter *.sql | Sort-Object Name | ForEach-Object {
+        Invoke-SqlFile -Path $_.FullName -TargetDatabase $Database
+    }
+
+    Write-Host "`n6) Seed Data"
+    Get-ChildItem -Path (Join-Path $root "Seed Data") -Filter *.sql | Sort-Object Name | ForEach-Object {
         Invoke-SqlFile -Path $_.FullName -TargetDatabase $Database
     }
 

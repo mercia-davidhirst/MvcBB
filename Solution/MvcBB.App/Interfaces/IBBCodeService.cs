@@ -1,19 +1,31 @@
-using MvcBB.Shared.Interfaces;
+using MvcBB.Shared.Models.BBCode;
 
 namespace MvcBB.App.Interfaces
 {
     /// <summary>
-    /// MVC application-specific BBCode service interface.
-    /// Inherits all BBCode functionality from IBBCodeManagementService.
-    /// This interface exists to provide a clear dependency for MVC components
-    /// and to allow for future MVC-specific extensions if needed.
+    /// Async client for the BBCode tag/smilie management endpoints on MvcBB.API.
+    /// Parsing/stripping/validating BBCode is unrelated to this - those stay
+    /// synchronous and local via MvcBB.Shared.Interfaces.IBBCodeService
+    /// (injected directly where needed), since they don't touch persisted data.
     /// </summary>
-    public interface IMvcBBCodeService : IBBCodeManagementService
+    public interface IMvcBBCodeService
     {
+        Task<IEnumerable<BBCodeTagModel>> GetBBCodeTagsAsync();
+        Task<BBCodeTagModel?> GetBBCodeTagAsync(int id);
+        Task AddBBCodeTagAsync(BBCodeTagModel model);
+        Task UpdateBBCodeTagAsync(int id, BBCodeTagModel model);
+        Task DeleteBBCodeTagAsync(int id);
+
+        Task<IEnumerable<SmilieModel>> GetSmiliesAsync();
+        Task<SmilieModel?> GetSmilieAsync(int id);
+        Task AddSmilieAsync(SmilieModel model);
+        Task UpdateSmilieAsync(int id, SmilieModel model);
+        Task DeleteSmilieAsync(int id);
+
         /// <summary>
-        /// Gets a dictionary of available smilies where the key is the smilie code
-        /// and the value is the HTML representation
+        /// Gets a dictionary of active smilies where the key is the smilie code
+        /// and the value is the HTML representation, ordered by SortOrder.
         /// </summary>
-        Dictionary<string, string> GetAvailableSmilies();
+        Task<Dictionary<string, string>> GetAvailableSmiliesAsync();
     }
-} 
+}
