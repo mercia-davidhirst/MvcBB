@@ -48,6 +48,8 @@ namespace MvcBB.API.Controllers
                 Name = request.Name,
                 Description = request.Description,
                 SortOrder = request.SortOrder,
+                ParentId = request.ParentId,
+                IsCategory = request.IsCategory,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
             };
@@ -76,6 +78,8 @@ namespace MvcBB.API.Controllers
             board.Description = request.Description;
             board.SortOrder = request.SortOrder;
             board.IsActive = request.IsActive;
+            board.ParentId = request.ParentId;
+            board.IsCategory = request.IsCategory;
             board.UpdatedAt = DateTime.UtcNow;
             _boardRepository.Update(board);
 

@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using MvcBB.Shared.Models.User;
 using MvcBB.Shared.Models.Member;
 using MvcBB.Shared.Models.Common;
 using MvcBB.Shared.Interfaces;
+using MvcBB.API.Services;
 
 namespace MvcBB.API.Controllers
 {
@@ -17,16 +19,29 @@ namespace MvcBB.API.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly IUserRepository _userRepository;
+        private readonly IPasswordResetTokenRepository _passwordResetTokenRepository;
+        private readonly IEmailSender _emailSender;
 
-        public UsersController(IConfiguration configuration, IUserRepository userRepository)
+        public UsersController(
+            IConfiguration configuration,
+            IUserRepository userRepository,
+            IPasswordResetTokenRepository passwordResetTokenRepository,
+            IEmailSender emailSender)
         {
             _configuration = configuration;
             _userRepository = userRepository;
+            _passwordResetTokenRepository = passwordResetTokenRepository;
+            _emailSender = emailSender;
         }
 
         private static string HashPassword(string password)
         {
             return BCrypt.Net.BCrypt.HashPassword(password, BCrypt.Net.BCrypt.GenerateSalt(12));
+        }
+
+        private static string HashToken(string token)
+        {
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
         }
 
         private static bool VerifyPassword(string password, string hashedPassword)
@@ -144,6 +159,69 @@ namespace MvcBB.API.Controllers
                 },
                 ExpiresAt = expiresAt
             };
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<ActionResult> ForgotPassword(ForgotPasswordRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var user = _userRepository.GetByEmail(request.Email);
+
+            // Always respond the same way regardless of whether the email
+            // matched an account, to avoid leaking which emails are registered.
+            if (user != null && user.Role != UserRole.Deleted)
+            {
+                var rawToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+                var expirationMinutes = _configuration.GetValue<int?>("PasswordReset:TokenExpirationMinutes") ?? 60;
+
+                _passwordResetTokenRepository.Add(new PasswordResetToken
+                {
+                    UserId = user.Id,
+                    TokenHash = HashToken(rawToken),
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes)
+                });
+
+                var appBaseUrl = _configuration["App:BaseUrl"]?.TrimEnd('/') ?? string.Empty;
+                var resetLink = $"{appBaseUrl}/Account/ResetPassword?token={rawToken}";
+
+                await _emailSender.SendAsync(
+                    user.Email,
+                    "Reset your MvcBB password",
+                    $"Click the link below to reset your password. This link expires in {expirationMinutes} minutes.\n\n{resetLink}\n\nIf you didn't request this, you can ignore this email.");
+            }
+
+            return Ok(new { message = "If that email is registered, a password reset link has been sent." });
+        }
+
+        [HttpPost("reset-password")]
+        public ActionResult ResetPassword(ResetPasswordRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var token = _passwordResetTokenRepository.GetByTokenHash(HashToken(request.Token));
+            if (token == null || token.UsedAt != null || token.ExpiresAt < DateTime.UtcNow)
+            {
+                return BadRequest(new { message = "This reset link is invalid or has expired." });
+            }
+
+            var user = _userRepository.GetById(token.UserId);
+            if (user == null || user.Role == UserRole.Deleted)
+            {
+                return BadRequest(new { message = "This reset link is invalid or has expired." });
+            }
+
+            user.PasswordHash = HashPassword(request.NewPassword);
+            _userRepository.Update(user);
+            _passwordResetTokenRepository.MarkUsed(token.Id);
+
+            return Ok(new { message = "Password reset successfully." });
         }
 
         [HttpGet]
@@ -330,6 +408,46 @@ namespace MvcBB.API.Controllers
             user.Role = request.NewRole;
             _userRepository.Update(user);
             return Ok(new { message = "User role updated successfully" });
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpPost("{id}/anonymize")]
+        public ActionResult Anonymize(int id)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (user.Id == currentUserId)
+            {
+                return BadRequest(new { message = "Cannot anonymize your own account" });
+            }
+
+            if (user.Role == UserRole.Deleted)
+            {
+                return BadRequest(new { message = "User is already deleted" });
+            }
+
+            // Overwrite the identifying fields with deterministic placeholders
+            // (deterministic so Username/Email still satisfy their unique
+            // constraints) rather than deleting the row, so existing posts/
+            // threads/messages keep a valid author and show the generic name
+            // via the same joins/mappings used for every other user - no
+            // separate redaction logic needed anywhere else.
+            user.Username = $"DeletedUser{user.Id}";
+            user.Email = $"deleted+{user.Id}@deleted.local";
+            user.PasswordHash = HashPassword(Guid.NewGuid().ToString("N"));
+            user.Signature = null;
+            user.Bio = null;
+            user.AvatarUrl = null;
+            user.ShowEmail = false;
+            user.Role = UserRole.Deleted;
+            _userRepository.Update(user);
+
+            return Ok(new { message = "User anonymized successfully" });
         }
 
         private UserResponse MapToUserResponse(User u, bool includeEmail = false)

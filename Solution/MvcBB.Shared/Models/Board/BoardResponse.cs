@@ -7,6 +7,8 @@ namespace MvcBB.Shared.Models.Board
         public string Description { get; set; } = string.Empty;
         public int SortOrder { get; set; }
         public bool IsActive { get; set; }
+        public int? ParentId { get; set; }
+        public bool IsCategory { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public int ThreadCount { get; set; }

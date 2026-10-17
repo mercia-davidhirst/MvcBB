@@ -21,6 +21,7 @@ namespace MvcBB.API.InMemory
         public List<Report> Reports { get; } = new();
         public List<BBCodeTagModel> BBCodeTags { get; } = new();
         public List<SmilieModel> Smilies { get; } = new();
+        public List<PasswordResetToken> PasswordResetTokens { get; } = new();
 
         public InMemoryStore()
         {

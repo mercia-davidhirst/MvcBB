@@ -13,5 +13,9 @@ namespace MvcBB.Shared.Models.Board
 
         [Range(0, int.MaxValue, ErrorMessage = "Sort order must be a non-negative number")]
         public int SortOrder { get; set; }
+
+        public int? ParentId { get; set; }
+
+        public bool IsCategory { get; set; }
     }
 }

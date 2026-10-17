@@ -90,8 +90,9 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="badge bg-@(member.Role == UserRole.Administrator ? "danger" : 
-                                                              member.Role == UserRole.Moderator ? "warning" : "primary")">
+                                        <span class="badge bg-@(member.Role == UserRole.Administrator ? "danger" :
+                                                              member.Role == UserRole.Moderator ? "warning" :
+                                                              member.Role == UserRole.Deleted ? "secondary" : "primary")">
                                             @member.Role.ToString()
                                         </span>
                                     </td>

@@ -15,5 +15,9 @@ namespace MvcBB.Shared.Models.Board
         public int SortOrder { get; set; }
 
         public bool IsActive { get; set; }
+
+        public int? ParentId { get; set; }
+
+        public bool IsCategory { get; set; }
     }
 }

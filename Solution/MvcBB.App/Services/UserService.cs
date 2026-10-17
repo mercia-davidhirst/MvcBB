@@ -172,5 +172,32 @@ namespace MvcBB.App.Services
             var response = await _httpClient.PostAsync($"api/users/update-role", content);
             response.EnsureSuccessStatusCode();
         }
+
+        public async Task AnonymizeUserAsync(int userId)
+        {
+            var token = await GetTokenAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _httpClient.PostAsync($"api/users/{userId}/anonymize", null);
+            response.EnsureSuccessStatusCode();
+        }
+
+        public async Task ForgotPasswordAsync(ForgotPasswordRequest request)
+        {
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync("api/users/forgot-password", content);
+            response.EnsureSuccessStatusCode();
+        }
+
+        public async Task ResetPasswordAsync(ResetPasswordRequest request)
+        {
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync("api/users/reset-password", content);
+            response.EnsureSuccessStatusCode();
+        }
     }
 } 

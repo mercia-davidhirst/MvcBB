@@ -6,6 +6,9 @@
         by the application layer (see ThreadsController.CreateThread /
         DeleteThread, which read-modify-write these fields directly), not by
         database triggers, so they are plain columns here.
+      - ParentId is a self-referencing FK supporting WBB-style nested board
+        categories (arbitrary depth); NULL means a top-level board. IsCategory
+        marks a pure organizational header with no threads of its own.
 */
 
 DECLARE @sql NVARCHAR(MAX) = N'';
@@ -29,6 +32,8 @@ CREATE TABLE dbo.Boards
     Description         NVARCHAR(500)      NOT NULL CONSTRAINT DF_Boards_Description DEFAULT (N''),
     SortOrder           INT                NOT NULL CONSTRAINT DF_Boards_SortOrder DEFAULT (0),
     IsActive            BIT                NOT NULL CONSTRAINT DF_Boards_IsActive DEFAULT (1),
+    ParentId            INT                NULL,
+    IsCategory          BIT                NOT NULL CONSTRAINT DF_Boards_IsCategory DEFAULT (0),
     CreatedAt           DATETIME2(3)       NOT NULL CONSTRAINT DF_Boards_CreatedAt DEFAULT (SYSUTCDATETIME()),
     UpdatedAt           DATETIME2(3)       NULL,
     ThreadCount         INT                NOT NULL CONSTRAINT DF_Boards_ThreadCount DEFAULT (0),
@@ -36,9 +41,13 @@ CREATE TABLE dbo.Boards
     LastPostByUserId    INT                NULL,
     LastPostAt          DATETIME2(3)       NULL,
     CONSTRAINT PK_Boards PRIMARY KEY CLUSTERED (Id),
-    CONSTRAINT FK_Boards_LastPostByUser FOREIGN KEY (LastPostByUserId) REFERENCES dbo.Users (Id)
+    CONSTRAINT FK_Boards_LastPostByUser FOREIGN KEY (LastPostByUserId) REFERENCES dbo.Users (Id),
+    CONSTRAINT FK_Boards_Parent FOREIGN KEY (ParentId) REFERENCES dbo.Boards (Id)
 );
 GO
 
 CREATE NONCLUSTERED INDEX IX_Boards_SortOrder ON dbo.Boards (SortOrder);
+GO
+
+CREATE NONCLUSTERED INDEX IX_Boards_ParentId ON dbo.Boards (ParentId);
 GO

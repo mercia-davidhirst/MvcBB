@@ -17,6 +17,7 @@ AS $$
         WHEN 0 THEN 'User'
         WHEN 1 THEN 'Moderator'
         WHEN 2 THEN 'Administrator'
+        WHEN 3 THEN 'Deleted'
         ELSE NULL
     END;
 $$;

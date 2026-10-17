@@ -17,6 +17,7 @@ BEGIN
         WHEN 0 THEN N'User'
         WHEN 1 THEN N'Moderator'
         WHEN 2 THEN N'Administrator'
+        WHEN 3 THEN N'Deleted'
         ELSE NULL
     END;
 END;

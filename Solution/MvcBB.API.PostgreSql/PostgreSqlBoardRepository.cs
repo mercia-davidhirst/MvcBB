@@ -35,13 +35,15 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             var newId = connection.QuerySingle<int>(
-                "CALL public.sp_board_insert(@Name, @Description, @SortOrder, @IsActive, @ThreadCount, @PostCount, @LastPostByUserId, @LastPostAt, NULL)",
+                "CALL public.sp_board_insert(@Name, @Description, @SortOrder, @IsActive, @ParentId, @IsCategory, @ThreadCount, @PostCount, @LastPostByUserId, @LastPostAt, NULL)",
                 new
                 {
                     board.Name,
                     board.Description,
                     board.SortOrder,
                     board.IsActive,
+                    board.ParentId,
+                    board.IsCategory,
                     board.ThreadCount,
                     board.PostCount,
                     LastPostByUserId = ParseUserId(board.LastPostByUserId),
@@ -56,7 +58,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             connection.Execute(
-                "CALL public.sp_board_update(@Id, @Name, @Description, @SortOrder, @IsActive, @ThreadCount, @PostCount, @LastPostByUserId, @LastPostAt)",
+                "CALL public.sp_board_update(@Id, @Name, @Description, @SortOrder, @IsActive, @ParentId, @IsCategory, @ThreadCount, @PostCount, @LastPostByUserId, @LastPostAt)",
                 new
                 {
                     board.Id,
@@ -64,6 +66,8 @@ namespace MvcBB.API.PostgreSql
                     board.Description,
                     board.SortOrder,
                     board.IsActive,
+                    board.ParentId,
+                    board.IsCategory,
                     board.ThreadCount,
                     board.PostCount,
                     LastPostByUserId = ParseUserId(board.LastPostByUserId),
@@ -86,6 +90,8 @@ namespace MvcBB.API.PostgreSql
             Description = row.Description,
             SortOrder = row.SortOrder,
             IsActive = row.IsActive,
+            ParentId = row.ParentId,
+            IsCategory = row.IsCategory,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt,
             ThreadCount = row.ThreadCount,
@@ -107,6 +113,8 @@ namespace MvcBB.API.PostgreSql
             public string Description { get; set; } = string.Empty;
             public int SortOrder { get; set; }
             public bool IsActive { get; set; }
+            public int? ParentId { get; set; }
+            public bool IsCategory { get; set; }
             public DateTime CreatedAt { get; set; }
             public DateTime? UpdatedAt { get; set; }
             public int ThreadCount { get; set; }

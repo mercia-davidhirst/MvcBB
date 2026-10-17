@@ -48,8 +48,9 @@ namespace MvcBB.App.Controllers
         }
 
         [Authorize(Policy = "ManageBoards")]
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
+            ViewData["Boards"] = await _boardService.GetBoardsAsync();
             return View();
         }
 
@@ -60,6 +61,7 @@ namespace MvcBB.App.Controllers
         {
             if (!ModelState.IsValid)
             {
+                ViewData["Boards"] = await _boardService.GetBoardsAsync();
                 return View(request);
             }
 
@@ -85,8 +87,13 @@ namespace MvcBB.App.Controllers
                 var updateRequest = new UpdateBoardRequest
                 {
                     Name = board.Name,
-                    Description = board.Description
+                    Description = board.Description,
+                    SortOrder = board.SortOrder,
+                    IsActive = board.IsActive,
+                    ParentId = board.ParentId,
+                    IsCategory = board.IsCategory
                 };
+                ViewData["Boards"] = (await _boardService.GetBoardsAsync()).Where(b => b.Id != id);
                 return View(updateRequest);
             }
             catch (Exception ex)
@@ -103,6 +110,7 @@ namespace MvcBB.App.Controllers
         {
             if (!ModelState.IsValid)
             {
+                ViewData["Boards"] = (await _boardService.GetBoardsAsync()).Where(b => b.Id != id);
                 return View(request);
             }
 

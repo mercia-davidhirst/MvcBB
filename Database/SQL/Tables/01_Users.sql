@@ -13,7 +13,10 @@
         usp_User_CountThreadsByUsername), so storing running totals would just
         be a duplicate of derivable data.
       - Role mirrors MvcBB.Shared.Models.User.UserRole: 0 = User, 1 = Moderator,
-        2 = Administrator.
+        2 = Administrator, 3 = Deleted. A Deleted row has had Username/Email/
+        PasswordHash/Signature/Bio/AvatarUrl overwritten with generic
+        placeholders by UsersController's Anonymize action (via the ordinary
+        usp_User_Update), not by a dedicated procedure.
 */
 
 -- Drop any foreign keys pointing at this table first so the table can be
@@ -48,6 +51,6 @@ CREATE TABLE dbo.Users
     CONSTRAINT PK_Users PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT UQ_Users_Username UNIQUE (Username),
     CONSTRAINT UQ_Users_Email UNIQUE (Email),
-    CONSTRAINT CK_Users_Role CHECK (Role IN (0, 1, 2))
+    CONSTRAINT CK_Users_Role CHECK (Role IN (0, 1, 2, 3))
 );
 GO

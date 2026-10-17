@@ -11,7 +11,10 @@
         fn_user_count_threads_by_username), so a running total would just
         duplicate derivable data.
       - role mirrors MvcBB.Shared.Models.User.UserRole: 0 = User,
-        1 = Moderator, 2 = Administrator.
+        1 = Moderator, 2 = Administrator, 3 = Deleted. A Deleted row has had
+        username/email/password_hash/signature/bio/avatar_url overwritten with
+        generic placeholders by UsersController's Anonymize action (via the
+        ordinary sp_user_update), not by a dedicated procedure.
       - CASCADE on the drop removes any dependent foreign keys/views so this
         script can be re-run standalone regardless of deployment order.
 */
@@ -33,5 +36,5 @@ CREATE TABLE public.users
     show_email      BOOLEAN         NOT NULL DEFAULT FALSE,
     CONSTRAINT uq_users_username UNIQUE (username),
     CONSTRAINT uq_users_email UNIQUE (email),
-    CONSTRAINT ck_users_role CHECK (role IN (0, 1, 2))
+    CONSTRAINT ck_users_role CHECK (role IN (0, 1, 2, 3))
 );

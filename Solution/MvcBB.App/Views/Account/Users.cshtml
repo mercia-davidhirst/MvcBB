@@ -42,8 +42,9 @@
                         <td>@user.Username</td>
                         <td>@user.Email</td>
                         <td>
-                            <span class="badge bg-@(user.Role == UserRole.Administrator ? "danger" : 
-                                                  user.Role == UserRole.Moderator ? "warning" : "primary")">
+                            <span class="badge bg-@(user.Role == UserRole.Administrator ? "danger" :
+                                                  user.Role == UserRole.Moderator ? "warning" :
+                                                  user.Role == UserRole.Deleted ? "secondary" : "primary")">
                                 @user.RoleName
                             </span>
                         </td>
@@ -56,30 +57,66 @@
                             </small>
                         </td>
                         <td>
-                            <div class="btn-group">
-                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" 
-                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                    Change Role
-                                </button>
-                                <ul class="dropdown-menu">
-                                    @foreach (UserRole role in Enum.GetValues(typeof(UserRole)))
-                                    {
-                                        @if (role != user.Role)
+                            @if (user.Role != UserRole.Deleted)
+                            {
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                        Change Role
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        @foreach (UserRole role in Enum.GetValues(typeof(UserRole)))
                                         {
-                                            <li>
-                                                <form asp-action="UpdateUserRole" method="post" class="d-inline">
+                                            @* Deleted is only reachable via the dedicated Anonymize action below,
+                                               never from the normal role-escalation dropdown. *@
+                                            @if (role != user.Role && role != UserRole.Deleted)
+                                            {
+                                                <li>
+                                                    <form asp-action="UpdateUserRole" method="post" class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="userId" value="@user.Id" />
+                                                        <input type="hidden" name="newRole" value="@((int)role)" />
+                                                        <button type="submit" class="dropdown-item">
+                                                            Make @role.ToString()
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            }
+                                        }
+                                    </ul>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                        data-bs-toggle="modal" data-bs-target="#anonymizeModal@(user.Id)">
+                                    Delete
+                                </button>
+
+                                <div class="modal fade" id="anonymizeModal@(user.Id)" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Delete User</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Are you sure you want to delete "@user.Username"?</p>
+                                                <p class="text-muted">
+                                                    This anonymizes the account rather than removing it: their existing
+                                                    posts and threads stay intact under a generic username, and the
+                                                    account moves to the Deleted role. This cannot be undone.
+                                                </p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <form asp-action="AnonymizeUser" method="post" class="d-inline">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="userId" value="@user.Id" />
-                                                    <input type="hidden" name="newRole" value="@((int)role)" />
-                                                    <button type="submit" class="dropdown-item">
-                                                        Make @role.ToString()
-                                                    </button>
+                                                    <button type="submit" class="btn btn-danger">Delete</button>
                                                 </form>
-                                            </li>
-                                        }
-                                    }
-                                </ul>
-                            </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
                         </td>
                     </tr>
                 }

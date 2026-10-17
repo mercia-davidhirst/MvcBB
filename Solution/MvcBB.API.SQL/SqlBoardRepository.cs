@@ -41,6 +41,8 @@ namespace MvcBB.API.SQL
                 board.Description,
                 board.SortOrder,
                 board.IsActive,
+                board.ParentId,
+                board.IsCategory,
                 board.CreatedAt,
                 board.ThreadCount,
                 board.PostCount,
@@ -60,6 +62,8 @@ namespace MvcBB.API.SQL
                 board.Description,
                 board.SortOrder,
                 board.IsActive,
+                board.ParentId,
+                board.IsCategory,
                 board.UpdatedAt,
                 board.ThreadCount,
                 board.PostCount,
@@ -83,6 +87,8 @@ namespace MvcBB.API.SQL
             Description = row.Description,
             SortOrder = row.SortOrder,
             IsActive = row.IsActive,
+            ParentId = row.ParentId,
+            IsCategory = row.IsCategory,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt,
             ThreadCount = row.ThreadCount,
@@ -102,6 +108,8 @@ namespace MvcBB.API.SQL
             public string Description { get; set; } = string.Empty;
             public int SortOrder { get; set; }
             public bool IsActive { get; set; }
+            public int? ParentId { get; set; }
+            public bool IsCategory { get; set; }
             public DateTime CreatedAt { get; set; }
             public DateTime? UpdatedAt { get; set; }
             public int ThreadCount { get; set; }

@@ -50,6 +50,62 @@ namespace MvcBB.App.Controllers
             }
         }
 
+        public IActionResult ForgotPassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(request);
+            }
+
+            try
+            {
+                await _userService.ForgotPasswordAsync(request);
+            }
+            catch (Exception)
+            {
+                // Deliberately swallow failures here too - the API already
+                // responds identically whether or not the email matched an
+                // account, so the user sees the same confirmation either way.
+            }
+
+            TempData["Success"] = "If that email is registered, a password reset link has been sent.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        public IActionResult ResetPassword(string token)
+        {
+            return View(new ResetPasswordRequest { Token = token });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(request);
+            }
+
+            try
+            {
+                await _userService.ResetPasswordAsync(request);
+                TempData["Success"] = "Your password has been reset. You can now log in.";
+                return RedirectToAction(nameof(Login));
+            }
+            catch (Exception)
+            {
+                ModelState.AddModelError("", "This reset link is invalid or has expired. Please request a new one.");
+                return View(request);
+            }
+        }
+
         public IActionResult Register()
         {
             if (User.Identity?.IsAuthenticated == true)
@@ -232,6 +288,24 @@ namespace MvcBB.App.Controllers
             catch (Exception ex)
             {
                 TempData["Error"] = "Failed to update user role.";
+            }
+
+            return RedirectToAction(nameof(Users));
+        }
+
+        [HttpPost]
+        [Authorize(Policy = "ManageUsers")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AnonymizeUser(int userId)
+        {
+            try
+            {
+                await _userService.AnonymizeUserAsync(userId);
+                TempData["Success"] = "User anonymized successfully.";
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Failed to anonymize user.";
             }
 
             return RedirectToAction(nameof(Users));

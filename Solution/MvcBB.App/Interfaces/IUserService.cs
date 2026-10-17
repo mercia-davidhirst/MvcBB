@@ -14,5 +14,8 @@ namespace MvcBB.App.Interfaces
         Task UpdateProfileAsync(int userId, UpdateUserRequest request);
         Task ChangePasswordAsync(int userId, ChangePasswordRequest request);
         Task UpdateUserRoleAsync(int userId, UserRole newRole);
+        Task AnonymizeUserAsync(int userId);
+        Task ForgotPasswordAsync(ForgotPasswordRequest request);
+        Task ResetPasswordAsync(ResetPasswordRequest request);
     }
 } 

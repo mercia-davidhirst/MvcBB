@@ -1,4 +1,7 @@
 @model CreateBoardRequest
+@{
+    var boardsForParentList = (IEnumerable<BoardResponse>)(ViewData["Boards"] ?? Array.Empty<BoardResponse>());
+}
 
 @{
     ViewData["Title"] = "Create Board";
@@ -35,6 +38,26 @@
                             <input asp-for="SortOrder" class="form-control" type="number" />
                             <span asp-validation-for="SortOrder" class="text-danger"></span>
                             <small class="form-text text-muted">Lower numbers appear first</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ParentId" class="form-label">Parent board</label>
+                            <select asp-for="ParentId" class="form-select">
+                                <option value="">(None - top-level board)</option>
+                                @foreach (var parentOption in boardsForParentList.OrderBy(b => b.SortOrder))
+                                {
+                                    <option value="@parentOption.Id">@parentOption.Name</option>
+                                }
+                            </select>
+                            <span asp-validation-for="ParentId" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input asp-for="IsCategory" class="form-check-input" type="checkbox" />
+                                <label asp-for="IsCategory" class="form-check-label">Is category</label>
+                            </div>
+                            <small class="form-text text-muted">A category is an organizational header with no threads of its own.</small>
                         </div>
 
                         <div class="mt-4">

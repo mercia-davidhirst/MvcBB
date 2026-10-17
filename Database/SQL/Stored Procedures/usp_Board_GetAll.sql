@@ -8,7 +8,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT Id, Name, Description, SortOrder, IsActive, CreatedAt, UpdatedAt,
+    SELECT Id, Name, Description, SortOrder, IsActive, ParentId, IsCategory, CreatedAt, UpdatedAt,
            ThreadCount, PostCount, LastPostByUserId, LastPostAt
     FROM dbo.Boards
     ORDER BY SortOrder;

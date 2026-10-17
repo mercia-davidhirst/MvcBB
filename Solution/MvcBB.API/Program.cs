@@ -37,6 +37,7 @@ switch (dataProvider)
 // Register services
 builder.Services.AddSingleton<ICoreBBCodeService, CoreBBCodeService>();
 builder.Services.AddScoped<IBBCodeManagementService, MvcBB.API.Services.BBCodeManagementService>();
+builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender, MvcBB.API.Services.LoggingEmailSender>();
 builder.Services.AddSingleton<MvcBB.API.Services.IDisplaySettingsService, MvcBB.API.Services.DisplaySettingsService>();
 
 // Configure JWT Authentication
