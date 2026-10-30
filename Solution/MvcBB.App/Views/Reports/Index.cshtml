@@ -1,10 +1,10 @@
 @model IEnumerable<ReportResponse>
 @{
     ViewData["Title"] = "Reports";
+    Layout = "_AdminLayout";
     var currentStatus = ViewData["CurrentStatus"] as ReportStatus?;
 }
 
-<div class="container mt-4">
     <div class="row">
         <!-- Sidebar -->
         <div class="col-md-3">
@@ -58,8 +58,8 @@
                                     </div>
                                     <p class="mb-1">
                                         <small>
-                                            Reported by @report.ReporterUserId |
-                                            Content by @report.ContentAuthorId |
+                                            Reported by @report.ReporterUsername |
+                                            Content by @report.ContentAuthorUsername |
                                             Status: <span class="badge bg-@GetStatusColor(report.Status)">@report.Status</span>
                                         </small>
                                     </p>
@@ -71,7 +71,6 @@
             </div>
         </div>
     </div>
-</div>
 
 @functions {
     private string GetStatusColor(ReportStatus status) => status switch

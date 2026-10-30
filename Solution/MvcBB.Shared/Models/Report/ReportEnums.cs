@@ -4,7 +4,8 @@ namespace MvcBB.Shared.Models.Report
     {
         Thread,
         Post,
-        Message
+        Message,
+        User
     }
 
     public enum ReportStatus

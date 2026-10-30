@@ -3,7 +3,7 @@
 @inject IBBCodeService BBCodeService
 @{
     ViewData["Title"] = "Reply to Thread";
-    var quotedPost = ViewData["QuotedPost"] as Post;
+    var quotedPost = ViewData["QuotedPost"] as PostResponse;
     var threadTitle = ViewData["ThreadTitle"] as string;
     var smilies = ViewData["Smilies"] as Dictionary<string, string>;
 }
@@ -26,7 +26,11 @@
             {
                 <div class="quote-block mb-4 p-3 border-start border-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <small class="text-muted">@quotedPost.CreatedByUserId wrote:</small>
+                        <small class="text-muted">
+                            <a asp-controller="Threads" asp-action="Details" asp-route-id="@Model.ThreadId" asp-fragment="post-@quotedPost.Id" class="text-decoration-none">
+                                @quotedPost.CreatedByUsername wrote <i class="bi bi-arrow-up-short"></i>
+                            </a>
+                        </small>
                         <small class="text-muted">@quotedPost.CreatedAt.ToLocalTime().ToString("g")</small>
                     </div>
                     <div class="quoted-content">@Html.Raw(BBCodeService.ParseBBCode(quotedPost.Content))</div>
@@ -68,10 +72,14 @@
 @section Scripts {
     <script>
         let previewVisible = true;
+        const quotedPreviewHtml = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            quotedPost != null
+                ? $"<blockquote class=\"blockquote\"><p class=\"mb-0\">{BBCodeService.ParseBBCode(quotedPost.Content)}</p><footer class=\"blockquote-footer\"><cite>{quotedPost.CreatedByUsername}</cite></footer></blockquote>"
+                : ""));
 
         function updatePreview() {
             if (!previewVisible) return;
-            
+
             const content = document.getElementById('Content').value;
             fetch('/api/bbcode/preview', {
                 method: 'POST',
@@ -82,7 +90,7 @@
             })
             .then(response => response.text())
             .then(html => {
-                document.getElementById('preview').innerHTML = html;
+                document.getElementById('preview').innerHTML = quotedPreviewHtml + html;
             });
         }
 

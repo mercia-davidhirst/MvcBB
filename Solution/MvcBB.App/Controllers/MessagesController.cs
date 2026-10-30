@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Message;
 
@@ -25,6 +27,10 @@ namespace MvcBB.App.Controllers
                 ViewData["CurrentFolder"] = folder;
                 return View(messages);
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
             catch (Exception ex)
             {
                 TempData["Error"] = "Failed to load messages.";
@@ -38,6 +44,10 @@ namespace MvcBB.App.Controllers
             {
                 var message = await _messageService.GetMessageAsync(id);
                 return View(message);
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {
@@ -67,6 +77,10 @@ namespace MvcBB.App.Controllers
                 TempData["Success"] = "Message sent successfully.";
                 return RedirectToAction(nameof(Index), new { folder = "sent" });
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
             catch (Exception ex)
             {
                 ModelState.AddModelError("", "Failed to send message. Please try again.");
@@ -82,6 +96,10 @@ namespace MvcBB.App.Controllers
             {
                 await _messageService.DeleteMessageAsync(id);
                 TempData["Success"] = "Message deleted successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {

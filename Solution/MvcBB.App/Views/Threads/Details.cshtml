@@ -37,7 +37,7 @@
     {
         foreach (var post in posts)
         {
-            <div class="card mb-3">
+            <div class="card mb-3" id="post-@post.Id">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
                         <strong>@post.CreatedByUsername</strong>
@@ -70,7 +70,9 @@
                         <blockquote class="blockquote mb-3">
                             <p class="mb-0">@Html.Raw(BBCodeService.ParseBBCode(post.QuotedPost.Content))</p>
                             <footer class="blockquote-footer">
-                                <cite>@post.QuotedPost.CreatedByUsername</cite>
+                                <a href="#post-@post.QuotedPost.Id" class="text-decoration-none">
+                                    <cite>@post.QuotedPost.CreatedByUsername</cite> wrote this <i class="bi bi-arrow-up-short"></i>
+                                </a>
                             </footer>
                         </blockquote>
                     }

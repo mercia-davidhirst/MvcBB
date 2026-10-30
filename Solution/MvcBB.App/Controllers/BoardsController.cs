@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Board;
 
@@ -50,8 +52,9 @@ namespace MvcBB.App.Controllers
         [Authorize(Policy = "ManageBoards")]
         public async Task<IActionResult> Create()
         {
-            ViewData["Boards"] = await _boardService.GetBoardsAsync();
-            return View();
+            var boards = await _boardService.GetBoardsAsync();
+            ViewData["Boards"] = boards;
+            return View(new CreateBoardRequest { SortOrder = boards.Count() + 1 });
         }
 
         [HttpPost]
@@ -70,6 +73,10 @@ namespace MvcBB.App.Controllers
                 var board = await _boardService.CreateBoardAsync(request);
                 TempData["Success"] = "Board created successfully.";
                 return RedirectToAction(nameof(Details), new { id = board.Id });
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {
@@ -119,6 +126,10 @@ namespace MvcBB.App.Controllers
                 await _boardService.UpdateBoardAsync(id, request);
                 TempData["Success"] = "Board updated successfully.";
                 return RedirectToAction(nameof(Details), new { id });
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using MvcBB.Shared.Interfaces;
 
@@ -10,31 +11,56 @@ namespace MvcBB.Shared.Services
     /// </summary>
     public class CoreBBCodeService : IBBCodeService
     {
-        private static readonly Regex BBCodePattern = new(@"\[([^\]]+)\]([^\[]*)\[/\1\]", RegexOptions.Compiled);
+        // Group 1 is the bare tag name only, so a valued opening tag like
+        // [color=red] still pairs with a plain [/color] closing tag - the old
+        // pattern captured "color=red" into the backreference, which could
+        // never match a same-named closing tag and silently left every valued
+        // tag (color, size) unparsed.
+        private static readonly Regex BBCodePattern = new(
+            @"\[(\w+)(?:=([^\]]*))?\](.*?)\[/\1\]",
+            RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
         private static readonly Regex BBCodeStripPattern = new(@"\[.*?\]", RegexOptions.Compiled);
+        private static readonly Regex SafeColorPattern = new(@"^[a-zA-Z]+$|^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$", RegexOptions.Compiled);
+        private static readonly Regex SafeSizePattern = new(@"^\d{1,3}$", RegexOptions.Compiled);
 
         public string ParseBBCode(string input)
         {
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
 
-            // Basic BBCode parsing - this can be enhanced based on specific BBCode tags
+            // Multiple passes let innermost tags resolve first, so nested tags
+            // (e.g. [b][i]text[/i][/b]) still match once the inner tag's content
+            // no longer breaks the non-greedy capture across a "[".
             var output = input;
-            output = BBCodePattern.Replace(output, match =>
+            string previous;
+            var pass = 0;
+            do
             {
-                var tag = match.Groups[1].Value.ToLower();
-                var content = match.Groups[2].Value;
-
-                return tag switch
+                previous = output;
+                output = BBCodePattern.Replace(output, match =>
                 {
-                    "b" => $"<strong>{content}</strong>",
-                    "i" => $"<em>{content}</em>",
-                    "u" => $"<u>{content}</u>",
-                    "quote" => $"<blockquote>{content}</blockquote>",
-                    "code" => $"<pre><code>{content}</code></pre>",
-                    _ => match.Value // Keep original if tag not recognized
-                };
-            });
+                    var tag = match.Groups[1].Value.ToLowerInvariant();
+                    var value = match.Groups[2].Success ? match.Groups[2].Value : null;
+                    var content = match.Groups[3].Value;
+
+                    return tag switch
+                    {
+                        "b" => $"<strong>{content}</strong>",
+                        "i" => $"<em>{content}</em>",
+                        "u" => $"<u>{content}</u>",
+                        "s" => $"<s>{content}</s>",
+                        "quote" => $"<blockquote>{content}</blockquote>",
+                        "code" => $"<pre><code>{content}</code></pre>",
+                        "center" => $"<div style=\"text-align: center;\">{content}</div>",
+                        "right" => $"<div style=\"text-align: right;\">{content}</div>",
+                        "url" => $"<a href=\"{WebUtility.HtmlEncode(value ?? content)}\" target=\"_blank\" rel=\"noopener noreferrer\">{content}</a>",
+                        "img" => $"<img src=\"{WebUtility.HtmlEncode(content)}\" alt=\"\" />",
+                        "color" when value != null && SafeColorPattern.IsMatch(value) => $"<span style=\"color: {value};\">{content}</span>",
+                        "size" when value != null && SafeSizePattern.IsMatch(value) => $"<span style=\"font-size: {value}px;\">{content}</span>",
+                        _ => match.Value // Keep original if tag not recognized (or value failed validation)
+                    };
+                });
+            } while (output != previous && ++pass < 10);
 
             return output;
         }

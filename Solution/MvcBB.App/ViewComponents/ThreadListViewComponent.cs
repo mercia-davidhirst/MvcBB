@@ -13,10 +13,20 @@ namespace MvcBB.App.ViewComponents
             _threadService = threadService;
         }
 
-        public async Task<IViewComponentResult> InvokeAsync(int boardId)
+        public async Task<IViewComponentResult> InvokeAsync(int boardId, int? maxCount = null)
         {
             var result = await _threadService.GetThreadsAsync(boardId);
-            return View(result.Threads);
+            var ordered = result.Threads
+                .OrderByDescending(t => t.IsSticky)
+                .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
+                .AsEnumerable();
+
+            if (maxCount.HasValue)
+            {
+                ordered = ordered.Take(maxCount.Value);
+            }
+
+            return View(ordered);
         }
     }
 } 

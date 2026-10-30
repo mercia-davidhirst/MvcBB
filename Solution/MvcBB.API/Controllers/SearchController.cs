@@ -80,7 +80,7 @@ namespace MvcBB.API.Controllers
         {
             var threads = _threadRepository.GetAll()
                 .Where(t => !boardId.HasValue || t.BoardId == boardId.Value)
-                .Where(t => t.Title.ToLower().Contains(query) || t.CreatedByUserId.ToLower().Contains(query));
+                .Where(t => t.Title.ToLower().Contains(query) || GetUsername(t.CreatedByUserId).ToLower().Contains(query));
 
             foreach (var t in threads)
             {
@@ -90,7 +90,7 @@ namespace MvcBB.API.Controllers
                     Type = "thread",
                     Id = t.Id,
                     Title = t.Title,
-                    Author = t.CreatedByUserId,
+                    Author = GetUsername(t.CreatedByUserId),
                     CreatedAt = t.CreatedAt,
                     BoardId = t.BoardId,
                     BoardName = board?.Name
@@ -101,7 +101,7 @@ namespace MvcBB.API.Controllers
         private IEnumerable<SearchResult> SearchPosts(string query, int? boardId)
         {
             var posts = _postRepository.GetAll()
-                .Where(p => p.Content.ToLower().Contains(query) || p.CreatedByUserId.ToLower().Contains(query));
+                .Where(p => p.Content.ToLower().Contains(query) || GetUsername(p.CreatedByUserId).ToLower().Contains(query));
 
             foreach (var p in posts)
             {
@@ -116,7 +116,7 @@ namespace MvcBB.API.Controllers
                     Type = "post",
                     Id = p.Id,
                     Content = p.Content,
-                    Author = p.CreatedByUserId,
+                    Author = GetUsername(p.CreatedByUserId),
                     CreatedAt = p.CreatedAt,
                     ThreadId = p.ThreadId,
                     ThreadTitle = thread?.Title,
@@ -124,6 +124,15 @@ namespace MvcBB.API.Controllers
                     BoardName = board?.Name
                 };
             }
+        }
+
+        private string GetUsername(string? userId)
+        {
+            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
+            {
+                return _userRepository.GetById(id)?.Username ?? string.Empty;
+            }
+            return string.Empty;
         }
 
         private IEnumerable<SearchResult> SearchUsers(string query)

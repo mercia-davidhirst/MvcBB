@@ -1,7 +1,7 @@
 @model IEnumerable<ThreadResponse>
 
 <div class="list-group">
-    @foreach (var thread in Model.OrderByDescending(t => t.IsSticky).ThenByDescending(t => t.LastPostAt ?? t.CreatedAt))
+    @foreach (var thread in Model)
     {
         <div class="list-group-item">
             <div class="d-flex w-100 justify-content-between align-items-start">

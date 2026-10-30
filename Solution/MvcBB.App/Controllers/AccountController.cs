@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.User;
 using System.Security.Claims;
@@ -11,10 +13,12 @@ namespace MvcBB.App.Controllers
     public class AccountController : Controller
     {
         private readonly IUserService _userService;
+        private readonly IPostService _postService;
 
-        public AccountController(IUserService userService)
+        public AccountController(IUserService userService, IPostService postService)
         {
             _userService = userService;
+            _postService = postService;
         }
 
         public IActionResult Login()
@@ -48,6 +52,11 @@ namespace MvcBB.App.Controllers
                 ModelState.AddModelError("", "Invalid login attempt.");
                 return View(request);
             }
+        }
+
+        public IActionResult AccessDenied()
+        {
+            return View();
         }
 
         public IActionResult ForgotPassword()
@@ -139,13 +148,35 @@ namespace MvcBB.App.Controllers
             }
         }
 
-        [Authorize]
-        public async Task<IActionResult> Profile()
+        public async Task<IActionResult> Profile(string? username = null)
         {
+            var isOwnProfile = string.IsNullOrEmpty(username) ||
+                string.Equals(username, User.Identity?.Name, StringComparison.OrdinalIgnoreCase);
+
+            if (isOwnProfile && User.Identity?.IsAuthenticated != true)
+            {
+                return RedirectToAction(nameof(Login), new { returnUrl = Url.Action(nameof(Profile)) });
+            }
+
             try
             {
-                var profile = await _userService.GetUserProfileAsync();
+                var profile = isOwnProfile
+                    ? await _userService.GetUserProfileAsync()
+                    : await _userService.GetUserByUsernameAsync(username!);
+
+                if (profile == null)
+                {
+                    TempData["Error"] = "User not found.";
+                    return RedirectToAction("Index", "Members");
+                }
+
+                ViewData["IsOwnProfile"] = isOwnProfile;
+                ViewData["RecentPosts"] = await _postService.GetPostsByUserAsync(profile.Id, 5);
                 return View(profile);
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {
@@ -214,8 +245,12 @@ namespace MvcBB.App.Controllers
         {
             try
             {
-                var users = await _userService.GetUsersAsync();
+                var users = await _userService.GetUsersForAdminAsync();
                 return View(users);
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {
@@ -285,6 +320,10 @@ namespace MvcBB.App.Controllers
                 await _userService.UpdateUserRoleAsync(request.UserId, request.NewRole);
                 TempData["Success"] = "User role updated successfully.";
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
             catch (Exception ex)
             {
                 TempData["Error"] = "Failed to update user role.";
@@ -303,6 +342,10 @@ namespace MvcBB.App.Controllers
                 await _userService.AnonymizeUserAsync(userId);
                 TempData["Success"] = "User anonymized successfully.";
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
             catch (Exception ex)
             {
                 TempData["Error"] = "Failed to anonymize user.";
@@ -318,7 +361,8 @@ namespace MvcBB.App.Controllers
                 new Claim(ClaimTypes.NameIdentifier, response.User.Id.ToString()),
                 new Claim(ClaimTypes.Name, response.User.Username),
                 new Claim(ClaimTypes.Email, response.User.Email),
-                new Claim(ClaimTypes.Role, response.User.RoleName)
+                new Claim(ClaimTypes.Role, response.User.RoleName),
+                new Claim("api_token", response.Token)
             };
 
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
+using MvcBB.App.Exceptions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.User;
 using MvcBB.Shared.Models.Member;
@@ -12,15 +14,17 @@ namespace MvcBB.App.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IAuthService _authService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        public UserService(IHttpClientFactory httpClientFactory, IAuthService authService)
+        public UserService(IHttpClientFactory httpClientFactory, IAuthService authService, IHttpContextAccessor httpContextAccessor)
         {
             _httpClient = httpClientFactory.CreateClient("MvcBBApi");
             _authService = authService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<IEnumerable<UserResponse>> GetUsersAsync()
@@ -30,7 +34,21 @@ namespace MvcBB.App.Services
 
             var response = await _httpClient.GetAsync("api/users");
             response.EnsureSuccessStatusCode();
-            
+
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<IEnumerable<UserResponse>>(content, _jsonOptions) ?? Array.Empty<UserResponse>();
+        }
+
+        // Includes email - requires the signed-in admin's own token, since the
+        // API locks this endpoint to real Administrators.
+        public async Task<IEnumerable<UserResponse>> GetUsersForAdminAsync()
+        {
+            var token = GetCurrentUserToken();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _httpClient.GetAsync("api/users/admin");
+            response.EnsureSuccessStatusCode();
+
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<IEnumerable<UserResponse>>(content, _jsonOptions) ?? Array.Empty<UserResponse>();
         }
@@ -46,6 +64,19 @@ namespace MvcBB.App.Services
                 return null;
             }
             
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<UserResponse>(content, _jsonOptions);
+        }
+
+        public async Task<UserResponse?> GetUserByUsernameAsync(string username)
+        {
+            var response = await _httpClient.GetAsync($"api/users/by-username/{Uri.EscapeDataString(username)}");
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<UserResponse>(content, _jsonOptions);
@@ -86,12 +117,16 @@ namespace MvcBB.App.Services
 
         public async Task<UserResponse> GetUserProfileAsync()
         {
-            var token = await GetTokenAsync();
+            // The API resolves "whose profile" from the caller's own NameIdentifier
+            // claim rather than a route parameter, so this call needs the signed-in
+            // user's own token - the generic mvc_client service token has no user
+            // identity on it and would resolve to nobody.
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.GetAsync("api/users/profile");
             response.EnsureSuccessStatusCode();
-            
+
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<UserResponse>(content, _jsonOptions) ?? throw new Exception("Failed to deserialize user profile");
         }
@@ -155,9 +190,17 @@ namespace MvcBB.App.Services
             return response.Token;
         }
 
+        // Both of these require a real Administrator - the generic mvc_client
+        // service token only carries the ApiClient role and gets a 403.
+        private string GetCurrentUserToken()
+        {
+            return _httpContextAccessor.HttpContext?.User.FindFirst("api_token")?.Value
+                ?? throw new SessionExpiredException();
+        }
+
         public async Task UpdateUserRoleAsync(int userId, UserRole newRole)
         {
-            var token = await GetTokenAsync();
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var request = new UpdateUserRoleRequest
@@ -168,14 +211,14 @@ namespace MvcBB.App.Services
 
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            
+
             var response = await _httpClient.PostAsync($"api/users/update-role", content);
             response.EnsureSuccessStatusCode();
         }
 
         public async Task AnonymizeUserAsync(int userId)
         {
-            var token = await GetTokenAsync();
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.PostAsync($"api/users/{userId}/anonymize", null);

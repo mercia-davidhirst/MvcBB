@@ -5,14 +5,8 @@
 
 @{
     ViewData["Title"] = "Edit Board";
+    Layout = "_AdminLayout";
 }
-
-<div class="container">
-    <div class="row mb-4">
-        <div class="col">
-            <h1>Edit Board</h1>
-        </div>
-    </div>
 
     <div class="row">
         <div class="col-md-8">
@@ -105,7 +99,6 @@
             </div>
         </div>
     </div>
-</div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

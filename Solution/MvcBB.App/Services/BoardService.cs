@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
+using MvcBB.App.Exceptions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Board;
 using MvcBB.Shared.Models.Authorization;
@@ -11,15 +13,17 @@ namespace MvcBB.App.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IAuthService _authService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        public BoardService(IHttpClientFactory httpClientFactory, IAuthService authService)
+        public BoardService(IHttpClientFactory httpClientFactory, IAuthService authService, IHttpContextAccessor httpContextAccessor)
         {
             _httpClient = httpClientFactory.CreateClient("MvcBBApi");
             _authService = authService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<IEnumerable<BoardResponse>> GetBoardsAsync()
@@ -44,7 +48,7 @@ namespace MvcBB.App.Services
 
         public async Task<BoardResponse> CreateBoardAsync(CreateBoardRequest request)
         {
-            var token = await GetTokenAsync();
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var json = JsonSerializer.Serialize(request);
@@ -60,7 +64,7 @@ namespace MvcBB.App.Services
 
         public async Task UpdateBoardAsync(int id, UpdateBoardRequest request)
         {
-            var token = await GetTokenAsync();
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var json = JsonSerializer.Serialize(request);
@@ -88,6 +92,15 @@ namespace MvcBB.App.Services
             };
             var response = await _authService.GetTokenAsync(credentials);
             return response.Token;
+        }
+
+        // Create/Update require the caller to actually hold the Administrator role on
+        // the API side - the generic mvc_client service token only carries the
+        // ApiClient role and gets a 403, so these need the signed-in admin's own token.
+        private string GetCurrentUserToken()
+        {
+            return _httpContextAccessor.HttpContext?.User.FindFirst("api_token")?.Value
+                ?? throw new SessionExpiredException();
         }
     }
 } 

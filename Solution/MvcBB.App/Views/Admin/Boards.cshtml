@@ -1,0 +1,116 @@
+@model IEnumerable<BoardResponse>
+@{
+    ViewData["Title"] = "Board Management";
+    Layout = "_AdminLayout";
+    var boardsById = Model.ToDictionary(b => b.Id);
+}
+
+<div class="mb-4">
+    <a asp-controller="Boards" asp-action="Create" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Create Board
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Parent</th>
+                        <th>Sort Order</th>
+                        <th>Active</th>
+                        <th>Threads</th>
+                        <th>Posts</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">No boards have been created yet.</td>
+                        </tr>
+                    }
+                    @foreach (var board in Model)
+                    {
+                        <tr>
+                            <td>
+                                @board.Name
+                                @if (!string.IsNullOrEmpty(board.Description))
+                                {
+                                    <br />
+                                    <small class="text-muted">@board.Description</small>
+                                }
+                            </td>
+                            <td>
+                                @if (board.IsCategory)
+                                {
+                                    <span class="badge bg-info">Category</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-primary">Board</span>
+                                }
+                            </td>
+                            <td>
+                                @(board.ParentId.HasValue && boardsById.TryGetValue(board.ParentId.Value, out var parent)
+                                    ? parent.Name
+                                    : "—")
+                            </td>
+                            <td>@board.SortOrder</td>
+                            <td>
+                                @if (board.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </td>
+                            <td>@board.ThreadCount</td>
+                            <td>@board.PostCount</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a asp-controller="Boards" asp-action="Edit" asp-route-id="@board.Id"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            data-bs-toggle="modal" data-bs-target="#deleteModal@(board.Id)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+
+                                <div class="modal fade" id="deleteModal@(board.Id)" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Delete @(board.IsCategory ? "Category" : "Board")</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Are you sure you want to delete "@board.Name"?</p>
+                                                <p class="text-danger">This action cannot be undone.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <form asp-controller="Boards" asp-action="Delete" asp-route-id="@board.Id" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -16,9 +16,12 @@ namespace MvcBB.Shared.Models.Report
         // Additional properties for UI display
         public string TypeName => Type.ToString();
         public string StatusName => Status.ToString();
+        public string ReporterUsername { get; set; } = string.Empty;
+        public string ResolvedByUsername { get; set; } = string.Empty;
         public string ContentLink { get; set; } = string.Empty;
         public string ContentTitle { get; set; } = string.Empty;
         public string ContentAuthorId { get; set; } = string.Empty;
+        public string ContentAuthorUsername { get; set; } = string.Empty;
         public DateTime ContentCreatedAt { get; set; }
     }
 } 

@@ -1,6 +1,4 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Services;
 using MvcBB.App.Middleware;
@@ -11,14 +9,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Validate configuration
 var apiBaseUrl = builder.Configuration["Api:BaseUrl"];
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"];
 var clientId = builder.Configuration["Api:ClientId"];
 var clientSecret = builder.Configuration["Api:ClientSecret"];
 
 if (string.IsNullOrEmpty(apiBaseUrl))
     throw new InvalidOperationException("API base URL is not configured");
-if (string.IsNullOrEmpty(jwtSecretKey))
-    throw new InvalidOperationException("JWT secret key is not configured");
 if (string.IsNullOrEmpty(clientId))
     throw new InvalidOperationException("API client ID is not configured");
 if (string.IsNullOrEmpty(clientSecret))
@@ -26,6 +21,7 @@ if (string.IsNullOrEmpty(clientSecret))
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpContextAccessor();
 
 // Add session support
 builder.Services.AddDistributedMemoryCache();
@@ -76,33 +72,16 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 
-// Add authentication
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+// Add authentication - the App authenticates browser sessions with a cookie;
+// the JWTs issued by MvcBB.API are only ever used for the App's own outbound
+// HTTP calls to the API, never for validating inbound requests to the App.
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.ASCII.GetBytes(jwtSecretKey)),
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ClockSkew = TimeSpan.Zero
-        };
-
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                // Allow token to be passed in cookie for SignalR
-                var accessToken = context.Request.Cookies["X-Access-Token"];
-                if (!string.IsNullOrEmpty(accessToken))
-                {
-                    context.Token = accessToken;
-                }
-                return Task.CompletedTask;
-            }
-        };
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromHours(1);
+        options.SlidingExpiration = true;
     });
 
 // Add authorization policies

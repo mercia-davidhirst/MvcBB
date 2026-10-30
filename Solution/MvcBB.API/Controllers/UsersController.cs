@@ -231,6 +231,44 @@ namespace MvcBB.API.Controllers
             return Ok(users.Select(u => MapToUserResponse(u)));
         }
 
+        // For the admin User Management page specifically - this is the only
+        // listing endpoint that includes email, and it's locked to real
+        // Administrators so the unauthenticated GetUsers() above can't be used
+        // to harvest every member's email address.
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("admin")]
+        public ActionResult<IEnumerable<UserResponse>> GetUsersForAdmin()
+        {
+            var users = _userRepository.GetAll();
+            return Ok(users.Select(u => MapToUserResponse(u, includeEmail: true)));
+        }
+
+        // Public member-profile lookup - e.g. clicking a username elsewhere in the
+        // forum. Email is excluded since this isn't the account owner viewing it.
+        [HttpGet("by-username/{username}")]
+        public ActionResult<UserResponse> GetByUsername(string username)
+        {
+            var user = _userRepository.GetByUsername(username);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            return MapToUserResponse(user, includeEmail: false);
+        }
+
+        [HttpGet("{id:int}")]
+        public ActionResult<UserResponse> GetById(int id)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            return MapToUserResponse(user, includeEmail: false);
+        }
+
         [HttpGet("members")]
         public ActionResult<MemberResponse> GetMembers([FromQuery] MemberRequest request)
         {

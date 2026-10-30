@@ -27,4 +27,9 @@ public interface IPostService
     /// Deletes a post
     /// </summary>
     Task DeletePostAsync(int id);
+
+    /// <summary>
+    /// Gets a user's most recent posts, for display on their profile
+    /// </summary>
+    Task<IEnumerable<PostDto>> GetPostsByUserAsync(int userId, int take = 5);
 } 

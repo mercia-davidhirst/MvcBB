@@ -1,9 +1,9 @@
 @model ReportResponse
 @{
     ViewData["Title"] = $"Report #{Model.Id}";
+    Layout = "_AdminLayout";
 }
 
-<div class="container mt-4">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a asp-action="Index">Reports</a></li>
@@ -44,11 +44,16 @@
                                             @Model.ContentTitle
                                         </a>
                                         break;
+                                    case ReportType.User:
+                                        <a asp-controller="Account" asp-action="Profile" asp-route-username="@Model.ContentTitle">
+                                            @Model.ContentTitle
+                                        </a>
+                                        break;
                                 }
                             </dd>
 
                             <dt class="col-sm-3">Content Author</dt>
-                            <dd class="col-sm-9">@Model.ContentAuthorId</dd>
+                            <dd class="col-sm-9">@Model.ContentAuthorUsername</dd>
 
                             <dt class="col-sm-3">Content Created</dt>
                             <dd class="col-sm-9">@Model.ContentCreatedAt.ToLocalTime().ToString("g")</dd>
@@ -59,7 +64,7 @@
                         <h5>Report Information</h5>
                         <dl class="row">
                             <dt class="col-sm-3">Reported By</dt>
-                            <dd class="col-sm-9">@Model.ReporterUserId</dd>
+                            <dd class="col-sm-9">@Model.ReporterUsername</dd>
 
                             <dt class="col-sm-3">Reported At</dt>
                             <dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
@@ -75,7 +80,7 @@
                             @if (Model.ResolvedAt.HasValue)
                             {
                                 <dt class="col-sm-3">Resolved By</dt>
-                                <dd class="col-sm-9">@Model.ResolvedByUserId</dd>
+                                <dd class="col-sm-9">@Model.ResolvedByUsername</dd>
 
                                 <dt class="col-sm-3">Resolved At</dt>
                                 <dd class="col-sm-9">@Model.ResolvedAt.Value.ToLocalTime().ToString("g")</dd>
@@ -126,7 +131,6 @@
             </div>
         </div>
     </div>
-</div>
 
 @functions {
     private string GetStatusColor(ReportStatus status) => status switch

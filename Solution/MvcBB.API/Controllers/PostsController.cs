@@ -13,15 +13,23 @@ namespace MvcBB.API.Controllers
     {
         private readonly IPostRepository _postRepository;
         private readonly IForumThreadRepository _threadRepository;
+        private readonly IBoardRepository _boardRepository;
+        private readonly IUserRepository _userRepository;
 
-        public PostsController(IPostRepository postRepository, IForumThreadRepository threadRepository)
+        public PostsController(
+            IPostRepository postRepository,
+            IForumThreadRepository threadRepository,
+            IBoardRepository boardRepository,
+            IUserRepository userRepository)
         {
             _postRepository = postRepository;
             _threadRepository = threadRepository;
+            _boardRepository = boardRepository;
+            _userRepository = userRepository;
         }
 
         [HttpGet("thread/{threadId}")]
-        public ActionResult<IEnumerable<Post>> GetThreadPosts(int threadId)
+        public ActionResult<IEnumerable<PostResponse>> GetThreadPosts(int threadId)
         {
             var thread = _threadRepository.GetById(threadId);
             if (thread == null)
@@ -30,11 +38,24 @@ namespace MvcBB.API.Controllers
             }
 
             var posts = _postRepository.GetByThreadId(threadId);
-            return Ok(posts);
+            return Ok(posts.Select(p => MapToPostResponse(p)));
+        }
+
+        // Used by a member's profile page to show their most recent activity.
+        [HttpGet("by-user/{userId}")]
+        public ActionResult<IEnumerable<PostResponse>> GetPostsByUser(int userId, [FromQuery] int take = 5)
+        {
+            take = Math.Clamp(take, 1, 50);
+            var posts = _postRepository.GetAll()
+                .Where(p => !p.IsDeleted && p.CreatedByUserId == userId.ToString())
+                .OrderByDescending(p => p.CreatedAt)
+                .Take(take);
+
+            return Ok(posts.Select(p => MapToPostResponse(p)));
         }
 
         [HttpGet("{id}")]
-        public ActionResult<Post> GetPost(int id)
+        public ActionResult<PostResponse> GetPost(int id)
         {
             var post = _postRepository.GetById(id);
             if (post == null)
@@ -42,7 +63,7 @@ namespace MvcBB.API.Controllers
                 return NotFound(new { message = "Post not found" });
             }
 
-            return Ok(post);
+            return Ok(MapToPostResponse(post));
         }
 
         [HttpGet("{id}/quote")]
@@ -60,7 +81,7 @@ namespace MvcBB.API.Controllers
 
         [HttpPost]
         [Authorize]
-        public ActionResult<Post> CreatePost(CreatePostRequest request)
+        public ActionResult<PostResponse> CreatePost(CreatePostRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -89,7 +110,8 @@ namespace MvcBB.API.Controllers
                 Content = request.Content,
                 ThreadId = request.ThreadId,
                 CreatedByUserId = userId,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                QuotedPostId = request.QuotedPostId
             };
 
             post = _postRepository.Add(post);
@@ -99,12 +121,21 @@ namespace MvcBB.API.Controllers
             thread.PostCount++;
             _threadRepository.Update(thread);
 
-            return CreatedAtAction(nameof(GetPost), new { id = post.Id }, post);
+            var board = _boardRepository.GetById(thread.BoardId);
+            if (board != null)
+            {
+                board.PostCount++;
+                board.LastPostAt = post.CreatedAt;
+                board.LastPostByUserId = userId;
+                _boardRepository.Update(board);
+            }
+
+            return CreatedAtAction(nameof(GetPost), new { id = post.Id }, MapToPostResponse(post));
         }
 
         [HttpPut("{id}")]
         [Authorize]
-        public ActionResult<Post> UpdatePost(int id, UpdatePostRequest request)
+        public ActionResult<PostResponse> UpdatePost(int id, UpdatePostRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -141,7 +172,7 @@ namespace MvcBB.API.Controllers
             post.UpdatedByUserId = userId;
             _postRepository.Update(post);
 
-            return Ok(post);
+            return Ok(MapToPostResponse(post));
         }
 
         [HttpDelete("{id}")]
@@ -167,6 +198,67 @@ namespace MvcBB.API.Controllers
             _postRepository.Update(post);
 
             return Ok(new { message = "Post deleted successfully" });
+        }
+
+        private PostResponse MapToPostResponse(Post p)
+        {
+            return new PostResponse
+            {
+                Id = p.Id,
+                Content = p.Content,
+                ThreadId = p.ThreadId,
+                CreatedByUserId = p.CreatedByUserId,
+                CreatedByUsername = GetUsername(p.CreatedByUserId),
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt,
+                UpdatedByUserId = p.UpdatedByUserId,
+                UpdatedByUsername = GetUsername(p.UpdatedByUserId),
+                IsDeleted = p.IsDeleted,
+                DeletedByUserId = p.DeletedByUserId,
+                DeletedByUsername = GetUsername(p.DeletedByUserId),
+                DeletedAt = p.DeletedAt,
+                DeleteReason = p.DeleteReason,
+                IsEdited = p.IsEdited,
+                EditReason = p.EditReason ?? string.Empty,
+                QuotedPostId = p.QuotedPostId,
+                // QuotedPost is a plain property, never populated by the repository
+                // layer - resolve it from QuotedPostId instead.
+                QuotedPost = p.QuotedPostId.HasValue
+                    ? MapQuotedPost(_postRepository.GetById(p.QuotedPostId.Value))
+                    : null
+            };
+        }
+
+        // One level deep only - avoids re-resolving the quoted post's own quote
+        // chain and the infinite recursion that would invite.
+        private PostResponse? MapQuotedPost(Post? p)
+        {
+            if (p == null)
+            {
+                return null;
+            }
+
+            return new PostResponse
+            {
+                Id = p.Id,
+                Content = p.Content,
+                ThreadId = p.ThreadId,
+                CreatedByUserId = p.CreatedByUserId,
+                CreatedByUsername = GetUsername(p.CreatedByUserId),
+                CreatedAt = p.CreatedAt,
+                IsDeleted = p.IsDeleted,
+                IsEdited = p.IsEdited,
+                EditReason = p.EditReason ?? string.Empty
+            };
+        }
+
+        private string GetUsername(string? userId)
+        {
+            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
+            {
+                return _userRepository.GetById(id)?.Username ?? string.Empty;
+            }
+            return string.Empty;
         }
     }
 }

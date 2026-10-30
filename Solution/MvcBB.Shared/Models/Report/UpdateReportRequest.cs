@@ -8,6 +8,6 @@ namespace MvcBB.Shared.Models.Report
         public ReportStatus Status { get; set; }
 
         [StringLength(1000, ErrorMessage = "Moderator notes cannot exceed 1000 characters")]
-        public string ModeratorNotes { get; set; } = string.Empty;
+        public string? ModeratorNotes { get; set; }
     }
 } 

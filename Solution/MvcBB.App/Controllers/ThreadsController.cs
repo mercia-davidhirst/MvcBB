@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Post;
 using System.Security.Claims;
@@ -47,6 +48,25 @@ namespace MvcBB.App.Controllers
         }
 
         [Authorize]
+        public async Task<IActionResult> Reply(int threadId)
+        {
+            try
+            {
+                var thread = await _threadService.GetThreadAsync(threadId);
+
+                ViewData["ThreadTitle"] = thread.Title;
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+                return View(new CreatePostRequest { ThreadId = threadId });
+            }
+            catch (ServiceException ex)
+            {
+                _logger.LogError(ex, "Failed to load thread {ThreadId} for reply", threadId);
+                TempData["Error"] = "Failed to load thread. Please try again later.";
+                return RedirectToAction("Index", "Boards");
+            }
+        }
+
+        [Authorize]
         public async Task<IActionResult> QuotePost(int threadId, int postId)
         {
             try
@@ -57,7 +77,7 @@ namespace MvcBB.App.Controllers
                 ViewData["QuotedPost"] = quotedPost;
                 ViewData["ThreadTitle"] = thread.Title;
                 ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
-                return View("Reply");
+                return View("Reply", new CreatePostRequest { ThreadId = threadId, QuotedPostId = postId });
             }
             catch (ServiceException ex)
             {
@@ -75,6 +95,7 @@ namespace MvcBB.App.Controllers
                 var board = await _boardService.GetBoardAsync(boardId);
                 ViewData["BoardName"] = board.Name;
                 ViewData["BoardId"] = boardId;
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
                 return View();
             }
             catch (ServiceException ex)
@@ -102,6 +123,7 @@ namespace MvcBB.App.Controllers
                 {
                     _logger.LogError(ex, "Failed to load board information for invalid thread creation");
                 }
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
                 return View(request);
             }
 
@@ -110,6 +132,10 @@ namespace MvcBB.App.Controllers
                 var thread = await _threadService.CreateThreadAsync(request);
                 TempData["Success"] = "Thread created successfully.";
                 return RedirectToAction(nameof(Details), new { id = thread.Id });
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (ServiceException ex)
             {
@@ -133,6 +159,10 @@ namespace MvcBB.App.Controllers
             {
                 await _threadService.CreatePostAsync(threadId, request);
                 TempData["Success"] = "Reply posted successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (ServiceException ex)
             {
@@ -179,6 +209,10 @@ namespace MvcBB.App.Controllers
                 TempData["Success"] = "Thread updated successfully.";
                 return RedirectToAction(nameof(Details), new { id });
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
             catch (ServiceException ex)
             {
                 _logger.LogError(ex, "Failed to update thread {ThreadId}", id);
@@ -199,6 +233,10 @@ namespace MvcBB.App.Controllers
                 TempData["Success"] = "Thread deleted successfully.";
                 return RedirectToAction("Details", "Boards", new { id = thread.BoardId });
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
             catch (ServiceException ex)
             {
                 _logger.LogError(ex, "Failed to delete thread {ThreadId}", id);
@@ -215,7 +253,7 @@ namespace MvcBB.App.Controllers
             }
 
             var post = await _threadService.GetPostAsync(postId);
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return !string.IsNullOrEmpty(userId) && post.CreatedByUserId == userId;
         }
 
@@ -299,6 +337,10 @@ namespace MvcBB.App.Controllers
                 await _threadService.UpdatePostAsync(id, request);
                 TempData["Success"] = "Post updated successfully.";
                 return RedirectToAction(nameof(Details), new { id = post.ThreadId });
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (ServiceException ex)
             {

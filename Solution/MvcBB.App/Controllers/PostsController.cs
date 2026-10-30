@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Post;
+using System.Security.Claims;
 
 namespace MvcBB.App.Controllers
 {
@@ -25,7 +28,7 @@ namespace MvcBB.App.Controllers
                 var thread = await _threadService.GetThreadAsync(post.ThreadId);
 
                 // Check if user has permission to edit
-                if (post.CreatedByUserId != User.Identity?.Name && 
+                if (post.CreatedByUserId != User.FindFirst(ClaimTypes.NameIdentifier)?.Value && 
                     !User.IsInRole("Administrator") && 
                     !User.IsInRole("Moderator"))
                 {
@@ -72,7 +75,7 @@ namespace MvcBB.App.Controllers
                 var thread = await _threadService.GetThreadAsync(post.ThreadId);
 
                 // Check if user has permission to edit
-                if (post.CreatedByUserId != User.Identity?.Name && 
+                if (post.CreatedByUserId != User.FindFirst(ClaimTypes.NameIdentifier)?.Value && 
                     !User.IsInRole("Administrator") && 
                     !User.IsInRole("Moderator"))
                 {
@@ -91,6 +94,10 @@ namespace MvcBB.App.Controllers
 
                 TempData["Success"] = "Post updated successfully.";
                 return RedirectToAction("Details", "Threads", new { id = post.ThreadId });
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {
@@ -111,6 +118,10 @@ namespace MvcBB.App.Controllers
                 TempData["Success"] = "Post deleted successfully.";
                 return RedirectToAction("Details", "Threads", new { id = post.ThreadId });
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
             catch (Exception ex)
             {
                 TempData["Error"] = "Failed to delete post.";
@@ -124,17 +135,7 @@ namespace MvcBB.App.Controllers
             try
             {
                 var post = await _postService.GetPostAsync(id);
-                var thread = await _threadService.GetThreadAsync(post.ThreadId);
-
-                if (thread.IsLocked && !User.IsInRole("Administrator") && !User.IsInRole("Moderator"))
-                {
-                    TempData["Error"] = "This thread is locked. New replies cannot be posted.";
-                    return RedirectToAction("Details", "Threads", new { id = thread.Id });
-                }
-
-                ViewData["QuotedPost"] = post;
-                ViewData["ThreadTitle"] = thread.Title;
-                return View("Reply");
+                return RedirectToAction("QuotePost", "Threads", new { threadId = post.ThreadId, postId = id });
             }
             catch (Exception ex)
             {
@@ -167,6 +168,10 @@ namespace MvcBB.App.Controllers
 
                 TempData["Success"] = "Reply posted successfully.";
                 return RedirectToAction("Details", "Threads", new { id = threadId });
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {

@@ -1,4 +1,6 @@
-﻿@{
+﻿@model HomeViewModel
+
+@{
     ViewData["Title"] = "Home";
 }
 
@@ -70,7 +72,7 @@
                                     </div>
                                     <p class="mb-1">
                                         <small>
-                                            Posted by @thread.CreatedByUserId in 
+                                            Posted by @thread.CreatedByUsername in 
                                             <a asp-controller="Boards" asp-action="Details" asp-route-id="@thread.BoardId" 
                                                class="text-decoration-none">@thread.BoardName</a>
                                         </small>

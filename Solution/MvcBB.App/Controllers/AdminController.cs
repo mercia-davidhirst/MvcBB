@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
 using MvcBB.Shared.Models.BBCode;
@@ -13,17 +15,29 @@ namespace MvcBB.App.Controllers
         private readonly IMvcBBCodeService _bbCodeService;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly ISettingsService _settingsService;
+        private readonly IBoardService _boardService;
 
-        public AdminController(IMvcBBCodeService bbCodeService, IWebHostEnvironment webHostEnvironment, ISettingsService settingsService)
+        public AdminController(
+            IMvcBBCodeService bbCodeService,
+            IWebHostEnvironment webHostEnvironment,
+            ISettingsService settingsService,
+            IBoardService boardService)
         {
             _bbCodeService = bbCodeService;
             _webHostEnvironment = webHostEnvironment;
             _settingsService = settingsService;
+            _boardService = boardService;
         }
 
         public IActionResult Dashboard()
         {
             return View();
+        }
+
+        public async Task<IActionResult> Boards()
+        {
+            var boards = await _boardService.GetBoardsAsync();
+            return View(boards.OrderBy(b => b.ParentId).ThenBy(b => b.SortOrder));
         }
 
         public async Task<IActionResult> BBCode()
@@ -32,9 +46,10 @@ namespace MvcBB.App.Controllers
             return View(tags);
         }
 
-        public IActionResult AddBBCode()
+        public async Task<IActionResult> AddBBCode()
         {
-            return View(new BBCodeTagModel());
+            var tags = await _bbCodeService.GetBBCodeTagsAsync();
+            return View(new BBCodeTagModel { SortOrder = tags.Count() + 1 });
         }
 
         [HttpPost]
@@ -51,6 +66,15 @@ namespace MvcBB.App.Controllers
                 await _bbCodeService.AddBBCodeTagAsync(model);
                 TempData["Success"] = "BBCode tag added successfully.";
                 return RedirectToAction(nameof(BBCode));
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(model);
             }
             catch (Exception ex)
             {
@@ -84,6 +108,15 @@ namespace MvcBB.App.Controllers
                 TempData["Success"] = "BBCode tag updated successfully.";
                 return RedirectToAction(nameof(BBCode));
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(model);
+            }
             catch (Exception ex)
             {
                 ModelState.AddModelError("", "Failed to update BBCode tag. Please try again.");
@@ -100,6 +133,10 @@ namespace MvcBB.App.Controllers
                 await _bbCodeService.DeleteBBCodeTagAsync(id);
                 TempData["Success"] = "BBCode tag deleted successfully.";
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
             catch (Exception ex)
             {
                 TempData["Error"] = "Failed to delete BBCode tag.";
@@ -113,9 +150,10 @@ namespace MvcBB.App.Controllers
             return View(smilies);
         }
 
-        public IActionResult AddSmilie()
+        public async Task<IActionResult> AddSmilie()
         {
-            return View(new SmilieViewModel());
+            var smilies = await _bbCodeService.GetSmiliesAsync();
+            return View(new SmilieViewModel { SortOrder = smilies.Count() + 1 });
         }
 
         [HttpPost]
@@ -149,6 +187,15 @@ namespace MvcBB.App.Controllers
                 await _bbCodeService.AddSmilieAsync(model);
                 TempData["Success"] = "Smilie added successfully.";
                 return RedirectToAction(nameof(Smilies));
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(model);
             }
             catch (Exception ex)
             {
@@ -219,6 +266,15 @@ namespace MvcBB.App.Controllers
                 TempData["Success"] = "Smilie updated successfully.";
                 return RedirectToAction(nameof(Smilies));
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(model);
+            }
             catch (Exception ex)
             {
                 ModelState.AddModelError("", "Failed to update smilie. Please try again.");
@@ -244,6 +300,10 @@ namespace MvcBB.App.Controllers
 
                 await _bbCodeService.DeleteSmilieAsync(id);
                 TempData["Success"] = "Smilie deleted successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {

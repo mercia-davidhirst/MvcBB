@@ -1,0 +1,41 @@
+@model CreateReportRequest
+
+@{
+    ViewData["Title"] = "Report Content";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h1 class="card-title mb-3">Report @Model.Type</h1>
+                    <p class="text-muted">
+                        Let us know why this @Model.Type.ToString().ToLower() should be reviewed by a moderator.
+                    </p>
+
+                    <form asp-action="Create" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                        <input type="hidden" asp-for="Type" />
+                        <input type="hidden" asp-for="ContentId" />
+
+                        <div class="mb-3">
+                            <label asp-for="Reason" class="form-label"></label>
+                            <textarea asp-for="Reason" class="form-control" rows="4" required></textarea>
+                            <span asp-validation-for="Reason" class="text-danger"></span>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">Submit Report</button>
+                            <a href="javascript:history.back()" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

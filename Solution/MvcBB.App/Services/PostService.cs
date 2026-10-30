@@ -1,11 +1,11 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
 using MvcBB.Shared.Interfaces;
-using MvcBB.Shared.Models.Authorization;
 using MvcBB.Shared.Models.Post;
 
 namespace MvcBB.App.Services;
@@ -16,8 +16,7 @@ namespace MvcBB.App.Services;
 public class PostService : IPostService
 {
     private readonly HttpClient _httpClient;
-    private readonly IAuthService _authService;
-    private readonly IConfiguration _configuration;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IBBCodeService _bbCodeService;
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -26,13 +25,11 @@ public class PostService : IPostService
 
     public PostService(
         IHttpClientFactory httpClientFactory,
-        IAuthService authService,
-        IConfiguration configuration,
+        IHttpContextAccessor httpContextAccessor,
         IBBCodeService bbCodeService)
     {
         _httpClient = httpClientFactory.CreateClient("MvcBBApi");
-        _authService = authService;
-        _configuration = configuration;
+        _httpContextAccessor = httpContextAccessor;
         _bbCodeService = bbCodeService;
     }
 
@@ -69,7 +66,7 @@ public class PostService : IPostService
     {
         try
         {
-            var token = await GetTokenAsync();
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Validate BBCode in content
@@ -107,7 +104,7 @@ public class PostService : IPostService
     {
         try
         {
-            var token = await GetTokenAsync();
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Validate BBCode in content
@@ -135,7 +132,7 @@ public class PostService : IPostService
     {
         try
         {
-            var token = await GetTokenAsync();
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.DeleteAsync($"api/posts/{id}");
@@ -147,16 +144,37 @@ public class PostService : IPostService
         }
     }
 
-    private async Task<string> GetTokenAsync()
+    /// <summary>
+    /// Gets a user's most recent posts, for display on their profile
+    /// </summary>
+    public async Task<IEnumerable<PostDto>> GetPostsByUserAsync(int userId, int take = 5)
     {
-        var credentials = new ApiCredentials
+        try
         {
-            ClientId = _configuration["Api:ClientId"] ?? "mvc_client",
-            ClientSecret = _configuration["Api:ClientSecret"] 
-                ?? throw new ServiceException("API client secret not configured")
-        };
-        var response = await _authService.GetTokenAsync(credentials);
-        return response.Token;
+            var response = await _httpClient.GetAsync($"api/posts/by-user/{userId}?take={take}");
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync();
+            var posts = JsonSerializer.Deserialize<List<Post>>(content, _jsonOptions) ?? new List<Post>();
+            return posts.Select(MapToPostDto);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new ServiceException($"Failed to retrieve posts for user {userId}", ex);
+        }
+        catch (JsonException ex)
+        {
+            throw new ServiceException($"Failed to parse posts data for user {userId}", ex);
+        }
+    }
+
+    // Creating/editing/deleting a post all require the caller's own identity on the
+    // API side (NameIdentifier for ownership, or a real Administrator/Moderator role
+    // for delete) - the generic mvc_client service token can't satisfy either.
+    private string GetCurrentUserToken()
+    {
+        return _httpContextAccessor.HttpContext?.User.FindFirst("api_token")?.Value
+            ?? throw new SessionExpiredException();
     }
 
     private static PostDto MapToPostDto(Post post) => new()

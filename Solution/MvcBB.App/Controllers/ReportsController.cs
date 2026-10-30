@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Report;
 
@@ -9,10 +11,14 @@ namespace MvcBB.App.Controllers
     public class ReportsController : Controller
     {
         private readonly IReportService _reportService;
+        private readonly IPostService _postService;
+        private readonly IUserService _userService;
 
-        public ReportsController(IReportService reportService)
+        public ReportsController(IReportService reportService, IPostService postService, IUserService userService)
         {
             _reportService = reportService;
+            _postService = postService;
+            _userService = userService;
         }
 
         [Authorize(Roles = "Administrator,Moderator")]
@@ -23,6 +29,10 @@ namespace MvcBB.App.Controllers
                 var reports = await _reportService.GetReportsAsync(status);
                 ViewData["CurrentStatus"] = status;
                 return View(reports);
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {
@@ -38,6 +48,10 @@ namespace MvcBB.App.Controllers
             {
                 var report = await _reportService.GetReportAsync(id);
                 return View(report);
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {
@@ -71,13 +85,34 @@ namespace MvcBB.App.Controllers
                 TempData["Success"] = "Report submitted successfully.";
 
                 // Redirect back to the appropriate content
+                if (request.Type == ReportType.Post)
+                {
+                    // ContentId is the post's own id here, not a thread id - look up
+                    // which thread it belongs to so the redirect actually lands
+                    // somewhere instead of treating the post id as a thread id.
+                    var post = await _postService.GetPostAsync(request.ContentId);
+                    var url = Url.Action("Details", "Threads", new { id = post.ThreadId }) + $"#post-{post.Id}";
+                    return Redirect(url);
+                }
+
+                if (request.Type == ReportType.User)
+                {
+                    var reportedUser = await _userService.GetUserByIdAsync(request.ContentId);
+                    return reportedUser != null
+                        ? RedirectToAction("Profile", "Account", new { username = reportedUser.Username })
+                        : RedirectToAction("Index", "Home");
+                }
+
                 return request.Type switch
                 {
                     ReportType.Thread => RedirectToAction("Details", "Threads", new { id = request.ContentId }),
-                    ReportType.Post => RedirectToAction("Details", "Threads", new { id = request.ContentId }), // We'll need to find the thread ID
                     ReportType.Message => RedirectToAction("Details", "Messages", new { id = request.ContentId }),
                     _ => RedirectToAction("Index", "Home")
                 };
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {
@@ -95,6 +130,10 @@ namespace MvcBB.App.Controllers
             {
                 await _reportService.UpdateReportAsync(id, request);
                 TempData["Success"] = "Report status updated successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (Exception ex)
             {

@@ -6,8 +6,10 @@ namespace MvcBB.App.Interfaces
     public interface IUserService
     {
         Task<IEnumerable<UserResponse>> GetUsersAsync();
+        Task<IEnumerable<UserResponse>> GetUsersForAdminAsync();
         Task<UserResponse> GetUserProfileAsync();
         Task<UserResponse?> GetUserByIdAsync(int userId);
+        Task<UserResponse?> GetUserByUsernameAsync(string username);
         Task<UserAuthResponse> RegisterAsync(UserRegistrationRequest request);
         Task<UserAuthResponse> LoginAsync(UserLoginRequest request);
         Task<MemberResponse> GetMembersAsync(MemberRequest request);

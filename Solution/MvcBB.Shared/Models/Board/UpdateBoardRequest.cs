@@ -12,6 +12,7 @@ namespace MvcBB.Shared.Models.Board
         public string Description { get; set; } = string.Empty;
 
         [Range(0, int.MaxValue, ErrorMessage = "Sort order must be a non-negative number")]
+        [Display(Name = "Sort Order")]
         public int SortOrder { get; set; }
 
         public bool IsActive { get; set; }

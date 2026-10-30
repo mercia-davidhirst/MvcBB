@@ -1,12 +1,11 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Post;
-using MvcBB.Shared.Models.Authorization;
 
 namespace MvcBB.App.Services
 {
@@ -16,21 +15,18 @@ namespace MvcBB.App.Services
     public class ThreadService : IThreadService
     {
         private readonly HttpClient _httpClient;
-        private readonly IAuthService _authService;
-        private readonly IConfiguration _configuration;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
         public ThreadService(
-            IHttpClientFactory httpClientFactory, 
-            IAuthService authService,
-            IConfiguration configuration)
+            IHttpClientFactory httpClientFactory,
+            IHttpContextAccessor httpContextAccessor)
         {
             _httpClient = httpClientFactory.CreateClient("MvcBBApi");
-            _authService = authService;
-            _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         /// <summary>
@@ -107,7 +103,7 @@ namespace MvcBB.App.Services
         {
             try
             {
-                var token = await GetTokenAsync();
+                var token = GetCurrentUserToken();
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var json = JsonSerializer.Serialize(request);
@@ -137,7 +133,7 @@ namespace MvcBB.App.Services
         {
             try
             {
-                var token = await GetTokenAsync();
+                var token = GetCurrentUserToken();
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var json = JsonSerializer.Serialize(request);
@@ -159,7 +155,7 @@ namespace MvcBB.App.Services
         {
             try
             {
-                var token = await GetTokenAsync();
+                var token = GetCurrentUserToken();
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var response = await _httpClient.DeleteAsync($"api/threads/{id}");
@@ -178,9 +174,9 @@ namespace MvcBB.App.Services
         {
             try
             {
-                var response = await _httpClient.GetAsync($"api/threads/{threadId}/posts");
+                var response = await _httpClient.GetAsync($"api/posts/thread/{threadId}");
                 response.EnsureSuccessStatusCode();
-                
+
                 var content = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<IEnumerable<PostResponse>>(content, _jsonOptions)
                     ?? Array.Empty<PostResponse>();
@@ -202,7 +198,7 @@ namespace MvcBB.App.Services
         {
             try
             {
-                var token = await GetTokenAsync();
+                var token = GetCurrentUserToken();
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 request.ThreadId = threadId;
@@ -257,7 +253,7 @@ namespace MvcBB.App.Services
         {
             try
             {
-                var token = await GetTokenAsync();
+                var token = GetCurrentUserToken();
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var json = JsonSerializer.Serialize(request);
@@ -272,16 +268,14 @@ namespace MvcBB.App.Services
             }
         }
 
-        private async Task<string> GetTokenAsync()
+        // Creating/editing threads and posts, and deleting threads, all require the
+        // caller's own identity on the API side (NameIdentifier for ownership, or a
+        // real Administrator/Moderator role for delete) - the generic mvc_client
+        // service token can't satisfy either.
+        private string GetCurrentUserToken()
         {
-            var credentials = new ApiCredentials
-            {
-                ClientId = _configuration["Api:ClientId"] ?? "mvc_client",
-                ClientSecret = _configuration["Api:ClientSecret"] 
-                    ?? throw new ServiceException("API client secret not configured")
-            };
-            var response = await _authService.GetTokenAsync(credentials);
-            return response.Token;
+            return _httpContextAccessor.HttpContext?.User.FindFirst("api_token")?.Value
+                ?? throw new SessionExpiredException();
         }
     }
 } 

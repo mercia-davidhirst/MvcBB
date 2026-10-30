@@ -1,0 +1,176 @@
+@model UserResponse
+
+@{
+    var isOwnProfile = ViewData["IsOwnProfile"] as bool? ?? true;
+    var recentPosts = ViewData["RecentPosts"] as IEnumerable<PostDto> ?? Enumerable.Empty<PostDto>();
+    ViewData["Title"] = isOwnProfile ? "My Profile" : $"{Model.Username}'s Profile";
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col d-flex justify-content-between align-items-center">
+            <h1>@(isOwnProfile ? "My Profile" : $"{Model.Username}'s Profile")</h1>
+            @if (!isOwnProfile && User.Identity?.IsAuthenticated == true)
+            {
+                <a asp-controller="Reports" asp-action="Create" asp-route-type="User" asp-route-contentId="@Model.Id"
+                   class="btn btn-outline-warning">
+                    <i class="bi bi-flag"></i> Report User
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">@Model.Username</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Role
+                            <span class="badge bg-primary rounded-pill">@Model.RoleName</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Threads
+                            <span class="badge bg-primary rounded-pill">@Model.ThreadCount</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Posts
+                            <span class="badge bg-primary rounded-pill">@Model.PostCount</span>
+                        </li>
+                        <li class="list-group-item">
+                            <small class="d-block text-muted">Joined</small>
+                            @Model.CreatedAt.ToLocalTime().ToString("d")
+                        </li>
+                        @if (Model.LastLoginAt.HasValue)
+                        {
+                            <li class="list-group-item">
+                                <small class="d-block text-muted">Last login</small>
+                                @Model.LastLoginAt.Value.ToLocalTime().ToString("g")
+                            </li>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.Signature))
+                        {
+                            <li class="list-group-item">
+                                <small class="d-block text-muted">Signature</small>
+                                @Model.Signature
+                            </li>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.Bio))
+                        {
+                            <li class="list-group-item">
+                                <small class="d-block text-muted">Bio</small>
+                                @Model.Bio
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Posts</h5>
+                </div>
+                <div class="card-body">
+                    @if (!recentPosts.Any())
+                    {
+                        <p class="text-muted mb-0">No posts yet.</p>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var post in recentPosts)
+                            {
+                                <a asp-controller="Threads" asp-action="Details" asp-route-id="@post.ThreadId" asp-fragment="post-@post.Id"
+                                   class="list-group-item list-group-item-action">
+                                    <p class="mb-1 text-truncate">@post.Content</p>
+                                    <small class="text-muted">@post.CreatedAt.ToLocalTime().ToString("g")</small>
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (isOwnProfile)
+        {
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Edit Profile</h5>
+                    </div>
+                    <div class="card-body">
+                        <form asp-controller="Account" asp-action="UpdateProfile" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="userId" value="@Model.Id" />
+
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <input name="Username" class="form-control" value="@Model.Username" required minlength="3" maxlength="50" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input name="Email" type="email" class="form-control" value="@Model.Email" required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Signature</label>
+                                <input name="Signature" class="form-control" value="@Model.Signature" maxlength="200" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Bio</label>
+                                <textarea name="Bio" class="form-control" maxlength="500" rows="3">@Model.Bio</textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Avatar URL</label>
+                                <input name="AvatarUrl" class="form-control" value="@Model.AvatarUrl" maxlength="200" />
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="ShowEmail" value="true" class="form-check-input" id="showEmail" checked="@Model.ShowEmail" />
+                                <label class="form-check-label" for="showEmail">Show email on my public profile</label>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Change Password</h5>
+                    </div>
+                    <div class="card-body">
+                        <form asp-controller="Account" asp-action="ChangePassword" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="userId" value="@Model.Id" />
+
+                            <div class="mb-3">
+                                <label class="form-label">Current Password</label>
+                                <input name="CurrentPassword" type="password" class="form-control" required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">New Password</label>
+                                <input name="NewPassword" type="password" class="form-control" required minlength="8" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Confirm New Password</label>
+                                <input name="ConfirmNewPassword" type="password" class="form-control" required minlength="8" />
+                            </div>
+
+                            <button type="submit" class="btn btn-outline-primary">Change Password</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

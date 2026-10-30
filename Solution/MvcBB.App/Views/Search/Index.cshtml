@@ -17,7 +17,7 @@
             </div>
             <div class="col-md-3">
                 <select class="form-select" name="type">
-                    <option value="" selected>All Content</option>
+                    <option value="all" selected="@(string.IsNullOrEmpty(Model.Type) || Model.Type == "all")">All Content</option>
                     <option value="threads" selected="@(Model.Type == "threads")">Threads</option>
                     <option value="posts" selected="@(Model.Type == "posts")">Posts</option>
                     <option value="users" selected="@(Model.Type == "users")">Users</option>

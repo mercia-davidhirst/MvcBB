@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace MvcBB.Shared.Models.BBCode
 {
     /// <summary>
@@ -6,15 +8,16 @@ namespace MvcBB.Shared.Models.BBCode
     public class SmilieModel
     {
         public int Id { get; set; }
-        
+
         public string Code { get; set; } = string.Empty;
-        
+
         public string Description { get; set; } = string.Empty;
-        
+
         public string ImagePath { get; set; } = string.Empty;
-        
+
         public bool IsActive { get; set; }
-        
+
+        [Display(Name = "Sort Order")]
         public int SortOrder { get; set; }
     }
 } 

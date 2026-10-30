@@ -10,20 +10,27 @@ namespace MvcBB.API.Controllers
     public class BoardsController : ControllerBase
     {
         private readonly IBoardRepository _boardRepository;
+        private readonly IForumThreadRepository _threadRepository;
+        private readonly IUserRepository _userRepository;
 
-        public BoardsController(IBoardRepository boardRepository)
+        public BoardsController(
+            IBoardRepository boardRepository,
+            IForumThreadRepository threadRepository,
+            IUserRepository userRepository)
         {
             _boardRepository = boardRepository;
+            _threadRepository = threadRepository;
+            _userRepository = userRepository;
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<Board>> GetBoards()
+        public ActionResult<IEnumerable<BoardResponse>> GetBoards()
         {
-            return Ok(_boardRepository.GetAll());
+            return Ok(_boardRepository.GetAll().Select(MapToBoardResponse));
         }
 
         [HttpGet("{id}")]
-        public ActionResult<Board> GetBoard(int id)
+        public ActionResult<BoardResponse> GetBoard(int id)
         {
             var board = _boardRepository.GetById(id);
             if (board == null)
@@ -31,12 +38,12 @@ namespace MvcBB.API.Controllers
                 return NotFound(new { message = "Board not found" });
             }
 
-            return Ok(board);
+            return Ok(MapToBoardResponse(board));
         }
 
         [HttpPost]
         [Authorize(Roles = "Administrator")]
-        public ActionResult<Board> CreateBoard(CreateBoardRequest request)
+        public ActionResult<BoardResponse> CreateBoard(CreateBoardRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -56,12 +63,12 @@ namespace MvcBB.API.Controllers
 
             board = _boardRepository.Add(board);
 
-            return CreatedAtAction(nameof(GetBoard), new { id = board.Id }, board);
+            return CreatedAtAction(nameof(GetBoard), new { id = board.Id }, MapToBoardResponse(board));
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Administrator")]
-        public ActionResult<Board> UpdateBoard(int id, UpdateBoardRequest request)
+        public ActionResult<BoardResponse> UpdateBoard(int id, UpdateBoardRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -83,7 +90,7 @@ namespace MvcBB.API.Controllers
             board.UpdatedAt = DateTime.UtcNow;
             _boardRepository.Update(board);
 
-            return Ok(board);
+            return Ok(MapToBoardResponse(board));
         }
 
         [HttpDelete("{id}")]
@@ -98,6 +105,47 @@ namespace MvcBB.API.Controllers
             _boardRepository.Remove(board);
 
             return NoContent();
+        }
+
+        private BoardResponse MapToBoardResponse(Board board)
+        {
+            var response = new BoardResponse
+            {
+                Id = board.Id,
+                Name = board.Name,
+                Description = board.Description,
+                SortOrder = board.SortOrder,
+                IsActive = board.IsActive,
+                ParentId = board.ParentId,
+                IsCategory = board.IsCategory,
+                CreatedAt = board.CreatedAt,
+                UpdatedAt = board.UpdatedAt,
+                ThreadCount = board.ThreadCount,
+                PostCount = board.PostCount
+            };
+
+            // Derived from the board's own threads rather than board.LastPostAt/
+            // LastPostByUserId - those are only ever set when a thread is first
+            // created and go stale the moment someone replies to an existing one.
+            var lastThread = _threadRepository.GetByBoardId(board.Id)
+                .OrderByDescending(t => t.LastPostAt ?? t.CreatedAt)
+                .FirstOrDefault();
+
+            if (lastThread != null)
+            {
+                response.LastThreadId = lastThread.Id;
+                response.LastThreadTitle = lastThread.Title;
+                response.LastPostByUserId = lastThread.LastPostByUserId ?? string.Empty;
+                response.LastPostAt = lastThread.LastPostAt ?? lastThread.CreatedAt;
+
+                if (!string.IsNullOrEmpty(lastThread.LastPostByUserId) &&
+                    int.TryParse(lastThread.LastPostByUserId, out var lastPostUserId))
+                {
+                    response.LastPostByUsername = _userRepository.GetById(lastPostUserId)?.Username ?? string.Empty;
+                }
+            }
+
+            return response;
         }
     }
 }

@@ -79,6 +79,12 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
+            if (_bbCodeService.GetBBCodeTags().Any(t => string.Equals(t.Name, model.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                ModelState.AddModelError(nameof(model.Name), "A BBCode tag with this name already exists.");
+                return BadRequest(ModelState);
+            }
+
             _bbCodeService.AddBBCodeTag(model);
             return CreatedAtAction(nameof(GetTag), new { id = model.Id }, model);
         }
@@ -95,6 +101,12 @@ namespace MvcBB.API.Controllers
             if (_bbCodeService.GetBBCodeTag(id) == null)
             {
                 return NotFound(new { message = "BBCode tag not found" });
+            }
+
+            if (_bbCodeService.GetBBCodeTags().Any(t => t.Id != id && string.Equals(t.Name, model.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                ModelState.AddModelError(nameof(model.Name), "A BBCode tag with this name already exists.");
+                return BadRequest(ModelState);
             }
 
             _bbCodeService.UpdateBBCodeTag(id, model);
@@ -141,6 +153,12 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
+            if (_bbCodeService.GetSmilies().Any(s => string.Equals(s.Code, model.Code, StringComparison.OrdinalIgnoreCase)))
+            {
+                ModelState.AddModelError(nameof(model.Code), "A smilie with this code already exists.");
+                return BadRequest(ModelState);
+            }
+
             _bbCodeService.AddSmilie(model);
             return CreatedAtAction(nameof(GetSmilie), new { id = model.Id }, model);
         }
@@ -157,6 +175,12 @@ namespace MvcBB.API.Controllers
             if (_bbCodeService.GetSmilie(id) == null)
             {
                 return NotFound(new { message = "Smilie not found" });
+            }
+
+            if (_bbCodeService.GetSmilies().Any(s => s.Id != id && string.Equals(s.Code, model.Code, StringComparison.OrdinalIgnoreCase)))
+            {
+                ModelState.AddModelError(nameof(model.Code), "A smilie with this code already exists.");
+                return BadRequest(ModelState);
             }
 
             _bbCodeService.UpdateSmilie(id, model);

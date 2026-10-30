@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MvcBB.Shared.Models.Board;
 using MvcBB.Shared.Models.ForumThread;
+using MvcBB.Shared.Models.Post;
 using MvcBB.Shared.Interfaces;
 using System.Security.Claims;
 
@@ -13,15 +14,21 @@ namespace MvcBB.API.Controllers
     {
         private readonly IForumThreadRepository _threadRepository;
         private readonly IBoardRepository _boardRepository;
+        private readonly IPostRepository _postRepository;
+        private readonly IUserRepository _userRepository;
         private readonly MvcBB.API.Services.IDisplaySettingsService _displaySettingsService;
 
         public ThreadsController(
             IForumThreadRepository threadRepository,
             IBoardRepository boardRepository,
+            IPostRepository postRepository,
+            IUserRepository userRepository,
             MvcBB.API.Services.IDisplaySettingsService displaySettingsService)
         {
             _threadRepository = threadRepository;
             _boardRepository = boardRepository;
+            _postRepository = postRepository;
+            _userRepository = userRepository;
             _displaySettingsService = displaySettingsService;
         }
 
@@ -56,7 +63,7 @@ namespace MvcBB.API.Controllers
         }
 
         [HttpGet("board/{boardId}")]
-        public ActionResult<IEnumerable<ForumThread>> GetBoardThreads(int boardId)
+        public ActionResult<IEnumerable<ThreadResponse>> GetBoardThreads(int boardId)
         {
             var board = _boardRepository.GetById(boardId);
             if (board == null)
@@ -65,11 +72,11 @@ namespace MvcBB.API.Controllers
             }
 
             var threads = _threadRepository.GetByBoardId(boardId);
-            return Ok(threads);
+            return Ok(threads.Select(MapToThreadResponse));
         }
 
         [HttpGet("{id}")]
-        public ActionResult<ForumThread> GetThread(int id)
+        public ActionResult<ThreadResponse> GetThread(int id)
         {
             var thread = _threadRepository.GetById(id);
             if (thread == null)
@@ -80,12 +87,12 @@ namespace MvcBB.API.Controllers
             thread.ViewCount++;
             _threadRepository.Update(thread);
 
-            return Ok(thread);
+            return Ok(MapToThreadResponse(thread));
         }
 
         [HttpPost]
         [Authorize]
-        public ActionResult<ForumThread> CreateThread(CreateForumThreadRequest request)
+        public ActionResult<ThreadResponse> CreateThread(CreateForumThreadRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -104,29 +111,42 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
+            var now = DateTime.UtcNow;
             var thread = new ForumThread
             {
                 Title = request.Title,
                 BoardId = request.BoardId,
                 CreatedByUserId = userId,
-                CreatedAt = DateTime.UtcNow,
-                LastPostAt = DateTime.UtcNow,
-                LastPostByUserId = userId
+                CreatedAt = now,
+                LastPostAt = now,
+                LastPostByUserId = userId,
+                PostCount = 1
             };
 
             thread = _threadRepository.Add(thread);
 
+            // The thread's own Content is its first post - without this the thread
+            // would have zero posts and nothing for GetThreadPosts to return.
+            _postRepository.Add(new Post
+            {
+                Content = request.Content,
+                ThreadId = thread.Id,
+                CreatedByUserId = userId,
+                CreatedAt = now
+            });
+
             board.ThreadCount++;
-            board.LastPostAt = thread.CreatedAt;
+            board.PostCount++;
+            board.LastPostAt = now;
             board.LastPostByUserId = userId;
             _boardRepository.Update(board);
 
-            return CreatedAtAction(nameof(GetThread), new { id = thread.Id }, thread);
+            return CreatedAtAction(nameof(GetThread), new { id = thread.Id }, MapToThreadResponse(thread));
         }
 
         [HttpPut("{id}")]
         [Authorize]
-        public ActionResult<ForumThread> UpdateThread(int id, UpdateForumThreadRequest request)
+        public ActionResult<ThreadResponse> UpdateThread(int id, UpdateForumThreadRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -158,7 +178,7 @@ namespace MvcBB.API.Controllers
             thread.UpdatedAt = DateTime.UtcNow;
             _threadRepository.Update(thread);
 
-            return Ok(thread);
+            return Ok(MapToThreadResponse(thread));
         }
 
         [HttpDelete("{id}")]
@@ -192,7 +212,7 @@ namespace MvcBB.API.Controllers
                 BoardId = t.BoardId,
                 BoardName = board?.Name ?? string.Empty,
                 CreatedByUserId = t.CreatedByUserId,
-                CreatedByUsername = t.CreatedByUserId,
+                CreatedByUsername = GetUsername(t.CreatedByUserId),
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt,
                 IsSticky = t.IsSticky,
@@ -201,8 +221,17 @@ namespace MvcBB.API.Controllers
                 ReplyCount = t.PostCount,
                 LastPostAt = t.LastPostAt,
                 LastPostByUserId = t.LastPostByUserId,
-                LastPostByUsername = t.LastPostByUserId
+                LastPostByUsername = GetUsername(t.LastPostByUserId)
             };
+        }
+
+        private string GetUsername(string? userId)
+        {
+            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
+            {
+                return _userRepository.GetById(id)?.Username ?? string.Empty;
+            }
+            return string.Empty;
         }
     }
 }

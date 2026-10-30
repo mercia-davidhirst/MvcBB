@@ -1,0 +1,61 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "_AdminLayout";
+}
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-people me-2"></i>Users</h5>
+                <p class="card-text text-muted">Manage member accounts, roles, and anonymization.</p>
+                <a asp-controller="Account" asp-action="Users" class="btn btn-outline-primary btn-sm">Manage Users</a>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-grid me-2"></i>Boards</h5>
+                <p class="card-text text-muted">Manage boards and categories.</p>
+                <a asp-controller="Boards" asp-action="Index" class="btn btn-outline-primary btn-sm">Manage Boards</a>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-code-square me-2"></i>BBCode</h5>
+                <p class="card-text text-muted">Manage BBCode tags available to members.</p>
+                <a asp-controller="Admin" asp-action="BBCode" class="btn btn-outline-primary btn-sm">Manage BBCode</a>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-emoji-smile me-2"></i>Smilies</h5>
+                <p class="card-text text-muted">Manage the smilie library.</p>
+                <a asp-controller="Admin" asp-action="Smilies" class="btn btn-outline-primary btn-sm">Manage Smilies</a>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-flag me-2"></i>Reports</h5>
+                <p class="card-text text-muted">Review and resolve member-submitted reports.</p>
+                <a asp-controller="Reports" asp-action="Index" class="btn btn-outline-primary btn-sm">View Reports</a>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-gear me-2"></i>Settings</h5>
+                <p class="card-text text-muted">Configure forum display settings.</p>
+                <a asp-controller="Admin" asp-action="Settings" class="btn btn-outline-primary btn-sm">Open Settings</a>
+            </div>
+        </div>
+    </div>
+</div>

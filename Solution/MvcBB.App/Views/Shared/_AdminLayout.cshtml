@@ -16,15 +16,15 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Users" ? "active" : "")"
+                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Account" && ViewContext.RouteData.Values["Action"]?.ToString() == "Users" ? "active" : "")"
                            asp-controller="Account" asp-action="Users">
                             <i class="bi bi-people me-2"></i>
                             Users
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Boards" ? "active" : "")"
-                           asp-controller="Boards" asp-action="Index">
+                        <a class="nav-link @((ViewContext.RouteData.Values["Controller"]?.ToString() == "Admin" && ViewContext.RouteData.Values["Action"]?.ToString() == "Boards") || ViewContext.RouteData.Values["Controller"]?.ToString() == "Boards" ? "active" : "")"
+                           asp-controller="Admin" asp-action="Boards">
                             <i class="bi bi-grid me-2"></i>
                             Boards
                         </a>
@@ -44,7 +44,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Reports" ? "active" : "")"
+                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Reports" ? "active" : "")"
                            asp-controller="Reports" asp-action="Index">
                             <i class="bi bi-flag me-2"></i>
                             Reports
