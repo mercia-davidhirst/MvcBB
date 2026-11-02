@@ -20,18 +20,27 @@ namespace MvcBB.API.Services
             if (!_initialized)
             {
                 _settings.ThreadsPerPage = _configuration.GetValue("Display:ThreadsPerPage", 20);
+                _settings.SiteTitle = _configuration.GetValue("Display:SiteTitle", _settings.SiteTitle) ?? _settings.SiteTitle;
+                _settings.WelcomeMessage = _configuration.GetValue("Display:WelcomeMessage", _settings.WelcomeMessage) ?? _settings.WelcomeMessage;
                 _initialized = true;
             }
         }
 
         public DisplaySettings GetDisplaySettings()
         {
-            return new DisplaySettings { ThreadsPerPage = _settings.ThreadsPerPage };
+            return new DisplaySettings
+            {
+                ThreadsPerPage = _settings.ThreadsPerPage,
+                SiteTitle = _settings.SiteTitle,
+                WelcomeMessage = _settings.WelcomeMessage
+            };
         }
 
         public void UpdateDisplaySettings(DisplaySettings settings)
         {
             _settings.ThreadsPerPage = Math.Clamp(settings.ThreadsPerPage, 1, 100);
+            _settings.SiteTitle = settings.SiteTitle;
+            _settings.WelcomeMessage = settings.WelcomeMessage;
         }
     }
 }

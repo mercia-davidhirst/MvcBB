@@ -14,11 +14,13 @@ namespace MvcBB.App.Controllers
     {
         private readonly IUserService _userService;
         private readonly IPostService _postService;
+        private readonly ITurnstileService _turnstileService;
 
-        public AccountController(IUserService userService, IPostService postService)
+        public AccountController(IUserService userService, IPostService postService, ITurnstileService turnstileService)
         {
             _userService = userService;
             _postService = postService;
+            _turnstileService = turnstileService;
         }
 
         public IActionResult Login()
@@ -121,15 +123,24 @@ namespace MvcBB.App.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
+            ViewData["TurnstileSiteKey"] = _turnstileService.SiteKey;
             return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register(UserRegistrationRequest request)
+        public async Task<IActionResult> Register(UserRegistrationRequest request, [FromForm(Name = "cf-turnstile-response")] string? turnstileToken)
         {
             if (!ModelState.IsValid)
             {
+                ViewData["TurnstileSiteKey"] = _turnstileService.SiteKey;
+                return View(request);
+            }
+
+            if (!await _turnstileService.ValidateAsync(turnstileToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
+            {
+                ModelState.AddModelError("", "CAPTCHA verification failed. Please try again.");
+                ViewData["TurnstileSiteKey"] = _turnstileService.SiteKey;
                 return View(request);
             }
 
@@ -137,13 +148,14 @@ namespace MvcBB.App.Controllers
             {
                 var response = await _userService.RegisterAsync(request);
                 await SignInUserAsync(response);
-                
+
                 TempData["Success"] = "Registration successful.";
                 return RedirectToAction("Index", "Home");
             }
             catch (Exception ex)
             {
                 ModelState.AddModelError("", "Registration failed. Please try again.");
+                ViewData["TurnstileSiteKey"] = _turnstileService.SiteKey;
                 return View(request);
             }
         }

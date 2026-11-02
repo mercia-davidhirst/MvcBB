@@ -11,17 +11,20 @@ public class HomeController : Controller
     private readonly IThreadService _threadService;
     private readonly IUserService _userService;
     private readonly IBoardService _boardService;
+    private readonly ISettingsService _settingsService;
 
     public HomeController(
         ILogger<HomeController> logger,
         IThreadService threadService,
         IUserService userService,
-        IBoardService boardService)
+        IBoardService boardService,
+        ISettingsService settingsService)
     {
         _logger = logger;
         _threadService = threadService;
         _userService = userService;
         _boardService = boardService;
+        _settingsService = settingsService;
     }
 
     public async Task<IActionResult> Index()
@@ -51,11 +54,15 @@ public class HomeController : Controller
                 ActiveUsers = users.Count(u => u.LastLoginAt >= DateTime.UtcNow.AddDays(-7))
             };
 
+            var displaySettings = await _settingsService.GetDisplaySettingsAsync();
+
             var viewModel = new HomeViewModel
             {
                 LatestThreads = latestThreads,
                 NewestMembers = newestMembers,
-                Stats = stats
+                Stats = stats,
+                SiteTitle = displaySettings.SiteTitle,
+                WelcomeMessage = displaySettings.WelcomeMessage
             };
 
             return View(viewModel);

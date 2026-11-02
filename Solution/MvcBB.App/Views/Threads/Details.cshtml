@@ -17,7 +17,7 @@
     </nav>
 
     <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header thread-header d-flex justify-content-between align-items-center">
             <h4 class="mb-0">@Model.Title</h4>
             <div>
                 @if (!Model.IsLocked || User.IsInRole("Administrator") || User.IsInRole("Moderator"))
@@ -35,51 +35,53 @@
 
     @if (posts != null && posts.Any())
     {
-        foreach (var post in posts)
-        {
-            <div class="card mb-3" id="post-@post.Id">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>@post.CreatedByUsername</strong>
-                        <small class="text-muted">
-                            posted @post.CreatedAt.ToString("g")
-                            @if (post.IsEdited)
+        <div class="thread-posts mb-4">
+            @foreach (var post in posts)
+            {
+                <div class="card" id="post-@post.Id">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>@post.CreatedByUsername</strong>
+                            <small class="text-muted">
+                                posted @post.CreatedAt.ToString("g")
+                                @if (post.IsEdited)
+                                {
+                                    <span>(edited @post.UpdatedAt?.ToString("g"))</span>
+                                }
+                            </small>
+                        </div>
+                        <div>
+                            @if (!Model.IsLocked || User.IsInRole("Administrator") || User.IsInRole("Moderator"))
                             {
-                                <span>(edited @post.UpdatedAt?.ToString("g"))</span>
-                            }
-                        </small>
-                    </div>
-                    <div>
-                        @if (!Model.IsLocked || User.IsInRole("Administrator") || User.IsInRole("Moderator"))
-                        {
-                            <a asp-action="QuotePost" asp-route-threadId="@Model.Id" asp-route-postId="@post.Id" 
-                               class="btn btn-sm btn-outline-secondary">
-                                <i class="bi bi-quote"></i> Quote
-                            </a>
-                        }
-                        <a asp-controller="Reports" asp-action="Create" 
-                           asp-route-type="Post" asp-route-contentId="@post.Id"
-                           class="btn btn-sm btn-outline-warning">
-                            <i class="bi bi-flag"></i> Report
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    @if (post.QuotedPost != null)
-                    {
-                        <blockquote class="blockquote mb-3">
-                            <p class="mb-0">@Html.Raw(BBCodeService.ParseBBCode(post.QuotedPost.Content))</p>
-                            <footer class="blockquote-footer">
-                                <a href="#post-@post.QuotedPost.Id" class="text-decoration-none">
-                                    <cite>@post.QuotedPost.CreatedByUsername</cite> wrote this <i class="bi bi-arrow-up-short"></i>
+                                <a asp-action="QuotePost" asp-route-threadId="@Model.Id" asp-route-postId="@post.Id"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-quote"></i> Quote
                                 </a>
-                            </footer>
-                        </blockquote>
-                    }
-                    @Html.Raw(BBCodeService.ParseBBCode(post.Content))
+                            }
+                            <a asp-controller="Reports" asp-action="Create"
+                               asp-route-type="Post" asp-route-contentId="@post.Id"
+                               class="btn btn-sm btn-outline-warning">
+                                <i class="bi bi-flag"></i> Report
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (post.QuotedPost != null)
+                        {
+                            <blockquote class="blockquote mb-3">
+                                <p class="mb-0">@Html.Raw(BBCodeService.ParseBBCode(post.QuotedPost.Content))</p>
+                                <footer class="blockquote-footer">
+                                    <a href="#post-@post.QuotedPost.Id" class="text-decoration-none">
+                                        <cite>@post.QuotedPost.CreatedByUsername</cite> wrote this <i class="bi bi-arrow-up-short"></i>
+                                    </a>
+                                </footer>
+                            </blockquote>
+                        }
+                        @Html.Raw(BBCodeService.ParseBBCode(post.Content))
+                    </div>
                 </div>
-            </div>
-        }
+            }
+        </div>
     }
     else
     {
@@ -95,7 +97,7 @@
     else if (User.Identity?.IsAuthenticated == true)
     {
         <div class="card">
-            <div class="card-header">
+            <div class="card-header quick-reply-header">
                 <h5 class="mb-0">Quick Reply</h5>
             </div>
             <div class="card-body">

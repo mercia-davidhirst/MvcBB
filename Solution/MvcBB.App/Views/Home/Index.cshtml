@@ -9,8 +9,8 @@
     <div class="row mb-4">
         <div class="col">
             <div class="jumbotron bg-light p-5 rounded">
-                <h1 class="display-4">Welcome to MvcBB</h1>
-                <p class="lead">A modern bulletin board system for engaging discussions and community building.</p>
+                <h1 class="display-4">@Model.SiteTitle</h1>
+                <p class="lead">@Model.WelcomeMessage</p>
                 @if (!User.Identity?.IsAuthenticated == true)
                 {
                     <hr class="my-4">

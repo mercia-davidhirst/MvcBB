@@ -71,6 +71,7 @@ builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
+builder.Services.AddHttpClient<ITurnstileService, TurnstileService>();
 
 // Add authentication - the App authenticates browser sessions with a cookie;
 // the JWTs issued by MvcBB.API are only ever used for the App's own outbound
