@@ -22,6 +22,8 @@ namespace MvcBB.API.Services
                 _settings.ThreadsPerPage = _configuration.GetValue("Display:ThreadsPerPage", 20);
                 _settings.SiteTitle = _configuration.GetValue("Display:SiteTitle", _settings.SiteTitle) ?? _settings.SiteTitle;
                 _settings.WelcomeMessage = _configuration.GetValue("Display:WelcomeMessage", _settings.WelcomeMessage) ?? _settings.WelcomeMessage;
+                _settings.SiteName = _configuration.GetValue("Display:SiteName", _settings.SiteName) ?? _settings.SiteName;
+                _settings.LogoPath = _configuration.GetValue<string?>("Display:LogoPath", null);
                 _initialized = true;
             }
         }
@@ -32,7 +34,9 @@ namespace MvcBB.API.Services
             {
                 ThreadsPerPage = _settings.ThreadsPerPage,
                 SiteTitle = _settings.SiteTitle,
-                WelcomeMessage = _settings.WelcomeMessage
+                WelcomeMessage = _settings.WelcomeMessage,
+                SiteName = _settings.SiteName,
+                LogoPath = _settings.LogoPath
             };
         }
 
@@ -41,6 +45,8 @@ namespace MvcBB.API.Services
             _settings.ThreadsPerPage = Math.Clamp(settings.ThreadsPerPage, 1, 100);
             _settings.SiteTitle = settings.SiteTitle;
             _settings.WelcomeMessage = settings.WelcomeMessage;
+            _settings.SiteName = settings.SiteName;
+            _settings.LogoPath = settings.LogoPath;
         }
     }
 }

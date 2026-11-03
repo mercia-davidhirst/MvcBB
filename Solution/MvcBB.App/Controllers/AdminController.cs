@@ -13,20 +13,20 @@ namespace MvcBB.App.Controllers
     public class AdminController : Controller
     {
         private readonly IMvcBBCodeService _bbCodeService;
-        private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly ISettingsService _settingsService;
         private readonly IBoardService _boardService;
+        private readonly IImageUploadService _imageUploadService;
 
         public AdminController(
             IMvcBBCodeService bbCodeService,
-            IWebHostEnvironment webHostEnvironment,
             ISettingsService settingsService,
-            IBoardService boardService)
+            IBoardService boardService,
+            IImageUploadService imageUploadService)
         {
             _bbCodeService = bbCodeService;
-            _webHostEnvironment = webHostEnvironment;
             _settingsService = settingsService;
             _boardService = boardService;
+            _imageUploadService = imageUploadService;
         }
 
         public IActionResult Dashboard()
@@ -169,19 +169,7 @@ namespace MvcBB.App.Controllers
             {
                 if (model.ImageFile != null)
                 {
-                    // Save image file
-                    var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "smilies");
-                    Directory.CreateDirectory(uploadsFolder); // Ensure directory exists
-
-                    var uniqueFileName = $"{Guid.NewGuid()}_{model.ImageFile.FileName}";
-                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await model.ImageFile.CopyToAsync(fileStream);
-                    }
-
-                    model.ImagePath = $"/images/smilies/{uniqueFileName}";
+                    model.ImagePath = await _imageUploadService.SaveImageAsync(model.ImageFile, "smilies");
                 }
 
                 await _bbCodeService.AddSmilieAsync(model);
@@ -236,30 +224,9 @@ namespace MvcBB.App.Controllers
             {
                 if (model.ImageFile != null)
                 {
-                    // Delete old image if it exists
                     var oldSmilie = await _bbCodeService.GetSmilieAsync(id);
-                    if (oldSmilie != null && !string.IsNullOrEmpty(oldSmilie.ImagePath))
-                    {
-                        var oldFilePath = Path.Combine(_webHostEnvironment.WebRootPath, oldSmilie.ImagePath.TrimStart('/'));
-                        if (System.IO.File.Exists(oldFilePath))
-                        {
-                            System.IO.File.Delete(oldFilePath);
-                        }
-                    }
-
-                    // Save new image file
-                    var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "smilies");
-                    Directory.CreateDirectory(uploadsFolder); // Ensure directory exists
-
-                    var uniqueFileName = $"{Guid.NewGuid()}_{model.ImageFile.FileName}";
-                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await model.ImageFile.CopyToAsync(fileStream);
-                    }
-
-                    model.ImagePath = $"/images/smilies/{uniqueFileName}";
+                    model.ImagePath = await _imageUploadService.SaveImageAsync(model.ImageFile, "smilies");
+                    _imageUploadService.DeleteImage(oldSmilie?.ImagePath);
                 }
 
                 await _bbCodeService.UpdateSmilieAsync(id, model);
@@ -289,14 +256,7 @@ namespace MvcBB.App.Controllers
             try
             {
                 var smilie = await _bbCodeService.GetSmilieAsync(id);
-                if (smilie != null && !string.IsNullOrEmpty(smilie.ImagePath))
-                {
-                    var filePath = Path.Combine(_webHostEnvironment.WebRootPath, smilie.ImagePath.TrimStart('/'));
-                    if (System.IO.File.Exists(filePath))
-                    {
-                        System.IO.File.Delete(filePath);
-                    }
-                }
+                _imageUploadService.DeleteImage(smilie?.ImagePath);
 
                 await _bbCodeService.DeleteSmilieAsync(id);
                 TempData["Success"] = "Smilie deleted successfully.";
@@ -317,17 +277,17 @@ namespace MvcBB.App.Controllers
             try
             {
                 var settings = await _settingsService.GetDisplaySettingsAsync();
-                return View(settings);
+                return View(ToViewModel(settings));
             }
             catch
             {
-                return View(new DisplaySettings());
+                return View(new DisplaySettingsViewModel());
             }
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Settings(DisplaySettings model)
+        public async Task<IActionResult> Settings(DisplaySettingsViewModel model)
         {
             if (!ModelState.IsValid)
             {
@@ -336,8 +296,26 @@ namespace MvcBB.App.Controllers
 
             try
             {
+                if (model.LogoFile != null)
+                {
+                    var oldSettings = await _settingsService.GetDisplaySettingsAsync();
+                    model.LogoPath = await _imageUploadService.SaveImageAsync(model.LogoFile, "logos");
+                    _imageUploadService.DeleteImage(oldSettings.LogoPath);
+                }
+                else if (model.RemoveLogo)
+                {
+                    var oldSettings = await _settingsService.GetDisplaySettingsAsync();
+                    _imageUploadService.DeleteImage(oldSettings.LogoPath);
+                    model.LogoPath = null;
+                }
+
                 await _settingsService.UpdateDisplaySettingsAsync(model);
                 TempData["Success"] = "Display settings saved successfully.";
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(model);
             }
             catch
             {
@@ -346,5 +324,14 @@ namespace MvcBB.App.Controllers
 
             return RedirectToAction(nameof(Settings));
         }
+
+        private static DisplaySettingsViewModel ToViewModel(DisplaySettings settings) => new()
+        {
+            ThreadsPerPage = settings.ThreadsPerPage,
+            SiteTitle = settings.SiteTitle,
+            WelcomeMessage = settings.WelcomeMessage,
+            SiteName = settings.SiteName,
+            LogoPath = settings.LogoPath
+        };
     }
 } 

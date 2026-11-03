@@ -417,3 +417,7 @@ FodyWeavers.xsd
 *.msm
 *.msp
 /internal.md
+
+# Local legacy-forum DB dumps used for migration testing - these are large
+# (100s of MB) and exceed GitHub's file size limit, so they stay local only.
+/Database/Archive/

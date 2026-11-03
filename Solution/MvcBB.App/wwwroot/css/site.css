@@ -1,3 +1,16 @@
+/*
+  Default "MvcBB Light" theme - a purple/lavender palette. Site name and logo
+  are configurable from Admin Settings so a deployment isn't tied to one brand.
+*/
+:root {
+  --mvcbb-light-purple: #9966AA;
+  --mvcbb-light-purple-dark: #7a4f8a;
+  --mvcbb-light-purple-light: #9966CC;
+  --mvcbb-light-row-a: #F5F5F5;
+  --mvcbb-light-row-b: #EDEDED;
+  --mvcbb-light-container: #CCCCDD;
+}
+
 html {
   font-size: 14px;
 }
@@ -76,4 +89,122 @@ pre code {
     background-color: #f8f9fa;
     border-radius: 4px;
     white-space: pre-wrap;
+}
+
+/* MvcBB Light theme */
+
+body {
+    background-color: #faf9fc;
+}
+
+.navbar {
+    background-color: var(--mvcbb-light-purple) !important;
+}
+
+.navbar .navbar-brand img {
+    height: 36px;
+}
+
+.navbar .nav-link,
+.navbar .navbar-brand,
+.navbar .dropdown-toggle {
+    color: #fff !important;
+}
+
+.navbar .nav-link:hover,
+.navbar .dropdown-toggle:hover {
+    color: #e9ddf0 !important;
+}
+
+a {
+    color: var(--mvcbb-light-purple);
+}
+
+a:hover {
+    color: var(--mvcbb-light-purple-dark);
+}
+
+.btn-primary {
+    background-color: var(--mvcbb-light-purple);
+    border-color: var(--mvcbb-light-purple);
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: var(--mvcbb-light-purple-dark) !important;
+    border-color: var(--mvcbb-light-purple-dark) !important;
+}
+
+.btn-outline-primary {
+    color: var(--mvcbb-light-purple);
+    border-color: var(--mvcbb-light-purple);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--mvcbb-light-purple);
+    border-color: var(--mvcbb-light-purple);
+}
+
+/* Category header bar - echoes the old forum's "tablecat" table headers */
+.category-header {
+    background-color: var(--mvcbb-light-purple-light);
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 0;
+}
+
+.category-header .text-muted {
+    color: #e9ddf0 !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: var(--mvcbb-light-row-a);
+}
+
+.table-striped > tbody > tr:nth-of-type(even) > * {
+    background-color: var(--mvcbb-light-row-b);
+}
+
+.card-header {
+    background-color: var(--mvcbb-light-container);
+}
+
+/* Thread title bar and Quick Reply header match the navbar's lilac so they
+   read as page chrome, distinct from the plain post cards beneath them. */
+.thread-header,
+.quick-reply-header {
+    background-color: var(--mvcbb-light-purple);
+    color: #fff;
+}
+
+.thread-header h4,
+.quick-reply-header h5 {
+    color: #fff;
+}
+
+/* Posts in a thread sit flush against each other like a single list rather
+   than separate, gapped cards. */
+.thread-posts .card {
+    margin-bottom: 0;
+    border-radius: 0;
+}
+
+.thread-posts .card + .card {
+    border-top: none;
+}
+
+.thread-posts .card:first-child {
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+}
+
+.thread-posts .card:last-child {
+    border-bottom-left-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+}
+
+footer.footer {
+    border-top-color: var(--mvcbb-light-purple) !important;
 }

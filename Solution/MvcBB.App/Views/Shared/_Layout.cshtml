@@ -1,9 +1,14 @@
-﻿<!DOCTYPE html>
+﻿@using MvcBB.App.Interfaces
+@inject ISettingsService SettingsService
+@{
+    var displaySettings = await SettingsService.GetDisplaySettingsAsync();
+}
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - MvcBB.App</title>
+    <title>@ViewData["Title"] - @displaySettings.SiteName</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -14,7 +19,14 @@
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container-fluid">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                    <img src="~/images/gatchamania-logo.gif" alt="Gatchamania.net" />
+                    @if (!string.IsNullOrEmpty(displaySettings.LogoPath))
+                    {
+                        <img src="@displaySettings.LogoPath" alt="@displaySettings.SiteName" />
+                    }
+                    else
+                    {
+                        @displaySettings.SiteName
+                    }
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
@@ -135,7 +147,7 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; @DateTime.Now.Year - MvcBB.App
+            &copy; @DateTime.Now.Year - @displaySettings.SiteName
         </div>
     </footer>
 
