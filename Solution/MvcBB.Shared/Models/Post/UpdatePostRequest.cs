@@ -10,5 +10,7 @@ namespace MvcBB.Shared.Models.Post
 
         [Required]
         public string EditReason { get; set; }
+
+        public string? ImageUrl { get; set; }
     }
 }

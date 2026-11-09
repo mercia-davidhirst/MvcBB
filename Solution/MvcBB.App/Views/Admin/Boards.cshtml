@@ -22,6 +22,7 @@
                         <th>Parent</th>
                         <th>Sort Order</th>
                         <th>Active</th>
+                        <th>Visibility</th>
                         <th>Threads</th>
                         <th>Posts</th>
                         <th>Actions</th>
@@ -31,7 +32,7 @@
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="8" class="text-center text-muted">No boards have been created yet.</td>
+                            <td colspan="9" class="text-center text-muted">No boards have been created yet.</td>
                         </tr>
                     }
                     @foreach (var board in Model)
@@ -69,6 +70,16 @@
                                 else
                                 {
                                     <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </td>
+                            <td>
+                                @if (board.IsPrivate)
+                                {
+                                    <span class="badge bg-warning"><i class="bi bi-lock-fill"></i> Private</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-dark">Public</span>
                                 }
                             </td>
                             <td>@board.ThreadCount</td>

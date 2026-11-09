@@ -9,6 +9,7 @@ namespace MvcBB.Shared.Models.Board
         public bool IsActive { get; set; }
         public int? ParentId { get; set; }
         public bool IsCategory { get; set; }
+        public bool IsPrivate { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public int ThreadCount { get; set; }

@@ -18,5 +18,8 @@ namespace MvcBB.Shared.Models.Board
         public int? ParentId { get; set; }
 
         public bool IsCategory { get; set; }
+
+        [Display(Name = "Private")]
+        public bool IsPrivate { get; set; }
     }
 }

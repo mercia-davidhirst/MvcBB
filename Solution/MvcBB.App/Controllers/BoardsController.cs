@@ -71,6 +71,13 @@ namespace MvcBB.App.Controllers
             try
             {
                 var board = await _boardService.CreateBoardAsync(request);
+
+                if (board.IsCategory)
+                {
+                    TempData["Success"] = "Category created successfully.";
+                    return RedirectToAction("Boards", "Admin");
+                }
+
                 TempData["Success"] = "Board created successfully.";
                 return RedirectToAction(nameof(Details), new { id = board.Id });
             }
@@ -98,7 +105,8 @@ namespace MvcBB.App.Controllers
                     SortOrder = board.SortOrder,
                     IsActive = board.IsActive,
                     ParentId = board.ParentId,
-                    IsCategory = board.IsCategory
+                    IsCategory = board.IsCategory,
+                    IsPrivate = board.IsPrivate
                 };
                 ViewData["Boards"] = (await _boardService.GetBoardsAsync()).Where(b => b.Id != id);
                 return View(updateRequest);

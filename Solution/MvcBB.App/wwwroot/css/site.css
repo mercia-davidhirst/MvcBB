@@ -208,3 +208,14 @@ a:hover {
 footer.footer {
     border-top-color: var(--mvcbb-light-purple) !important;
 }
+
+/* Consecutive boards on the Boards index sit flush against each other
+   rather than leaving a gap; a category header above/below still keeps
+   its own spacing since this only matches board-after-board. */
+.board-col + .board-col {
+    margin-top: -1rem;
+}
+
+.board-col + .board-col .card {
+    border-top: none;
+}

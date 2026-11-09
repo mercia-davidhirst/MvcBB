@@ -51,7 +51,8 @@ namespace MvcBB.API.SQL
                 post.ThreadId,
                 CreatedByUserId = int.Parse(post.CreatedByUserId),
                 post.CreatedAt,
-                post.QuotedPostId
+                post.QuotedPostId,
+                post.ImageUrl
             }, commandType: CommandType.StoredProcedure);
 
             var row = connection.QuerySingle<PostRow>("dbo.usp_Post_GetById", new { Id = newId }, commandType: CommandType.StoredProcedure);
@@ -73,7 +74,8 @@ namespace MvcBB.API.SQL
                 DeletedByUserId = ParseUserId(post.DeletedByUserId),
                 post.DeletedAt,
                 post.DeleteReason,
-                post.QuotedPostId
+                post.QuotedPostId,
+                post.ImageUrl
             }, commandType: CommandType.StoredProcedure);
         }
 
@@ -105,6 +107,7 @@ namespace MvcBB.API.SQL
             DeletedAt = row.DeletedAt,
             DeleteReason = row.DeleteReason,
             QuotedPostId = row.QuotedPostId,
+            ImageUrl = row.ImageUrl,
             UserAvatar = row.UserAvatar,
             UserSignature = row.UserSignature,
             UserPostCount = row.UserPostCount,
@@ -137,6 +140,7 @@ namespace MvcBB.API.SQL
             public DateTime? DeletedAt { get; set; }
             public string? DeleteReason { get; set; }
             public int? QuotedPostId { get; set; }
+            public string? ImageUrl { get; set; }
             public string? UserAvatar { get; set; }
             public string? UserSignature { get; set; }
             public int UserPostCount { get; set; }

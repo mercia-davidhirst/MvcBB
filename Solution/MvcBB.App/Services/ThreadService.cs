@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Post;
@@ -36,6 +37,8 @@ namespace MvcBB.App.Services
         {
             try
             {
+                AttachCurrentUserTokenIfPresent();
+
                 if (boardId.HasValue)
                 {
                     var response = await _httpClient.GetAsync($"api/threads/board/{boardId}");
@@ -79,6 +82,7 @@ namespace MvcBB.App.Services
         {
             try
             {
+                AttachCurrentUserTokenIfPresent();
                 var response = await _httpClient.GetAsync($"api/threads/{id}");
                 response.EnsureSuccessStatusCode();
                 
@@ -174,6 +178,7 @@ namespace MvcBB.App.Services
         {
             try
             {
+                AttachCurrentUserTokenIfPresent();
                 var response = await _httpClient.GetAsync($"api/posts/thread/{threadId}");
                 response.EnsureSuccessStatusCode();
 
@@ -229,6 +234,7 @@ namespace MvcBB.App.Services
         {
             try
             {
+                AttachCurrentUserTokenIfPresent();
                 var response = await _httpClient.GetAsync($"api/posts/{id}");
                 response.EnsureSuccessStatusCode();
                 
@@ -276,6 +282,18 @@ namespace MvcBB.App.Services
         {
             return _httpContextAccessor.HttpContext?.User.FindFirst("api_token")?.Value
                 ?? throw new SessionExpiredException();
+        }
+
+        // GET calls must keep working for anonymous visitors, but the API still
+        // needs to know whether THIS caller is signed in to decide whether to
+        // include private boards' threads/posts - attach the token only when one exists.
+        private void AttachCurrentUserTokenIfPresent()
+        {
+            var token = _httpContextAccessor.GetApiTokenOrNull();
+            if (token != null)
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
         }
     }
 } 

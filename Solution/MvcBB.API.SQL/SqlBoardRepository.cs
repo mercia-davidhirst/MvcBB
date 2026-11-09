@@ -43,6 +43,7 @@ namespace MvcBB.API.SQL
                 board.IsActive,
                 board.ParentId,
                 board.IsCategory,
+                board.IsPrivate,
                 board.CreatedAt,
                 board.ThreadCount,
                 board.PostCount,
@@ -64,6 +65,7 @@ namespace MvcBB.API.SQL
                 board.IsActive,
                 board.ParentId,
                 board.IsCategory,
+                board.IsPrivate,
                 board.UpdatedAt,
                 board.ThreadCount,
                 board.PostCount,
@@ -89,6 +91,7 @@ namespace MvcBB.API.SQL
             IsActive = row.IsActive,
             ParentId = row.ParentId,
             IsCategory = row.IsCategory,
+            IsPrivate = row.IsPrivate,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt,
             ThreadCount = row.ThreadCount,
@@ -110,6 +113,7 @@ namespace MvcBB.API.SQL
             public bool IsActive { get; set; }
             public int? ParentId { get; set; }
             public bool IsCategory { get; set; }
+            public bool IsPrivate { get; set; }
             public DateTime CreatedAt { get; set; }
             public DateTime? UpdatedAt { get; set; }
             public int ThreadCount { get; set; }

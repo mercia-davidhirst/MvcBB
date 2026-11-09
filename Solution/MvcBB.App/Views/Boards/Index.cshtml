@@ -39,7 +39,7 @@
     {
         foreach (var board in childrenByParent[parentId].OrderBy(b => b.SortOrder))
         {
-            <div class="col-12 mb-3" style="margin-left: @(depth * 2)rem; max-width: calc(100% - @(depth * 2)rem);">
+            <div class="col-12 mb-3 @(board.IsCategory ? "category-col" : "board-col")" style="margin-left: @(depth * 2)rem; max-width: calc(100% - @(depth * 2)rem);">
                 @if (board.IsCategory)
                 {
                     <div class="category-header mt-3 mb-2">
@@ -60,6 +60,10 @@
                                         <a asp-action="Details" asp-route-id="@board.Id" class="text-decoration-none">
                                             @board.Name
                                         </a>
+                                        @if (board.IsPrivate)
+                                        {
+                                            <span class="badge bg-warning"><i class="bi bi-lock-fill"></i> Private</span>
+                                        }
                                     </h5>
                                     <p class="card-text text-muted">@board.Description</p>
                                 </div>

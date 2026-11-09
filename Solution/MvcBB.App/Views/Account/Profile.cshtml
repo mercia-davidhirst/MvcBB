@@ -12,10 +12,16 @@
             <h1>@(isOwnProfile ? "My Profile" : $"{Model.Username}'s Profile")</h1>
             @if (!isOwnProfile && User.Identity?.IsAuthenticated == true)
             {
-                <a asp-controller="Reports" asp-action="Create" asp-route-type="User" asp-route-contentId="@Model.Id"
-                   class="btn btn-outline-warning">
-                    <i class="bi bi-flag"></i> Report User
-                </a>
+                <div>
+                    <a asp-controller="Messages" asp-action="Create" asp-route-recipientId="@Model.Id"
+                       class="btn btn-outline-primary">
+                        <i class="bi bi-envelope"></i> Send Message
+                    </a>
+                    <a asp-controller="Reports" asp-action="Create" asp-route-type="User" asp-route-contentId="@Model.Id"
+                       class="btn btn-outline-warning">
+                        <i class="bi bi-flag"></i> Report User
+                    </a>
+                </div>
             }
         </div>
     </div>

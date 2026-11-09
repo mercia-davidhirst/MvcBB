@@ -62,6 +62,14 @@
                             <small class="form-text text-muted">A category is an organizational header with no threads of its own.</small>
                         </div>
 
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input asp-for="IsPrivate" class="form-check-input" type="checkbox" />
+                                <label asp-for="IsPrivate" class="form-check-label"></label>
+                            </div>
+                            <small class="form-text text-muted">Hides this board and its contents from anyone who isn't signed in.</small>
+                        </div>
+
                         <div class="mt-4">
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                             <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>

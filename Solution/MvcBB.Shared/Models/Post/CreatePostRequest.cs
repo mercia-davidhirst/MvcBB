@@ -12,5 +12,7 @@ namespace MvcBB.Shared.Models.Post
         public int ThreadId { get; set; }
 
         public int? QuotedPostId { get; set; }
+
+        public string? ImageUrl { get; set; }
     }
 }

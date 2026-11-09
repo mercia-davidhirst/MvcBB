@@ -10,5 +10,9 @@ namespace MvcBB.Shared.Models.Message
         public DateTime CreatedAt { get; set; }
         public DateTime? ReadAt { get; set; }
         public bool IsRead => ReadAt.HasValue;
+
+        // Additional properties for UI display
+        public string SenderUsername { get; set; } = string.Empty;
+        public string RecipientUsername { get; set; } = string.Empty;
     }
 } 

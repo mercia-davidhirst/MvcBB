@@ -21,7 +21,7 @@ namespace MvcBB.API.PostgreSql
             created_at, is_edited, edit_reason, updated_at,
             updated_by_user_id, updated_by_username::text AS updated_by_username,
             is_deleted, deleted_by_user_id, deleted_by_username::text AS deleted_by_username,
-            deleted_at, delete_reason, quoted_post_id,
+            deleted_at, delete_reason, quoted_post_id, image_url,
             user_avatar, user_signature, user_post_count, user_joined_at, user_role";
 
         private readonly IPostgreSqlConnectionFactory _connectionFactory;
@@ -56,13 +56,14 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             var newId = connection.QuerySingle<int>(
-                "CALL public.sp_post_insert(@Content, @ThreadId, @CreatedByUserId, @QuotedPostId, NULL)",
+                "CALL public.sp_post_insert(@Content, @ThreadId, @CreatedByUserId, @QuotedPostId, @ImageUrl)",
                 new
                 {
                     post.Content,
                     post.ThreadId,
                     CreatedByUserId = int.Parse(post.CreatedByUserId),
-                    post.QuotedPostId
+                    post.QuotedPostId,
+                    post.ImageUrl
                 });
 
             var row = connection.QuerySingle<PostRow>($"SELECT {SelectColumns} FROM public.fn_post_get_by_id(@Id)", new { Id = newId });
@@ -73,7 +74,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             connection.Execute(
-                "CALL public.sp_post_update(@Id, @Content, @IsEdited, @EditReason, @UpdatedByUserId, @IsDeleted, @DeletedByUserId, @DeletedAt, @DeleteReason, @QuotedPostId)",
+                "CALL public.sp_post_update(@Id, @Content, @IsEdited, @EditReason, @UpdatedByUserId, @IsDeleted, @DeletedByUserId, @DeletedAt, @DeleteReason, @QuotedPostId, @ImageUrl)",
                 new
                 {
                     post.Id,
@@ -85,7 +86,8 @@ namespace MvcBB.API.PostgreSql
                     DeletedByUserId = ParseUserId(post.DeletedByUserId),
                     post.DeletedAt,
                     post.DeleteReason,
-                    post.QuotedPostId
+                    post.QuotedPostId,
+                    post.ImageUrl
                 });
         }
 
@@ -117,6 +119,7 @@ namespace MvcBB.API.PostgreSql
             DeletedAt = row.DeletedAt,
             DeleteReason = row.DeleteReason,
             QuotedPostId = row.QuotedPostId,
+            ImageUrl = row.ImageUrl,
             UserAvatar = row.UserAvatar,
             UserSignature = row.UserSignature,
             UserPostCount = row.UserPostCount,
@@ -149,6 +152,7 @@ namespace MvcBB.API.PostgreSql
             public DateTime? DeletedAt { get; set; }
             public string? DeleteReason { get; set; }
             public int? QuotedPostId { get; set; }
+            public string? ImageUrl { get; set; }
             public string? UserAvatar { get; set; }
             public string? UserSignature { get; set; }
             public int UserPostCount { get; set; }

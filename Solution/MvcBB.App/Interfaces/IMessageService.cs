@@ -8,5 +8,6 @@ namespace MvcBB.App.Interfaces
         Task<MessageResponse> GetMessageAsync(int id);
         Task<MessageResponse> CreateMessageAsync(CreateMessageRequest request);
         Task DeleteMessageAsync(int id);
+        Task<int> GetUnreadCountAsync();
     }
 } 

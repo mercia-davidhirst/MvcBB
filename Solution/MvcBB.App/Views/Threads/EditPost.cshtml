@@ -19,7 +19,7 @@
             <h4 class="mb-0">Edit Post</h4>
         </div>
         <div class="card-body">
-            <form asp-action="EditPost" asp-route-id="@post.Id" method="post">
+            <form asp-action="EditPost" asp-route-id="@post.Id" method="post" enctype="multipart/form-data">
                 @Html.AntiForgeryToken()
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
@@ -34,6 +34,23 @@
                     <input asp-for="EditReason" class="form-control" required />
                     <span asp-validation-for="EditReason" class="text-danger"></span>
                     <div class="form-text">Please provide a reason for editing this post.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Attached Image</label>
+                    @if (!string.IsNullOrEmpty(post.ImageUrl))
+                    {
+                        <div class="mb-2">
+                            <img src="@post.ImageUrl" alt="Attached image" class="img-fluid rounded" style="max-height: 150px;" />
+                        </div>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" name="removeImage" id="removeImage" class="form-check-input" value="true" />
+                            <label for="removeImage" class="form-check-label">Remove current image</label>
+                        </div>
+                    }
+                    <label for="imageFile" class="form-label">@(string.IsNullOrEmpty(post.ImageUrl) ? "Attach Image (optional)" : "Replace Image (optional)")</label>
+                    <input type="file" name="imageFile" id="imageFile" class="form-control" accept=".png,.jpg,.jpeg,.gif" />
+                    <small class="form-text text-muted">PNG, JPG, or GIF, up to 2 MB.</small>
                 </div>
 
                 <div class="mt-3">

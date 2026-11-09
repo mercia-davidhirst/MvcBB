@@ -56,5 +56,19 @@ namespace MvcBB.App.Services
             var response = await _httpClient.DeleteAsync($"api/messages/{id}");
             response.EnsureSuccessStatusCode();
         }
+
+        public async Task<int> GetUnreadCountAsync()
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
+            var response = await _httpClient.GetAsync("api/messages/unread-count");
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<UnreadCountResponse>();
+            return result?.UnreadCount ?? 0;
+        }
+
+        private class UnreadCountResponse
+        {
+            public int UnreadCount { get; set; }
+        }
     }
 }

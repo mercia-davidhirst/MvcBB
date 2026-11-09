@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
 using MvcBB.Shared.Interfaces;
@@ -40,6 +41,7 @@ public class PostService : IPostService
     {
         try
         {
+            AttachCurrentUserTokenIfPresent();
             var response = await _httpClient.GetAsync($"api/posts/{id}");
             response.EnsureSuccessStatusCode();
             
@@ -175,6 +177,18 @@ public class PostService : IPostService
     {
         return _httpContextAccessor.HttpContext?.User.FindFirst("api_token")?.Value
             ?? throw new SessionExpiredException();
+    }
+
+    // GET calls must keep working for anonymous visitors, but the API still
+    // needs to know whether THIS caller is signed in to decide whether to
+    // include a post from a private board - attach the token only when one exists.
+    private void AttachCurrentUserTokenIfPresent()
+    {
+        var token = _httpContextAccessor.GetApiTokenOrNull();
+        if (token != null)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
     }
 
     private static PostDto MapToPostDto(Post post) => new()

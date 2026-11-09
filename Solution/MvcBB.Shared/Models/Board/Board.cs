@@ -28,6 +28,12 @@ namespace MvcBB.Shared.Models.Board
         /// </summary>
         public bool IsCategory { get; set; }
 
+        /// <summary>
+        /// When true, the board and its threads/posts are hidden from anyone
+        /// who isn't signed in - anonymous visitors can't see it exists.
+        /// </summary>
+        public bool IsPrivate { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
         public int ThreadCount { get; set; }

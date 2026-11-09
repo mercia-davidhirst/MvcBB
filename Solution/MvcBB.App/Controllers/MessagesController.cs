@@ -56,9 +56,17 @@ namespace MvcBB.App.Controllers
             }
         }
 
-        public IActionResult Create(string recipientId = null)
+        public async Task<IActionResult> Create(int? recipientId = null)
         {
-            ViewData["RecipientId"] = recipientId;
+            if (recipientId.HasValue)
+            {
+                var recipient = await _userService.GetUserByIdAsync(recipientId.Value);
+                if (recipient != null)
+                {
+                    ViewData["RecipientId"] = recipient.Id;
+                    ViewData["RecipientUsername"] = recipient.Username;
+                }
+            }
             return View();
         }
 
@@ -117,7 +125,7 @@ namespace MvcBB.App.Controllers
                 var users = await _userService.GetUsersAsync();
                 var matches = users
                     .Where(u => u.Username.Contains(term, StringComparison.OrdinalIgnoreCase))
-                    .Select(u => new { id = u.Username, text = u.Username })
+                    .Select(u => new { id = u.Id, text = u.Username })
                     .Take(10)
                     .ToList();
 

@@ -33,9 +33,9 @@
                     <img src="@Model.ImagePath" alt="@Model.Description" class="smilie" style="width: 24px; height: 24px;" />
                 </div>
                 <label asp-for="ImageFile" class="form-label">New Image (optional)</label>
-                <input asp-for="ImageFile" class="form-control" type="file" accept="image/*" />
+                <input asp-for="ImageFile" class="form-control" type="file" accept=".png,.jpg,.jpeg,.gif" />
                 <span asp-validation-for="ImageFile" class="text-danger"></span>
-                <small class="form-text text-muted">Upload a new image to replace the current one (recommended size: 24x24 pixels)</small>
+                <small class="form-text text-muted">PNG, JPG, or GIF, up to 2 MB. Leave blank to keep the current image (recommended size: 24x24 pixels)</small>
             </div>
 
             <div class="mb-3">

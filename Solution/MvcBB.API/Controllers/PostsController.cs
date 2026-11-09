@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MvcBB.Shared.Models.Post;
 using MvcBB.Shared.Models.ForumThread;
+using MvcBB.Shared.Models.Board;
 using MvcBB.Shared.Interfaces;
 using System.Security.Claims;
 
@@ -32,7 +33,7 @@ namespace MvcBB.API.Controllers
         public ActionResult<IEnumerable<PostResponse>> GetThreadPosts(int threadId)
         {
             var thread = _threadRepository.GetById(threadId);
-            if (thread == null)
+            if (thread == null || !IsThreadVisible(thread.BoardId, User.Identity?.IsAuthenticated == true))
             {
                 return NotFound(new { message = "Thread not found" });
             }
@@ -58,7 +59,8 @@ namespace MvcBB.API.Controllers
         public ActionResult<PostResponse> GetPost(int id)
         {
             var post = _postRepository.GetById(id);
-            if (post == null)
+            var thread = post != null ? _threadRepository.GetById(post.ThreadId) : null;
+            if (post == null || thread == null || !IsThreadVisible(thread.BoardId, User.Identity?.IsAuthenticated == true))
             {
                 return NotFound(new { message = "Post not found" });
             }
@@ -66,11 +68,18 @@ namespace MvcBB.API.Controllers
             return Ok(MapToPostResponse(post));
         }
 
+        private bool IsThreadVisible(int boardId, bool isAuthenticated)
+        {
+            var board = _boardRepository.GetById(boardId);
+            return board == null || board.IsVisibleTo(isAuthenticated);
+        }
+
         [HttpGet("{id}/quote")]
         public ActionResult<string> GetQuoteContent(int id)
         {
             var post = _postRepository.GetById(id);
-            if (post == null)
+            var thread = post != null ? _threadRepository.GetById(post.ThreadId) : null;
+            if (post == null || thread == null || !IsThreadVisible(thread.BoardId, User.Identity?.IsAuthenticated == true))
             {
                 return NotFound();
             }
@@ -111,7 +120,8 @@ namespace MvcBB.API.Controllers
                 ThreadId = request.ThreadId,
                 CreatedByUserId = userId,
                 CreatedAt = DateTime.UtcNow,
-                QuotedPostId = request.QuotedPostId
+                QuotedPostId = request.QuotedPostId,
+                ImageUrl = request.ImageUrl
             };
 
             post = _postRepository.Add(post);
@@ -168,6 +178,7 @@ namespace MvcBB.API.Controllers
             }
 
             post.Content = request.Content;
+            post.ImageUrl = request.ImageUrl;
             post.UpdatedAt = DateTime.UtcNow;
             post.UpdatedByUserId = userId;
             _postRepository.Update(post);
@@ -220,6 +231,7 @@ namespace MvcBB.API.Controllers
                 DeleteReason = p.DeleteReason,
                 IsEdited = p.IsEdited,
                 EditReason = p.EditReason ?? string.Empty,
+                ImageUrl = p.ImageUrl,
                 QuotedPostId = p.QuotedPostId,
                 // QuotedPost is a plain property, never populated by the repository
                 // layer - resolve it from QuotedPostId instead.

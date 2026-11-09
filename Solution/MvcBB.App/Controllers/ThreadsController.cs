@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Exceptions;
@@ -14,17 +15,20 @@ namespace MvcBB.App.Controllers
         private readonly IThreadService _threadService;
         private readonly IBoardService _boardService;
         private readonly IMvcBBCodeService _bbCodeService;
+        private readonly IImageUploadService _imageUploadService;
         private readonly ILogger<ThreadsController> _logger;
 
         public ThreadsController(
             IThreadService threadService,
             IBoardService boardService,
             IMvcBBCodeService bbCodeService,
+            IImageUploadService imageUploadService,
             ILogger<ThreadsController> logger)
         {
             _threadService = threadService;
             _boardService = boardService;
             _bbCodeService = bbCodeService;
+            _imageUploadService = imageUploadService;
             _logger = logger;
         }
 
@@ -148,7 +152,7 @@ namespace MvcBB.App.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreatePost(int threadId, CreatePostRequest request)
+        public async Task<IActionResult> CreatePost(int threadId, CreatePostRequest request, IFormFile? imageFile)
         {
             if (!ModelState.IsValid)
             {
@@ -157,6 +161,11 @@ namespace MvcBB.App.Controllers
 
             try
             {
+                if (imageFile != null)
+                {
+                    request.ImageUrl = await _imageUploadService.SaveImageAsync(imageFile, "posts");
+                }
+
                 await _threadService.CreatePostAsync(threadId, request);
                 TempData["Success"] = "Reply posted successfully.";
             }
@@ -167,7 +176,7 @@ namespace MvcBB.App.Controllers
             catch (ServiceException ex)
             {
                 _logger.LogError(ex, "Failed to create post in thread {ThreadId}", threadId);
-                TempData["Error"] = "Failed to post reply. Please try again.";
+                TempData["Error"] = ex.Message;
             }
 
             return RedirectToAction(nameof(Details), new { id = threadId });
@@ -290,7 +299,8 @@ namespace MvcBB.App.Controllers
 
                 var updateRequest = new UpdatePostRequest
                 {
-                    Content = post.Content
+                    Content = post.Content,
+                    ImageUrl = post.ImageUrl
                 };
 
                 ViewData["Post"] = post;
@@ -308,7 +318,7 @@ namespace MvcBB.App.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditPost(int id, UpdatePostRequest request)
+        public async Task<IActionResult> EditPost(int id, UpdatePostRequest request, IFormFile? imageFile, bool removeImage = false)
         {
             try
             {
@@ -334,6 +344,21 @@ namespace MvcBB.App.Controllers
                     return View(request);
                 }
 
+                if (imageFile != null)
+                {
+                    request.ImageUrl = await _imageUploadService.SaveImageAsync(imageFile, "posts");
+                    _imageUploadService.DeleteImage(post.ImageUrl);
+                }
+                else if (removeImage)
+                {
+                    _imageUploadService.DeleteImage(post.ImageUrl);
+                    request.ImageUrl = null;
+                }
+                else
+                {
+                    request.ImageUrl = post.ImageUrl;
+                }
+
                 await _threadService.UpdatePostAsync(id, request);
                 TempData["Success"] = "Post updated successfully.";
                 return RedirectToAction(nameof(Details), new { id = post.ThreadId });
@@ -345,7 +370,7 @@ namespace MvcBB.App.Controllers
             catch (ServiceException ex)
             {
                 _logger.LogError(ex, "Failed to update post {PostId}", id);
-                TempData["Error"] = "Failed to update post. Please try again.";
+                TempData["Error"] = ex.Message;
                 return RedirectToAction(nameof(Details), new { id });
             }
         }

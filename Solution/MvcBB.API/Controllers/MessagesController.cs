@@ -12,14 +12,16 @@ namespace MvcBB.API.Controllers
     public class MessagesController : ControllerBase
     {
         private readonly IMessageRepository _messageRepository;
+        private readonly IUserRepository _userRepository;
 
-        public MessagesController(IMessageRepository messageRepository)
+        public MessagesController(IMessageRepository messageRepository, IUserRepository userRepository)
         {
             _messageRepository = messageRepository;
+            _userRepository = userRepository;
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<MessageResponse>> GetMessages(bool? unreadOnly = false)
+        public ActionResult<IEnumerable<MessageResponse>> GetMessages([FromQuery] string folder = "inbox", [FromQuery] bool unreadOnly = false)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -27,9 +29,20 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var messages = unreadOnly == true
-                ? _messageRepository.GetByRecipientUserId(userId, unreadOnly: true)
-                : _messageRepository.GetByRecipientOrSenderUserId(userId);
+            IEnumerable<Message> messages;
+            if (unreadOnly)
+            {
+                messages = _messageRepository.GetByRecipientUserId(userId, unreadOnly: true);
+            }
+            else if (string.Equals(folder, "sent", StringComparison.OrdinalIgnoreCase))
+            {
+                messages = _messageRepository.GetByRecipientOrSenderUserId(userId)
+                    .Where(m => m.SenderUserId == userId);
+            }
+            else
+            {
+                messages = _messageRepository.GetByRecipientUserId(userId);
+            }
 
             return Ok(messages.Select(MapToResponse));
         }
@@ -75,6 +88,16 @@ namespace MvcBB.API.Controllers
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new { message = "User not found" });
+            }
+
+            if (request.RecipientUserId == userId)
+            {
+                return BadRequest(new { message = "You can't send a message to yourself." });
+            }
+
+            if (!int.TryParse(request.RecipientUserId, out var recipientId) || _userRepository.GetById(recipientId) == null)
+            {
+                return BadRequest(new { message = "Recipient not found." });
             }
 
             var message = new Message
@@ -129,7 +152,7 @@ namespace MvcBB.API.Controllers
             return Ok(new { unreadCount });
         }
 
-        private static MessageResponse MapToResponse(Message m)
+        private MessageResponse MapToResponse(Message m)
         {
             return new MessageResponse
             {
@@ -139,8 +162,19 @@ namespace MvcBB.API.Controllers
                 SenderUserId = m.SenderUserId,
                 RecipientUserId = m.RecipientUserId,
                 CreatedAt = m.CreatedAt,
-                ReadAt = m.ReadAt
+                ReadAt = m.ReadAt,
+                SenderUsername = GetUsername(m.SenderUserId),
+                RecipientUsername = GetUsername(m.RecipientUserId)
             };
+        }
+
+        private string GetUsername(string? userId)
+        {
+            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
+            {
+                return _userRepository.GetById(id)?.Username ?? string.Empty;
+            }
+            return string.Empty;
         }
     }
 }

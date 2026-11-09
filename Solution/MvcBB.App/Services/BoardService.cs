@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Board;
 using MvcBB.Shared.Models.Authorization;
@@ -28,16 +29,18 @@ namespace MvcBB.App.Services
 
         public async Task<IEnumerable<BoardResponse>> GetBoardsAsync()
         {
+            AttachCurrentUserTokenIfPresent();
             var response = await _httpClient.GetAsync("api/boards");
             response.EnsureSuccessStatusCode();
-            
+
             var content = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<IEnumerable<BoardResponse>>(content, _jsonOptions) 
+            return JsonSerializer.Deserialize<IEnumerable<BoardResponse>>(content, _jsonOptions)
                 ?? Array.Empty<BoardResponse>();
         }
 
         public async Task<BoardResponse> GetBoardAsync(int id)
         {
+            AttachCurrentUserTokenIfPresent();
             var response = await _httpClient.GetAsync($"api/boards/{id}");
             response.EnsureSuccessStatusCode();
             
@@ -101,6 +104,18 @@ namespace MvcBB.App.Services
         {
             return _httpContextAccessor.HttpContext?.User.FindFirst("api_token")?.Value
                 ?? throw new SessionExpiredException();
+        }
+
+        // GET calls must keep working for anonymous visitors, but the API still
+        // needs to know whether THIS caller is signed in to decide whether to
+        // include private boards - attach the token only when one exists.
+        private void AttachCurrentUserTokenIfPresent()
+        {
+            var token = _httpContextAccessor.GetApiTokenOrNull();
+            if (token != null)
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
         }
     }
 } 

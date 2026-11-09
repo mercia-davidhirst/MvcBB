@@ -39,21 +39,22 @@ namespace MvcBB.API.Controllers
 
             var query = request.Query.ToLower();
             var results = new List<SearchResult>();
+            var isAuthenticated = User.Identity?.IsAuthenticated == true;
 
             switch (request.Type?.ToLower())
             {
                 case "threads":
-                    results.AddRange(SearchThreads(query, request.BoardId));
+                    results.AddRange(SearchThreads(query, request.BoardId, isAuthenticated));
                     break;
                 case "posts":
-                    results.AddRange(SearchPosts(query, request.BoardId));
+                    results.AddRange(SearchPosts(query, request.BoardId, isAuthenticated));
                     break;
                 case "users":
                     results.AddRange(SearchUsers(query));
                     break;
                 default:
-                    results.AddRange(SearchThreads(query, request.BoardId));
-                    results.AddRange(SearchPosts(query, request.BoardId));
+                    results.AddRange(SearchThreads(query, request.BoardId, isAuthenticated));
+                    results.AddRange(SearchPosts(query, request.BoardId, isAuthenticated));
                     results.AddRange(SearchUsers(query));
                     break;
             }
@@ -76,7 +77,7 @@ namespace MvcBB.API.Controllers
             });
         }
 
-        private IEnumerable<SearchResult> SearchThreads(string query, int? boardId)
+        private IEnumerable<SearchResult> SearchThreads(string query, int? boardId, bool isAuthenticated)
         {
             var threads = _threadRepository.GetAll()
                 .Where(t => !boardId.HasValue || t.BoardId == boardId.Value)
@@ -85,6 +86,11 @@ namespace MvcBB.API.Controllers
             foreach (var t in threads)
             {
                 var board = _boardRepository.GetById(t.BoardId);
+                if (board != null && !board.IsVisibleTo(isAuthenticated))
+                {
+                    continue;
+                }
+
                 yield return new SearchResult
                 {
                     Type = "thread",
@@ -98,7 +104,7 @@ namespace MvcBB.API.Controllers
             }
         }
 
-        private IEnumerable<SearchResult> SearchPosts(string query, int? boardId)
+        private IEnumerable<SearchResult> SearchPosts(string query, int? boardId, bool isAuthenticated)
         {
             var posts = _postRepository.GetAll()
                 .Where(p => p.Content.ToLower().Contains(query) || GetUsername(p.CreatedByUserId).ToLower().Contains(query));
@@ -109,6 +115,9 @@ namespace MvcBB.API.Controllers
                 var board = thread != null ? _boardRepository.GetById(thread.BoardId) : null;
 
                 if (boardId.HasValue && board?.Id != boardId.Value)
+                    continue;
+
+                if (board != null && !board.IsVisibleTo(isAuthenticated))
                     continue;
 
                 yield return new SearchResult

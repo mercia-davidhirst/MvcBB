@@ -1,7 +1,8 @@
 @model CreateMessageRequest
 @{
     ViewData["Title"] = "New Message";
-    var recipientId = ViewData["RecipientId"] as string;
+    var recipientId = ViewData["RecipientId"] as int?;
+    var recipientUsername = ViewData["RecipientUsername"] as string;
 }
 
 <div class="container mt-4">
@@ -23,7 +24,12 @@
 
                 <div class="mb-3">
                     <label asp-for="RecipientUserId" class="form-label">To</label>
-                    <input asp-for="RecipientUserId" class="form-control" value="@recipientId" />
+                    <select asp-for="RecipientUserId" class="form-control">
+                        @if (recipientId.HasValue && recipientUsername != null)
+                        {
+                            <option value="@recipientId" selected>@recipientUsername</option>
+                        }
+                    </select>
                     <span asp-validation-for="RecipientUserId" class="text-danger"></span>
                 </div>
 

@@ -27,9 +27,9 @@
 
             <div class="mb-3">
                 <label asp-for="ImageFile" class="form-label"></label>
-                <input asp-for="ImageFile" class="form-control" type="file" accept="image/*" />
+                <input asp-for="ImageFile" class="form-control" type="file" accept=".png,.jpg,.jpeg,.gif" />
                 <span asp-validation-for="ImageFile" class="text-danger"></span>
-                <small class="form-text text-muted">The image file for the smilie (recommended size: 24x24 pixels)</small>
+                <small class="form-text text-muted">PNG, JPG, or GIF, up to 2 MB (recommended size: 24x24 pixels)</small>
             </div>
 
             <div class="mb-3">

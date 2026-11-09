@@ -17,6 +17,7 @@ namespace MvcBB.Shared.Models.Post
         public string EditReason { get; set; } = string.Empty;
         public int? QuotedPostId { get; set; }
         public PostResponse? QuotedPost { get; set; }
+        public string? ImageUrl { get; set; }
 
         // Additional properties for UI display
         public string CreatedByUsername { get; set; } = string.Empty;

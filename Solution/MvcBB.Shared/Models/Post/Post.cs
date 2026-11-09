@@ -36,6 +36,12 @@ namespace MvcBB.Shared.Models.Post
         public int? QuotedPostId { get; set; }
         public Post? QuotedPost { get; set; }
 
+        /// <summary>
+        /// Public relative path (e.g. "/images/posts/{guid}.png") to an optional
+        /// image attached to this post, or null if none was attached.
+        /// </summary>
+        public string? ImageUrl { get; set; }
+
         // User info
         public string? UserAvatar { get; set; }
         public string? UserSignature { get; set; }

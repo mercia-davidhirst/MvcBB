@@ -26,14 +26,17 @@ namespace MvcBB.API.Controllers
         [HttpGet]
         public ActionResult<IEnumerable<BoardResponse>> GetBoards()
         {
-            return Ok(_boardRepository.GetAll().Select(MapToBoardResponse));
+            var isAuthenticated = User.Identity?.IsAuthenticated == true;
+            return Ok(_boardRepository.GetAll()
+                .Where(b => b.IsVisibleTo(isAuthenticated))
+                .Select(MapToBoardResponse));
         }
 
         [HttpGet("{id}")]
         public ActionResult<BoardResponse> GetBoard(int id)
         {
             var board = _boardRepository.GetById(id);
-            if (board == null)
+            if (board == null || !board.IsVisibleTo(User.Identity?.IsAuthenticated == true))
             {
                 return NotFound(new { message = "Board not found" });
             }
@@ -57,6 +60,7 @@ namespace MvcBB.API.Controllers
                 SortOrder = request.SortOrder,
                 ParentId = request.ParentId,
                 IsCategory = request.IsCategory,
+                IsPrivate = request.IsPrivate,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
             };
@@ -87,6 +91,7 @@ namespace MvcBB.API.Controllers
             board.IsActive = request.IsActive;
             board.ParentId = request.ParentId;
             board.IsCategory = request.IsCategory;
+            board.IsPrivate = request.IsPrivate;
             board.UpdatedAt = DateTime.UtcNow;
             _boardRepository.Update(board);
 
@@ -118,6 +123,7 @@ namespace MvcBB.API.Controllers
                 IsActive = board.IsActive,
                 ParentId = board.ParentId,
                 IsCategory = board.IsCategory,
+                IsPrivate = board.IsPrivate,
                 CreatedAt = board.CreatedAt,
                 UpdatedAt = board.UpdatedAt,
                 ThreadCount = board.ThreadCount,

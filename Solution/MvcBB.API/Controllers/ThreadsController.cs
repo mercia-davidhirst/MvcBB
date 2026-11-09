@@ -40,7 +40,9 @@ namespace MvcBB.API.Controllers
             effectivePageSize = Math.Clamp(effectivePageSize, 1, 100);
             page = Math.Max(1, page);
 
+            var isAuthenticated = User.Identity?.IsAuthenticated == true;
             var ordered = _threadRepository.GetAll()
+                .Where(t => IsThreadVisible(t, isAuthenticated))
                 .OrderByDescending(t => t.IsSticky)
                 .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
                 .ToList();
@@ -66,7 +68,7 @@ namespace MvcBB.API.Controllers
         public ActionResult<IEnumerable<ThreadResponse>> GetBoardThreads(int boardId)
         {
             var board = _boardRepository.GetById(boardId);
-            if (board == null)
+            if (board == null || !board.IsVisibleTo(User.Identity?.IsAuthenticated == true))
             {
                 return NotFound(new { message = "Board not found" });
             }
@@ -79,7 +81,7 @@ namespace MvcBB.API.Controllers
         public ActionResult<ThreadResponse> GetThread(int id)
         {
             var thread = _threadRepository.GetById(id);
-            if (thread == null)
+            if (thread == null || !IsThreadVisible(thread, User.Identity?.IsAuthenticated == true))
             {
                 return NotFound(new { message = "Thread not found" });
             }
@@ -88,6 +90,12 @@ namespace MvcBB.API.Controllers
             _threadRepository.Update(thread);
 
             return Ok(MapToThreadResponse(thread));
+        }
+
+        private bool IsThreadVisible(ForumThread thread, bool isAuthenticated)
+        {
+            var board = _boardRepository.GetById(thread.BoardId);
+            return board == null || board.IsVisibleTo(isAuthenticated);
         }
 
         [HttpPost]
