@@ -9,6 +9,5 @@ namespace MvcBB.Shared.Interfaces
         Post? GetById(int id);
         Post Add(Post post);
         void Update(Post post);
-        void Remove(Post post);
     }
 }

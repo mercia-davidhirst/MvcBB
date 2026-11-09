@@ -1,5 +1,4 @@
 using MvcBB.App.Models;
-using MvcBB.Shared.Models.Post;
 
 namespace MvcBB.App.Interfaces;
 
@@ -12,21 +11,6 @@ public interface IPostService
     /// Gets a post by ID
     /// </summary>
     Task<PostDto> GetPostAsync(int id);
-
-    /// <summary>
-    /// Creates a new post
-    /// </summary>
-    Task<PostDto> CreatePostAsync(CreatePostRequest request);
-
-    /// <summary>
-    /// Updates an existing post
-    /// </summary>
-    Task UpdatePostAsync(int id, UpdatePostRequest request);
-
-    /// <summary>
-    /// Deletes a post
-    /// </summary>
-    Task DeletePostAsync(int id);
 
     /// <summary>
     /// Gets a user's most recent posts, for display on their profile

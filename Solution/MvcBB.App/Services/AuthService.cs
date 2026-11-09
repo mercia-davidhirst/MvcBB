@@ -36,19 +36,5 @@ namespace MvcBB.App.Services
             return JsonSerializer.Deserialize<LoginResponse>(responseContent, _jsonOptions) 
                 ?? throw new Exception("Failed to deserialize login response");
         }
-
-        public async Task<bool> ValidateTokenAsync(string token)
-        {
-            try
-            {
-                _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                var response = await _httpClient.GetAsync("api/auth/validate");
-                return response.IsSuccessStatusCode;
-            }
-            catch
-            {
-                return false;
-            }
-        }
     }
 } 

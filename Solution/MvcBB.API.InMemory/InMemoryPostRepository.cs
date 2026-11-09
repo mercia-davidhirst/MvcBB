@@ -33,7 +33,5 @@ namespace MvcBB.API.InMemory
             if (index >= 0)
                 _store.Posts[index] = post;
         }
-
-        public void Remove(Post post) => _store.Posts.Remove(post);
     }
 }

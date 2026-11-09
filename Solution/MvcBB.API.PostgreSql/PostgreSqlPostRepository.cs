@@ -91,11 +91,6 @@ namespace MvcBB.API.PostgreSql
                 });
         }
 
-        public void Remove(Post post)
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            connection.Execute("CALL public.sp_post_delete(@Id)", new { post.Id });
-        }
 
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 

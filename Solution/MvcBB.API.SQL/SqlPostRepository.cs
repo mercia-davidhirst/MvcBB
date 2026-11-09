@@ -79,11 +79,6 @@ namespace MvcBB.API.SQL
             }, commandType: CommandType.StoredProcedure);
         }
 
-        public void Remove(Post post)
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            connection.Execute("dbo.usp_Post_Delete", new { post.Id }, commandType: CommandType.StoredProcedure);
-        }
 
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
