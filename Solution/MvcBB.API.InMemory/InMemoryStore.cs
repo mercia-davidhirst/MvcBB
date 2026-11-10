@@ -2,6 +2,7 @@ using MvcBB.Shared.Models.BBCode;
 using MvcBB.Shared.Models.Board;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Message;
+using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
 using MvcBB.Shared.Models.Report;
 using MvcBB.Shared.Models.User;
@@ -17,6 +18,10 @@ namespace MvcBB.API.InMemory
         public List<Board> Boards { get; } = new();
         public List<ForumThread> Threads { get; } = new();
         public List<Post> Posts { get; } = new();
+        public List<PostLike> PostLikes { get; } = new();
+        public List<Poll> Polls { get; } = new();
+        public List<PollOption> PollOptions { get; } = new();
+        public List<PollVote> PollVotes { get; } = new();
         public List<Message> Messages { get; } = new();
         public List<Report> Reports { get; } = new();
         public List<BBCodeTagModel> BBCodeTags { get; } = new();

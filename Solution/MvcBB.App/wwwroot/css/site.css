@@ -219,3 +219,174 @@ footer.footer {
 .board-col + .board-col .card {
     border-top: none;
 }
+
+/* ============================================================
+   Dark scheme - toggled via <html data-theme="dark">, remembered
+   per-browser (localStorage) by the navbar button - see site.js.
+   Bootstrap here predates its own built-in dark mode (5.1, before
+   data-bs-theme landed in 5.3), so this re-themes the Bootstrap
+   components this app actually uses rather than relying on that.
+   Redefining the --mvcbb-light-* variables under this selector is
+   what makes the navbar, category headers, card headers and
+   striped tables above pick up dark colors automatically - only
+   the parts that were still hardcoded get their own rule here.
+   ============================================================ */
+:root[data-theme="dark"] {
+    --mvcbb-light-purple: #7a5a92;
+    --mvcbb-light-purple-dark: #5e4472;
+    --mvcbb-light-purple-light: #8a68a0;
+    --mvcbb-light-row-a: #26232c;
+    --mvcbb-light-row-b: #2d2a35;
+    --mvcbb-light-container: #352f3f;
+
+    --mvcbb-dark-bg: #16141a;
+    --mvcbb-dark-surface: #201d26;
+    --mvcbb-dark-surface-alt: #2a2732;
+    --mvcbb-dark-border: #3c3847;
+    --mvcbb-dark-text: #e7e4ee;
+    --mvcbb-dark-text-muted: #a9a4b8;
+}
+
+:root[data-theme="dark"] body {
+    background-color: var(--mvcbb-dark-bg);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] a {
+    color: #b596d6;
+}
+
+:root[data-theme="dark"] a:hover {
+    color: #cdb3ea;
+}
+
+:root[data-theme="dark"] .card {
+    background-color: var(--mvcbb-dark-surface);
+    border-color: var(--mvcbb-dark-border);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .text-muted {
+    color: var(--mvcbb-dark-text-muted) !important;
+}
+
+:root[data-theme="dark"] .form-control,
+:root[data-theme="dark"] .form-select {
+    background-color: var(--mvcbb-dark-surface-alt);
+    border-color: var(--mvcbb-dark-border);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .form-control:focus,
+:root[data-theme="dark"] .form-select:focus {
+    background-color: var(--mvcbb-dark-surface-alt);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .form-control::placeholder {
+    color: var(--mvcbb-dark-text-muted);
+}
+
+:root[data-theme="dark"] .form-check-label {
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .dropdown-menu {
+    background-color: var(--mvcbb-dark-surface);
+    border-color: var(--mvcbb-dark-border);
+}
+
+:root[data-theme="dark"] .dropdown-item {
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .dropdown-item:hover,
+:root[data-theme="dark"] .dropdown-item:focus {
+    background-color: var(--mvcbb-dark-surface-alt);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .modal-content {
+    background-color: var(--mvcbb-dark-surface);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .bbcode-toolbar {
+    background-color: var(--mvcbb-dark-surface-alt);
+    border-color: var(--mvcbb-dark-border);
+}
+
+:root[data-theme="dark"] .bbcode-preview {
+    background-color: var(--mvcbb-dark-surface-alt);
+    border-color: var(--mvcbb-dark-border);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] blockquote {
+    border-left-color: var(--mvcbb-dark-border);
+    color: var(--mvcbb-dark-text-muted);
+}
+
+:root[data-theme="dark"] pre code {
+    background-color: var(--mvcbb-dark-surface-alt);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .progress {
+    background-color: var(--mvcbb-dark-surface-alt);
+}
+
+/* Bootstrap utility classes that bake in a literal light background/border
+   regardless of theme - these are what were showing as big white blocks
+   (Quick Links/Statistics/Latest Discussions on the portal page, the
+   per-thread stats rows on the Boards index, the portal header banner). */
+:root[data-theme="dark"] .bg-light:not(.badge) {
+    background-color: var(--mvcbb-dark-surface-alt) !important;
+}
+
+:root[data-theme="dark"] .bg-white:not(.badge) {
+    background-color: var(--mvcbb-dark-surface) !important;
+}
+
+/* .text-dark is also paired with bg-light on small status badges (e.g. the
+   "Public" board badge) for guaranteed contrast - leaving both classes
+   untouched there keeps that pairing readable; .text-dark used on its own
+   (e.g. the Members table's sortable column headers) still needs to flip. */
+:root[data-theme="dark"] .text-dark:not(.badge) {
+    color: var(--mvcbb-dark-text) !important;
+}
+
+:root[data-theme="dark"] .list-group-item {
+    background-color: var(--mvcbb-dark-surface);
+    border-color: var(--mvcbb-dark-border);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .list-group-item-action:hover,
+:root[data-theme="dark"] .list-group-item-action:focus {
+    background-color: var(--mvcbb-dark-surface-alt);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .border,
+:root[data-theme="dark"] .border-top,
+:root[data-theme="dark"] .border-bottom,
+:root[data-theme="dark"] .border-start,
+:root[data-theme="dark"] .border-end {
+    border-color: var(--mvcbb-dark-border) !important;
+}
+
+/* Bootstrap's .table sets its own "color: #212529" directly on the element
+   rather than inheriting from body, so table text (including header cells,
+   e.g. the Smilie/Board/BBCode admin tables) stayed black-on-dark until
+   this overrode it explicitly. */
+:root[data-theme="dark"] .table {
+    --bs-table-striped-color: var(--mvcbb-dark-text);
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.05);
+    --bs-table-active-color: var(--mvcbb-dark-text);
+    --bs-table-active-bg: rgba(255, 255, 255, 0.1);
+    --bs-table-hover-color: var(--mvcbb-dark-text);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.075);
+    color: var(--mvcbb-dark-text);
+    border-color: var(--mvcbb-dark-border);
+}

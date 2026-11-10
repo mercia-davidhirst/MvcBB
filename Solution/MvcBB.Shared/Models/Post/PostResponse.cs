@@ -21,7 +21,10 @@ namespace MvcBB.Shared.Models.Post
 
         // Additional properties for UI display
         public string CreatedByUsername { get; set; } = string.Empty;
+        public string? CreatedByAvatarUrl { get; set; }
         public string? UpdatedByUsername { get; set; }
         public string? DeletedByUsername { get; set; }
+        public int LikeCount { get; set; }
+        public bool IsLikedByCurrentUser { get; set; }
     }
 } 

@@ -16,17 +16,20 @@ namespace MvcBB.API.Controllers
         private readonly IForumThreadRepository _threadRepository;
         private readonly IBoardRepository _boardRepository;
         private readonly IUserRepository _userRepository;
+        private readonly IPostLikeRepository _postLikeRepository;
 
         public PostsController(
             IPostRepository postRepository,
             IForumThreadRepository threadRepository,
             IBoardRepository boardRepository,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            IPostLikeRepository postLikeRepository)
         {
             _postRepository = postRepository;
             _threadRepository = threadRepository;
             _boardRepository = boardRepository;
             _userRepository = userRepository;
+            _postLikeRepository = postLikeRepository;
         }
 
         [HttpGet("thread/{threadId}")]
@@ -86,6 +89,38 @@ namespace MvcBB.API.Controllers
 
             var quotedContent = $"[quote={post.CreatedByUserId}]{post.Content}[/quote]\n\n";
             return Ok(new { quotedContent });
+        }
+
+        [HttpPost("{id}/like")]
+        [Authorize]
+        public ActionResult ToggleLike(int id)
+        {
+            var post = _postRepository.GetById(id);
+            var thread = post != null ? _threadRepository.GetById(post.ThreadId) : null;
+            if (post == null || thread == null || !IsThreadVisible(thread.BoardId, User.Identity?.IsAuthenticated == true))
+            {
+                return NotFound(new { message = "Post not found" });
+            }
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not found" });
+            }
+
+            bool liked;
+            if (_postLikeRepository.HasLiked(id, userId))
+            {
+                _postLikeRepository.RemoveLike(id, userId);
+                liked = false;
+            }
+            else
+            {
+                _postLikeRepository.AddLike(id, userId);
+                liked = true;
+            }
+
+            return Ok(new { liked, likeCount = _postLikeRepository.GetLikeCount(id) });
         }
 
         [HttpPost]
@@ -220,6 +255,7 @@ namespace MvcBB.API.Controllers
                 ThreadId = p.ThreadId,
                 CreatedByUserId = p.CreatedByUserId,
                 CreatedByUsername = GetUsername(p.CreatedByUserId),
+                CreatedByAvatarUrl = GetAvatarUrl(p.CreatedByUserId),
                 CreatedAt = p.CreatedAt,
                 UpdatedAt = p.UpdatedAt,
                 UpdatedByUserId = p.UpdatedByUserId,
@@ -237,9 +273,13 @@ namespace MvcBB.API.Controllers
                 // layer - resolve it from QuotedPostId instead.
                 QuotedPost = p.QuotedPostId.HasValue
                     ? MapQuotedPost(_postRepository.GetById(p.QuotedPostId.Value))
-                    : null
+                    : null,
+                LikeCount = _postLikeRepository.GetLikeCount(p.Id),
+                IsLikedByCurrentUser = CurrentUserId != null && _postLikeRepository.HasLiked(p.Id, CurrentUserId)
             };
         }
+
+        private string? CurrentUserId => User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
         // One level deep only - avoids re-resolving the quoted post's own quote
         // chain and the infinite recursion that would invite.
@@ -262,6 +302,15 @@ namespace MvcBB.API.Controllers
                 IsEdited = p.IsEdited,
                 EditReason = p.EditReason ?? string.Empty
             };
+        }
+
+        private string? GetAvatarUrl(string? userId)
+        {
+            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
+            {
+                return _userRepository.GetById(id)?.AvatarUrl;
+            }
+            return null;
         }
 
         private string GetUsername(string? userId)

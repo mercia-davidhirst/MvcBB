@@ -24,6 +24,12 @@ namespace MvcBB.API.Services
             _smilieRepository = smilieRepository;
         }
 
+        // Nothing calls these three anymore - the App does all parsing/stripping/
+        // validation in-process via its own ICoreBBCodeService/IBBCodeService
+        // instance instead of over HTTP (see MvcBB.App's own local BBCodeController
+        // and PostService). They still have to exist here only because
+        // IBBCodeManagementService extends the shared IBBCodeService interface,
+        // which CoreBBCodeService (the App's real implementation) also implements.
         public string ParseBBCode(string input) => _coreBBCodeService.ParseBBCode(input);
 
         public string StripBBCode(string input) => _coreBBCodeService.StripBBCode(input);

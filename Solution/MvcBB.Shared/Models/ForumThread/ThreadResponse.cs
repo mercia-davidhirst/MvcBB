@@ -1,3 +1,4 @@
+using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
 
 namespace MvcBB.Shared.Models.ForumThread
@@ -23,5 +24,8 @@ namespace MvcBB.Shared.Models.ForumThread
         public string BoardName { get; set; } = string.Empty;
         public PostResponse? FirstPost { get; set; }
         public PostResponse? LastPost { get; set; }
+        public int TotalLikes { get; set; }
+        public int ParticipantCount { get; set; }
+        public PollResponse? Poll { get; set; }
     }
 } 

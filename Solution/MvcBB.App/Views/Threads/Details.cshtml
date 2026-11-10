@@ -25,19 +25,19 @@
             <div>
                 @if (!Model.IsLocked || User.IsInRole("Administrator") || User.IsInRole("Moderator"))
                 {
-                    <a asp-action="Reply" asp-route-threadId="@Model.Id" class="btn btn-primary">Reply</a>
+                    <a asp-action="Reply" asp-route-threadId="@Model.Id" class="btn btn-success">Reply</a>
                 }
                 <a asp-controller="Reports" asp-action="Create"
                    asp-route-type="Thread" asp-route-contentId="@Model.Id"
-                   class="btn btn-outline-warning">
-                    <i class="bi bi-flag"></i> Report Thread
+                   class="btn btn-warning">
+                    <i class="bi bi-flag"></i> Report
                 </a>
                 @if (isMod)
                 {
-                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-secondary">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-secondary">
                         <i class="bi bi-pencil"></i> Edit
                     </a>
-                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteThreadModal">
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteThreadModal">
                         <i class="bi bi-trash"></i> Delete
                     </button>
                 }
@@ -70,6 +70,66 @@
         </div>
     }
 
+    <div class="d-flex flex-wrap gap-4 text-muted mb-4 small">
+        <span><i class="bi bi-chat-left-text"></i> @Model.ReplyCount @(Model.ReplyCount == 1 ? "Reply" : "Replies")</span>
+        <span><i class="bi bi-eye"></i> @Model.ViewCount @(Model.ViewCount == 1 ? "View" : "Views")</span>
+        <span><i class="bi bi-hand-thumbs-up"></i> @Model.TotalLikes @(Model.TotalLikes == 1 ? "Like" : "Likes")</span>
+        <span><i class="bi bi-people"></i> @Model.ParticipantCount @(Model.ParticipantCount == 1 ? "Participant" : "Participants")</span>
+        @if (!string.IsNullOrEmpty(Model.LastPostByUsername))
+        {
+            <span><i class="bi bi-clock-history"></i> Last post by <strong>@Model.LastPostByUsername</strong> @Model.LastPostAt?.ToLocalTime().ToString("g")</span>
+        }
+    </div>
+
+    @if (Model.Poll != null)
+    {
+        var poll = Model.Poll;
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart-line"></i> @poll.Question</h5>
+            </div>
+            <div class="card-body">
+                @if (User.Identity?.IsAuthenticated == true && !poll.HasVoted)
+                {
+                    <form asp-action="VotePoll" asp-route-threadId="@Model.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        @foreach (var option in poll.Options)
+                        {
+                            <div class="form-check mb-2">
+                                <input type="radio" name="pollOptionId" value="@option.Id" class="form-check-input" id="pollOption@(option.Id)" required />
+                                <label class="form-check-label" for="pollOption@(option.Id)">@option.Text</label>
+                            </div>
+                        }
+                        <button type="submit" class="btn btn-primary btn-sm mt-2">Vote</button>
+                    </form>
+                }
+                else
+                {
+                    foreach (var option in poll.Options)
+                    {
+                        var pct = poll.TotalVotes == 0 ? 0 : (int)Math.Round(option.VoteCount * 100.0 / poll.TotalVotes);
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>
+                                    @option.Text
+                                    @if (poll.VotedOptionId == option.Id)
+                                    {
+                                        <i class="bi bi-check-circle-fill text-success" title="Your vote"></i>
+                                    }
+                                </span>
+                                <span class="text-muted">@option.VoteCount (@pct%)</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar" role="progressbar" style="width: @(pct)%;"></div>
+                            </div>
+                        </div>
+                    }
+                    <small class="text-muted">@poll.TotalVotes total @(poll.TotalVotes == 1 ? "vote" : "votes")</small>
+                }
+            </div>
+        </div>
+    }
+
     @if (posts != null && posts.Any())
     {
         <div class="thread-posts mb-4">
@@ -77,34 +137,60 @@
             {
                 <div class="card" id="post-@post.Id">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>@post.CreatedByUsername</strong>
-                            <small class="text-muted">
-                                posted @post.CreatedAt.ToString("g")
-                                @if (post.IsEdited)
-                                {
-                                    <span>(edited @post.UpdatedAt?.ToString("g"))</span>
-                                }
-                            </small>
+                        <div class="d-flex align-items-center">
+                            @if (!string.IsNullOrEmpty(post.CreatedByAvatarUrl))
+                            {
+                                <img src="@post.CreatedByAvatarUrl" alt="@post.CreatedByUsername" class="rounded-circle me-2" style="width: 32px; height: 32px; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <i class="bi bi-person-circle me-2" style="font-size: 32px; line-height: 1;"></i>
+                            }
+                            <div>
+                                <strong>@post.CreatedByUsername</strong>
+                                <small class="text-muted d-block">
+                                    posted @post.CreatedAt.ToString("g")
+                                    @if (post.IsEdited)
+                                    {
+                                        <span>(edited @post.UpdatedAt?.ToString("g"))</span>
+                                    }
+                                </small>
+                            </div>
                         </div>
                         <div>
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                <form asp-action="LikePost" asp-route-id="@post.Id" asp-route-threadId="@Model.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-hand-thumbs-up@(post.IsLikedByCurrentUser ? "-fill" : "")"></i>
+                                        @(post.LikeCount > 0 ? post.LikeCount.ToString() : "Like")
+                                    </button>
+                                </form>
+                            }
+                            else if (post.LikeCount > 0)
+                            {
+                                <span class="btn btn-sm btn-primary disabled">
+                                    <i class="bi bi-hand-thumbs-up"></i> @post.LikeCount
+                                </span>
+                            }
                             @if (!Model.IsLocked || User.IsInRole("Administrator") || User.IsInRole("Moderator"))
                             {
                                 <a asp-action="QuotePost" asp-route-threadId="@Model.Id" asp-route-postId="@post.Id"
-                                   class="btn btn-sm btn-outline-secondary">
+                                   class="btn btn-sm btn-secondary">
                                     <i class="bi bi-quote"></i> Quote
                                 </a>
                             }
                             @if (isMod || post.CreatedByUserId == currentUserId)
                             {
                                 <a asp-action="EditPost" asp-route-id="@post.Id"
-                                   class="btn btn-sm btn-outline-secondary">
+                                   class="btn btn-sm btn-secondary">
                                     <i class="bi bi-pencil"></i> Edit
                                 </a>
                             }
                             <a asp-controller="Reports" asp-action="Create"
                                asp-route-type="Post" asp-route-contentId="@post.Id"
-                               class="btn btn-sm btn-outline-warning">
+                               class="btn btn-sm btn-warning">
                                 <i class="bi bi-flag"></i> Report
                             </a>
                         </div>

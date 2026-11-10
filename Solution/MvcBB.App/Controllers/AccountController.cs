@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Exceptions;
 using MvcBB.App.Extensions;
@@ -15,12 +16,18 @@ namespace MvcBB.App.Controllers
         private readonly IUserService _userService;
         private readonly IPostService _postService;
         private readonly ITurnstileService _turnstileService;
+        private readonly IImageUploadService _imageUploadService;
 
-        public AccountController(IUserService userService, IPostService postService, ITurnstileService turnstileService)
+        public AccountController(
+            IUserService userService,
+            IPostService postService,
+            ITurnstileService turnstileService,
+            IImageUploadService imageUploadService)
         {
             _userService = userService;
             _postService = postService;
             _turnstileService = turnstileService;
+            _imageUploadService = imageUploadService;
         }
 
         public IActionResult Login()
@@ -200,7 +207,7 @@ namespace MvcBB.App.Controllers
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateProfile(int userId, UpdateUserRequest request)
+        public async Task<IActionResult> UpdateProfile(int userId, UpdateUserRequest request, IFormFile? avatarFile, bool removeAvatar = false)
         {
             if (!ModelState.IsValid)
             {
@@ -209,8 +216,29 @@ namespace MvcBB.App.Controllers
 
             try
             {
+                var currentProfile = await _userService.GetUserByIdAsync(userId);
+
+                if (avatarFile != null)
+                {
+                    request.AvatarUrl = await _imageUploadService.SaveImageAsync(avatarFile, "avatars");
+                    _imageUploadService.DeleteImage(currentProfile?.AvatarUrl);
+                }
+                else if (removeAvatar)
+                {
+                    _imageUploadService.DeleteImage(currentProfile?.AvatarUrl);
+                    request.AvatarUrl = null;
+                }
+                else
+                {
+                    request.AvatarUrl = currentProfile?.AvatarUrl;
+                }
+
                 await _userService.UpdateProfileAsync(userId, request);
                 TempData["Success"] = "Profile updated successfully.";
+            }
+            catch (ServiceException ex)
+            {
+                TempData["Error"] = ex.Message;
             }
             catch (Exception ex)
             {

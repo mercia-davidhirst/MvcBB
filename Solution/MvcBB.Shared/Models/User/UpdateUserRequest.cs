@@ -18,7 +18,6 @@ namespace MvcBB.Shared.Models.User
         [StringLength(500)]
         public string? Bio { get; set; }
 
-        [Url]
         [StringLength(200)]
         public string? AvatarUrl { get; set; }
 

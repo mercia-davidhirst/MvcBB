@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
@@ -6,6 +7,7 @@ using MvcBB.App.Exceptions;
 using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.ForumThread;
+using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
 
 namespace MvcBB.App.Services
@@ -272,6 +274,92 @@ namespace MvcBB.App.Services
             {
                 throw new ServiceException($"Failed to update post {id}", ex);
             }
+        }
+
+        /// <summary>
+        /// Toggles the current user's like on a post.
+        /// </summary>
+        public async Task<(bool Liked, int LikeCount)> ToggleLikeAsync(int postId)
+        {
+            try
+            {
+                var token = GetCurrentUserToken();
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                var response = await _httpClient.PostAsync($"api/posts/{postId}/like", content: null);
+                response.EnsureSuccessStatusCode();
+
+                var result = await response.Content.ReadFromJsonAsync<ToggleLikeResponse>();
+                return (result?.Liked ?? false, result?.LikeCount ?? 0);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ServiceException($"Failed to like post {postId}", ex);
+            }
+        }
+
+        private class ToggleLikeResponse
+        {
+            public bool Liked { get; set; }
+            public int LikeCount { get; set; }
+        }
+
+        /// <summary>
+        /// Casts the current user's vote on a thread's poll.
+        /// </summary>
+        public async Task<PollResponse> VotePollAsync(int threadId, int pollOptionId)
+        {
+            try
+            {
+                var token = GetCurrentUserToken();
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                var json = JsonSerializer.Serialize(new VotePollRequest { PollOptionId = pollOptionId });
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync($"api/threads/{threadId}/poll/vote", content);
+                await EnsureSuccessOrThrowAsync(response);
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<PollResponse>(responseContent, _jsonOptions)
+                    ?? throw new ServiceException("Failed to cast vote");
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ServiceException("Failed to cast vote", ex);
+            }
+        }
+
+        // The vote endpoint returns a plain { message } body on failure (already
+        // voted, invalid option) rather than a ValidationProblemDetails payload -
+        // extract it so the caller gets that specific text instead of a generic failure.
+        private static async Task EnsureSuccessOrThrowAsync(HttpResponseMessage response)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var body = await response.Content.ReadAsStringAsync();
+            try
+            {
+                using var document = JsonDocument.Parse(body);
+                if (document.RootElement.TryGetProperty("message", out var messageElement) &&
+                    messageElement.ValueKind == JsonValueKind.String)
+                {
+                    var message = messageElement.GetString();
+                    if (!string.IsNullOrEmpty(message))
+                    {
+                        throw new ServiceException(message);
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Body wasn't the expected shape - fall through to the generic exception below.
+            }
+
+            response.EnsureSuccessStatusCode();
         }
 
         // Creating/editing threads and posts, and deleting threads, all require the

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using MvcBB.Shared.Models.Poll;
 
 namespace MvcBB.Shared.Models.ForumThread
 {
@@ -13,5 +14,11 @@ namespace MvcBB.Shared.Models.ForumThread
 
         [Required]
         public required string Content { get; set; }
+
+        /// <summary>
+        /// Optional poll attached at thread-creation time only - matches
+        /// classic forum behavior where polls can't be added retroactively.
+        /// </summary>
+        public CreatePollRequest? Poll { get; set; }
     }
 }

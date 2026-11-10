@@ -34,6 +34,8 @@ namespace MvcBB.API.PostgreSql
             services.AddScoped<IBoardRepository, PostgreSqlBoardRepository>();
             services.AddScoped<IForumThreadRepository, PostgreSqlForumThreadRepository>();
             services.AddScoped<IPostRepository, PostgreSqlPostRepository>();
+            services.AddScoped<IPostLikeRepository, PostgreSqlPostLikeRepository>();
+            services.AddScoped<IPollRepository, PostgreSqlPollRepository>();
             services.AddScoped<IMessageRepository, PostgreSqlMessageRepository>();
             services.AddScoped<IReportRepository, PostgreSqlReportRepository>();
             services.AddScoped<IBBCodeTagRepository, PostgreSqlBBCodeTagRepository>();

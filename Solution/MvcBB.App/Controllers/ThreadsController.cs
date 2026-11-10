@@ -5,6 +5,7 @@ using MvcBB.App.Interfaces;
 using MvcBB.App.Exceptions;
 using MvcBB.App.Extensions;
 using MvcBB.Shared.Models.ForumThread;
+using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
 using System.Security.Claims;
 
@@ -113,8 +114,29 @@ namespace MvcBB.App.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(CreateForumThreadRequest request)
+        public async Task<IActionResult> Create(CreateForumThreadRequest request, string? pollQuestion, List<string>? pollOptions)
         {
+            // Poll fields are bound separately (not as request.Poll) so that an
+            // unused poll section never trips [Required]/[MinLength] validation
+            // on CreatePollRequest - only build it when a question was actually entered.
+            if (!string.IsNullOrWhiteSpace(pollQuestion))
+            {
+                var options = (pollOptions ?? new List<string>())
+                    .Select(o => o?.Trim())
+                    .Where(o => !string.IsNullOrEmpty(o))
+                    .Cast<string>()
+                    .ToList();
+
+                if (options.Count < 2)
+                {
+                    ModelState.AddModelError("", "A poll needs at least 2 non-empty options.");
+                }
+                else
+                {
+                    request.Poll = new CreatePollRequest { Question = pollQuestion.Trim(), Options = options };
+                }
+            }
+
             if (!ModelState.IsValid)
             {
                 try
@@ -182,6 +204,51 @@ namespace MvcBB.App.Controllers
             return RedirectToAction(nameof(Details), new { id = threadId });
         }
 
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> LikePost(int id, int threadId)
+        {
+            try
+            {
+                await _threadService.ToggleLikeAsync(id);
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                _logger.LogError(ex, "Failed to toggle like on post {PostId}", id);
+                TempData["Error"] = ex.Message;
+            }
+
+            var url = Url.Action(nameof(Details), new { id = threadId }) + $"#post-{id}";
+            return Redirect(url);
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VotePoll(int threadId, int pollOptionId)
+        {
+            try
+            {
+                await _threadService.VotePollAsync(threadId, pollOptionId);
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                _logger.LogError(ex, "Failed to cast poll vote in thread {ThreadId}", threadId);
+                TempData["Error"] = ex.Message;
+            }
+
+            return RedirectToAction(nameof(Details), new { id = threadId });
+        }
+
         [Authorize(Policy = "ManageThreads")]
         public async Task<IActionResult> Edit(int id)
         {
@@ -190,7 +257,9 @@ namespace MvcBB.App.Controllers
                 var thread = await _threadService.GetThreadAsync(id);
                 var updateRequest = new UpdateForumThreadRequest
                 {
-                    Title = thread.Title
+                    Title = thread.Title,
+                    IsSticky = thread.IsSticky,
+                    IsLocked = thread.IsLocked
                 };
                 return View(updateRequest);
             }

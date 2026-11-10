@@ -54,6 +54,34 @@
                     </div>
                 </div>
 
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="addPollCheck" onchange="togglePoll()" />
+                    <label class="form-check-label" for="addPollCheck">Add a poll</label>
+                </div>
+
+                <div id="pollSection" class="card mb-3" style="display:none;">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="pollQuestion" class="form-label">Poll Question</label>
+                            <input type="text" name="pollQuestion" id="pollQuestion" class="form-control" maxlength="200" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Options</label>
+                            <div id="pollOptionsList">
+                                <div class="input-group mb-2">
+                                    <input type="text" name="pollOptions" class="form-control" placeholder="Option 1" maxlength="100" />
+                                </div>
+                                <div class="input-group mb-2">
+                                    <input type="text" name="pollOptions" class="form-control" placeholder="Option 2" maxlength="100" />
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addPollOption()">
+                                <i class="bi bi-plus-lg"></i> Add Option
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="mb-3">
                     <button type="submit" class="btn btn-primary">Create Thread</button>
                     <a asp-controller="Boards" asp-action="Details" asp-route-id="@boardId" class="btn btn-secondary">Cancel</a>
@@ -98,5 +126,19 @@
 
         // Initial preview
         updatePreview();
+
+        function togglePoll() {
+            const section = document.getElementById('pollSection');
+            section.style.display = document.getElementById('addPollCheck').checked ? 'block' : 'none';
+        }
+
+        function addPollOption() {
+            const list = document.getElementById('pollOptionsList');
+            const count = list.querySelectorAll('input[name="pollOptions"]').length + 1;
+            const div = document.createElement('div');
+            div.className = 'input-group mb-2';
+            div.innerHTML = `<input type="text" name="pollOptions" class="form-control" placeholder="Option ${count}" maxlength="100" />`;
+            list.appendChild(div);
+        }
     </script>
 } 
