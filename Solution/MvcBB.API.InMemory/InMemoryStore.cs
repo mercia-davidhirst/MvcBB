@@ -1,3 +1,4 @@
+using MvcBB.Shared.Models.Announcement;
 using MvcBB.Shared.Models.BBCode;
 using MvcBB.Shared.Models.Board;
 using MvcBB.Shared.Models.ForumThread;
@@ -33,11 +34,13 @@ namespace MvcBB.API.InMemory
         public List<RankModel> Ranks { get; } = new();
         public List<WordFilterModel> WordFilters { get; } = new();
         public List<ThreadSubscriptionModel> ThreadSubscriptions { get; } = new();
+        public List<AnnouncementModel> Announcements { get; } = new();
 
         public InMemoryStore()
         {
             SeedBBCodeTags();
             SeedSmilies();
+            SeedAnnouncements();
         }
 
         // Matches Database/SQL/Seed Data/07_BBCodeTags.sql and
@@ -102,6 +105,23 @@ namespace MvcBB.API.InMemory
             Add(":-P", "Tongue", "/images/smilies/tongue.gif", 10);
             Add(":O", "Surprised", "/images/smilies/surprised.gif", 11);
             Add(":-O", "Surprised", "/images/smilies/surprised.gif", 12);
+        }
+
+        // Matches Database/SQL/Seed Data/09_Announcements.sql and
+        // Database/PostGresSql/Seed Data/09_announcements.sql.
+        private void SeedAnnouncements()
+        {
+            Announcements.Add(new AnnouncementModel
+            {
+                Id = 1,
+                Title = "Welcome to MvcBB!",
+                Content = "Welcome to the forums :) Please read the rules before posting.",
+                IsActive = true,
+                SortOrder = 1,
+                StartDate = null,
+                EndDate = null,
+                CreatedAt = DateTime.UtcNow
+            });
         }
     }
 }

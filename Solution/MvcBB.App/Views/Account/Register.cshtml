@@ -29,7 +29,7 @@
                         <div class="mb-3">
                             <label asp-for="Password" class="form-label"></label>
                             <input asp-for="Password" class="form-control" type="password" />
-                            <small class="form-text text-muted">Must be at least 6 characters long.</small>
+                            <small class="form-text text-muted">@ViewData["PasswordPolicyHint"]</small>
                             <span asp-validation-for="Password" class="text-danger"></span>
                         </div>
 

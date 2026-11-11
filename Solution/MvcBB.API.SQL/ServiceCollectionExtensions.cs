@@ -31,6 +31,7 @@ namespace MvcBB.API.SQL
             services.AddScoped<IBBCodeTagRepository, SqlBBCodeTagRepository>();
             services.AddScoped<ISmilieRepository, SqlSmilieRepository>();
             services.AddScoped<IPasswordResetTokenRepository, SqlPasswordResetTokenRepository>();
+            services.AddScoped<IAnnouncementRepository, SqlAnnouncementRepository>();
 
             return services;
         }

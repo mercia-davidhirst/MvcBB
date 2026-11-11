@@ -14,7 +14,10 @@ CREATE PROCEDURE dbo.usp_User_Update
     @Bio NVARCHAR(2000) = NULL,
     @AvatarUrl NVARCHAR(500) = NULL,
     @ShowEmail BIT,
-    @CustomTitle NVARCHAR(70) = NULL
+    @CustomTitle NVARCHAR(70) = NULL,
+    @MustChangePassword BIT = 0,
+    @LockedUntil DATETIME2(3) = NULL,
+    @LastLoginIp NVARCHAR(45) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -29,7 +32,10 @@ BEGIN
         Bio = @Bio,
         AvatarUrl = @AvatarUrl,
         ShowEmail = @ShowEmail,
-        CustomTitle = @CustomTitle
+        CustomTitle = @CustomTitle,
+        MustChangePassword = @MustChangePassword,
+        LockedUntil = @LockedUntil,
+        LastLoginIp = @LastLoginIp
     WHERE Id = @Id;
 END;
 GO

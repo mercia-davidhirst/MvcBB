@@ -23,5 +23,17 @@ namespace MvcBB.Shared.Models.User
 
         /// <summary>The raw admin override, or null if this user has none. Shown in the admin UI so it's clear whether RankTitle is computed or overridden.</summary>
         public string? CustomTitle { get; set; }
+
+        /// <summary>True if the user must set a new password before continuing to use the site.</summary>
+        public bool MustChangePassword { get; set; }
+
+        /// <summary>Admin-set lock expiry, or null if not locked. Only populated in the admin user list.</summary>
+        public DateTime? LockedUntil { get; set; }
+
+        /// <summary>True while LockedUntil is set and still in the future.</summary>
+        public bool IsLocked => LockedUntil.HasValue && LockedUntil.Value > DateTime.UtcNow;
+
+        /// <summary>Most recent login IP address. Only populated in the admin user list.</summary>
+        public string? LastLoginIp { get; set; }
     }
 }

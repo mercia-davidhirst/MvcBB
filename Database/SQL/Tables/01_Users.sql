@@ -21,6 +21,10 @@
         computed rank (RankCalculator.GetRank) - NULL means "use the computed
         rank", which is the default for everyone. Set via
         UsersController.SetCustomTitle, never by the user themselves.
+      - MustChangePassword/LockedUntil/LastLoginIp are all admin-facing account
+        controls (UsersController.RequirePasswordChange/LockUser, and Login
+        writing LastLoginIp) - see IUserRepository's Add/Update for how they're
+        persisted.
 */
 
 -- Drop any foreign keys pointing at this table first so the table can be
@@ -53,6 +57,9 @@ CREATE TABLE dbo.Users
     AvatarUrl       NVARCHAR(500)      NULL,
     ShowEmail       BIT                NOT NULL CONSTRAINT DF_Users_ShowEmail DEFAULT (0),
     CustomTitle     NVARCHAR(70)       NULL,
+    MustChangePassword BIT             NOT NULL CONSTRAINT DF_Users_MustChangePassword DEFAULT (0),
+    LockedUntil     DATETIME2(3)       NULL,
+    LastLoginIp     NVARCHAR(45)       NULL,
     CONSTRAINT PK_Users PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT UQ_Users_Username UNIQUE (Username),
     CONSTRAINT UQ_Users_Email UNIQUE (Email),

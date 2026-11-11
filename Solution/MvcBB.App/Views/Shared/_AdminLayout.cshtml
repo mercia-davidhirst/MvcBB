@@ -16,17 +16,10 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Account" && ViewContext.RouteData.Values["Action"]?.ToString() == "Users" ? "active" : "")"
-                           asp-controller="Account" asp-action="Users">
-                            <i class="bi bi-people me-2"></i>
-                            Users
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link @((ViewContext.RouteData.Values["Controller"]?.ToString() == "Admin" && ViewContext.RouteData.Values["Action"]?.ToString() == "Boards") || ViewContext.RouteData.Values["Controller"]?.ToString() == "Boards" ? "active" : "")"
-                           asp-controller="Admin" asp-action="Boards">
-                            <i class="bi bi-grid me-2"></i>
-                            Boards
+                        <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Announcements" ? "active" : "")"
+                           asp-controller="Admin" asp-action="Announcements">
+                            <i class="bi bi-megaphone me-2"></i>
+                            Announcements
                         </a>
                     </li>
                     <li class="nav-item">
@@ -37,10 +30,10 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Smilies" ? "active" : "")"
-                           asp-controller="Admin" asp-action="Smilies">
-                            <i class="bi bi-emoji-smile me-2"></i>
-                            Smilies
+                        <a class="nav-link @((ViewContext.RouteData.Values["Controller"]?.ToString() == "Admin" && ViewContext.RouteData.Values["Action"]?.ToString() == "Boards") || ViewContext.RouteData.Values["Controller"]?.ToString() == "Boards" ? "active" : "")"
+                           asp-controller="Admin" asp-action="Boards">
+                            <i class="bi bi-grid me-2"></i>
+                            Boards
                         </a>
                     </li>
                     <li class="nav-item">
@@ -55,6 +48,20 @@
                            asp-controller="Admin" asp-action="Settings">
                             <i class="bi bi-gear me-2"></i>
                             Settings
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Smilies" ? "active" : "")"
+                           asp-controller="Admin" asp-action="Smilies">
+                            <i class="bi bi-emoji-smile me-2"></i>
+                            Smilies
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Account" && ViewContext.RouteData.Values["Action"]?.ToString() == "Users" ? "active" : "")"
+                           asp-controller="Account" asp-action="Users">
+                            <i class="bi bi-people me-2"></i>
+                            Users
                         </a>
                     </li>
                 </ul>

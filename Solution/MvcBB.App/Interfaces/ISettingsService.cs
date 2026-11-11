@@ -6,5 +6,7 @@ namespace MvcBB.App.Interfaces
     {
         Task<DisplaySettings> GetDisplaySettingsAsync();
         Task UpdateDisplaySettingsAsync(DisplaySettings settings);
+        Task<PasswordPolicy> GetPasswordPolicyAsync();
+        Task UpdatePasswordPolicyAsync(PasswordPolicy policy);
     }
 }

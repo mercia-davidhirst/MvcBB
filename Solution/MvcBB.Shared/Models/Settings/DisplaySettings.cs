@@ -36,5 +36,13 @@ namespace MvcBB.Shared.Models.Settings
         [StringLength(500, ErrorMessage = "Footer disclaimer cannot exceed 500 characters")]
         [Display(Name = "Footer Disclaimer")]
         public string? FooterDisclaimer { get; set; }
+
+        /// <summary>
+        /// When false, public self-registration is turned off (AccountController.Register
+        /// refuses both the form and the POST) - new accounts can then only be made by
+        /// an admin via AccountController.CreateUser.
+        /// </summary>
+        [Display(Name = "Allow New Registrations")]
+        public bool RegistrationEnabled { get; set; } = true;
     }
 }

@@ -25,7 +25,7 @@ namespace MvcBB.App.Controllers
                 var boards = await _boardService.GetBoardsAsync();
                 return View(boards);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to load boards. Please try again later.";
                 return View(Array.Empty<Board>());
@@ -42,7 +42,7 @@ namespace MvcBB.App.Controllers
                 ViewData["Threads"] = threadResult.Threads;
                 return View(board);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to load board details. Please try again later.";
                 return RedirectToAction(nameof(Index));
@@ -85,7 +85,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 ModelState.AddModelError("", "Failed to create board. Please try again.");
                 return View(request);
@@ -111,7 +111,7 @@ namespace MvcBB.App.Controllers
                 ViewData["Boards"] = (await _boardService.GetBoardsAsync()).Where(b => b.Id != id);
                 return View(updateRequest);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to load board for editing.";
                 return RedirectToAction(nameof(Index));
@@ -139,7 +139,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 ModelState.AddModelError("", "Failed to update board. Please try again.");
                 return View(request);
@@ -157,7 +157,7 @@ namespace MvcBB.App.Controllers
                 TempData["Success"] = "Board deleted successfully.";
                 return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to delete board.";
                 return RedirectToAction(nameof(Details), new { id });

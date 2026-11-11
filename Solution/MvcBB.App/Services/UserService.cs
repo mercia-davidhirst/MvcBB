@@ -140,8 +140,8 @@ namespace MvcBB.App.Services
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             
             var response = await _httpClient.PostAsync("api/users/register", content);
-            response.EnsureSuccessStatusCode();
-            
+            await EnsureSuccessOrThrowAsync(response);
+
             var responseContent = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<UserAuthResponse>(responseContent, _jsonOptions) ?? throw new Exception("Failed to deserialize auth response");
         }
@@ -150,10 +150,31 @@ namespace MvcBB.App.Services
         {
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            
+
             var response = await _httpClient.PostAsync("api/users/login", content);
+
+            // 403 means the account is locked - surface that specific message rather
+            // than the generic "Invalid login attempt" used for a plain 401 (wrong
+            // username/password), since a locked-out user needs to know why.
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                try
+                {
+                    using var document = JsonDocument.Parse(errorBody);
+                    if (document.RootElement.TryGetProperty("message", out var messageProp))
+                    {
+                        throw new ServiceException(messageProp.GetString() ?? "This account is locked.");
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Fall through to the generic failure below.
+                }
+            }
+
             response.EnsureSuccessStatusCode();
-            
+
             var responseContent = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<UserAuthResponse>(responseContent, _jsonOptions) ?? throw new Exception("Failed to deserialize auth response");
         }
@@ -179,7 +200,7 @@ namespace MvcBB.App.Services
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             
             var response = await _httpClient.PostAsync($"api/users/{userId}/change-password", content);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessOrThrowAsync(response);
         }
 
         private async Task<string> GetTokenAsync()
@@ -255,6 +276,120 @@ namespace MvcBB.App.Services
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync("api/users/reset-password", content);
+            await EnsureSuccessOrThrowAsync(response);
+        }
+
+        public async Task RequirePasswordChangeAsync(int userId)
+        {
+            var token = GetCurrentUserToken();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _httpClient.PostAsync($"api/users/{userId}/require-password-change", null);
+            response.EnsureSuccessOrSessionExpired();
+        }
+
+        public async Task<int> RequirePasswordChangeForAllAsync()
+        {
+            var token = GetCurrentUserToken();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _httpClient.PostAsync("api/users/require-password-change-all", null);
+            response.EnsureSuccessOrSessionExpired();
+
+            var content = await response.Content.ReadAsStringAsync();
+            using var document = JsonDocument.Parse(content);
+            return document.RootElement.TryGetProperty("affectedCount", out var countProp) ? countProp.GetInt32() : 0;
+        }
+
+        public async Task UpdateUserEmailAsync(int userId, string email)
+        {
+            var token = GetCurrentUserToken();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var json = JsonSerializer.Serialize(new AdminSetEmailRequest { Email = email });
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PutAsync($"api/users/{userId}/email", content);
+            await EnsureSuccessOrThrowAsync(response);
+        }
+
+        public async Task LockUserAsync(int userId, DateTime? lockedUntil)
+        {
+            var token = GetCurrentUserToken();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var json = JsonSerializer.Serialize(new LockUserRequest { LockedUntil = lockedUntil });
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PutAsync($"api/users/{userId}/lock", content);
+            await EnsureSuccessOrThrowAsync(response);
+        }
+
+        public async Task<UserResponse> AdminCreateUserAsync(AdminCreateUserRequest request)
+        {
+            var token = GetCurrentUserToken();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync("api/users/admin-create", content);
+            await EnsureSuccessOrThrowAsync(response);
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<UserResponse>(responseContent, _jsonOptions) ?? throw new Exception("Failed to deserialize user response");
+        }
+
+        // A 400 from these endpoints carries a specific validation message (e.g. a
+        // duplicate username/email) in its ValidationProblemDetails body -
+        // EnsureSuccessStatusCode would discard that and leave the caller with a
+        // generic failure, so extract it here.
+        private static async Task EnsureSuccessOrThrowAsync(HttpResponseMessage response)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                throw new SessionExpiredException();
+            }
+
+            var body = await response.Content.ReadAsStringAsync();
+            try
+            {
+                using var document = JsonDocument.Parse(body);
+                var errorsElement = document.RootElement.TryGetProperty("errors", out var errors)
+                    ? errors
+                    : document.RootElement;
+
+                if (errorsElement.ValueKind == JsonValueKind.Object)
+                {
+                    var messages = errorsElement.EnumerateObject()
+                        .Where(prop => prop.Value.ValueKind == JsonValueKind.Array)
+                        .SelectMany(prop => prop.Value.EnumerateArray().Select(v => v.GetString()))
+                        .Where(m => !string.IsNullOrEmpty(m));
+                    var message = string.Join(" ", messages);
+                    if (!string.IsNullOrEmpty(message))
+                    {
+                        throw new ServiceException(message);
+                    }
+                }
+                else if (document.RootElement.TryGetProperty("message", out var messageProp) && messageProp.ValueKind == JsonValueKind.String)
+                {
+                    var message = messageProp.GetString();
+                    if (!string.IsNullOrEmpty(message))
+                    {
+                        throw new ServiceException(message);
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Body wasn't a recognized error payload - fall through to the generic exception below.
+            }
+
             response.EnsureSuccessStatusCode();
         }
     }

@@ -25,6 +25,7 @@ namespace MvcBB.API.Services
                 _settings.SiteName = _configuration.GetValue("Display:SiteName", _settings.SiteName) ?? _settings.SiteName;
                 _settings.LogoPath = _configuration.GetValue<string?>("Display:LogoPath", null);
                 _settings.FooterDisclaimer = _configuration.GetValue<string?>("Display:FooterDisclaimer", null);
+                _settings.RegistrationEnabled = _configuration.GetValue("Display:RegistrationEnabled", true);
                 _initialized = true;
             }
         }
@@ -38,7 +39,8 @@ namespace MvcBB.API.Services
                 WelcomeMessage = _settings.WelcomeMessage,
                 SiteName = _settings.SiteName,
                 LogoPath = _settings.LogoPath,
-                FooterDisclaimer = _settings.FooterDisclaimer
+                FooterDisclaimer = _settings.FooterDisclaimer,
+                RegistrationEnabled = _settings.RegistrationEnabled
             };
         }
 
@@ -50,6 +52,7 @@ namespace MvcBB.API.Services
             _settings.SiteName = settings.SiteName;
             _settings.LogoPath = settings.LogoPath;
             _settings.FooterDisclaimer = settings.FooterDisclaimer;
+            _settings.RegistrationEnabled = settings.RegistrationEnabled;
         }
     }
 }

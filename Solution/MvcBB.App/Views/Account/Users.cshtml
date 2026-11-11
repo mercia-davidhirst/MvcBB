@@ -4,6 +4,12 @@
     Layout = "_AdminLayout";
 }
 
+    <div class="mb-3">
+        <a asp-action="CreateUser" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i> Create User
+        </a>
+    </div>
+
     <div class="table-responsive">
         <table class="table table-striped">
             <thead>
@@ -14,6 +20,7 @@
                     <th>Rank / Title</th>
                     <th>Joined</th>
                     <th>Last Login</th>
+                    <th>Last IP</th>
                     <th>Activity</th>
                     <th>Actions</th>
                 </tr>
@@ -35,6 +42,16 @@
                                                   user.Role == UserRole.Deleted ? "secondary" : "primary")">
                                 @user.RoleName
                             </span>
+                            @if (user.MustChangePassword)
+                            {
+                                <span class="badge bg-info" title="Must set a new password on next login">Password reset required</span>
+                            }
+                            @if (user.IsLocked)
+                            {
+                                <span class="badge bg-dark" title="Locked until @user.LockedUntil?.ToLocalTime().ToString("g")">
+                                    <i class="bi bi-lock"></i> Locked
+                                </span>
+                            }
                         </td>
                         <td>
                             @if (!string.IsNullOrEmpty(user.RankTitle))
@@ -56,13 +73,14 @@
                         </td>
                         <td>@user.CreatedAt.ToLocalTime().ToString("g")</td>
                         <td>@(user.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</td>
+                        <td>@(string.IsNullOrEmpty(user.LastLoginIp) ? "—" : user.LastLoginIp)</td>
                         <td>
                             <small>
                                 Threads: @user.ThreadCount<br />
                                 Posts: @user.PostCount
                             </small>
                         </td>
-                        <td>
+                        <td class="text-nowrap">
                             @{
                                 var isCurrentUser = string.Equals(user.Username, User.Identity?.Name, StringComparison.OrdinalIgnoreCase);
                             }
@@ -101,10 +119,75 @@
                                         </ul>
                                     </div>
                                 }
-                                <button type="button" class="btn btn-sm btn-outline-secondary"
-                                        data-bs-toggle="modal" data-bs-target="#customTitleModal@(user.Id)">
-                                    Set Title
-                                </button>
+
+                                @* Every other per-row admin action lives behind this single dropdown instead of
+                                   a row of inline buttons - that list has grown over time (title, email, force
+                                   password reset, lock, delete) and a wall of buttons was overflowing the table
+                                   on narrower screens, hiding later ones (e.g. Lock) without any visible scrollbar. *@
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                        Actions
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <button type="button" class="dropdown-item"
+                                                    data-bs-toggle="modal" data-bs-target="#customTitleModal@(user.Id)">
+                                                Set Title
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button type="button" class="dropdown-item"
+                                                    data-bs-toggle="modal" data-bs-target="#emailModal@(user.Id)">
+                                                Change Email
+                                            </button>
+                                        </li>
+                                        @if (!isCurrentUser)
+                                        {
+                                            @if (!user.MustChangePassword)
+                                            {
+                                                <li>
+                                                    <form asp-action="RequirePasswordChange" method="post">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="userId" value="@user.Id" />
+                                                        <button type="submit" class="dropdown-item">
+                                                            Force Password Reset
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            }
+                                            @if (user.IsLocked)
+                                            {
+                                                <li>
+                                                    <form asp-action="LockUser" method="post">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="userId" value="@user.Id" />
+                                                        <input type="hidden" name="lockedUntil" value="" />
+                                                        <button type="submit" class="dropdown-item">
+                                                            Unlock
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            }
+                                            else
+                                            {
+                                                <li>
+                                                    <button type="button" class="dropdown-item"
+                                                            data-bs-toggle="modal" data-bs-target="#lockModal@(user.Id)">
+                                                        Lock
+                                                    </button>
+                                                </li>
+                                            }
+                                            <li><hr class="dropdown-divider" /></li>
+                                            <li>
+                                                <button type="button" class="dropdown-item text-danger"
+                                                        data-bs-toggle="modal" data-bs-target="#anonymizeModal@(user.Id)">
+                                                    Delete
+                                                </button>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
 
                                 <div class="modal fade" id="customTitleModal@(user.Id)" tabindex="-1">
                                     <div class="modal-dialog">
@@ -133,12 +216,61 @@
                                     </div>
                                 </div>
 
+                                <div class="modal fade" id="emailModal@(user.Id)" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Change Email for @user.Username</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form asp-action="UpdateUserEmail" method="post">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="userId" value="@user.Id" />
+                                                <div class="modal-body">
+                                                    <label for="email@(user.Id)" class="form-label">Email address</label>
+                                                    <input type="email" name="email" id="email@(user.Id)" required
+                                                           class="form-control" maxlength="100" value="@user.Email" />
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-primary">Save</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 @if (!isCurrentUser)
                                 {
-                                    <button type="button" class="btn btn-sm btn-outline-danger"
-                                            data-bs-toggle="modal" data-bs-target="#anonymizeModal@(user.Id)">
-                                        Delete
-                                    </button>
+                                    @if (!user.IsLocked)
+                                    {
+                                        <div class="modal fade" id="lockModal@(user.Id)" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Lock Account for @user.Username</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form asp-action="LockUser" method="post">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="userId" value="@user.Id" />
+                                                        <div class="modal-body">
+                                                            <label for="lockedUntil@(user.Id)" class="form-label">Locked until</label>
+                                                            <input type="datetime-local" name="lockedUntil" id="lockedUntil@(user.Id)"
+                                                                   required class="form-control" />
+                                                            <small class="form-text text-muted">
+                                                                The user can't log in again until this date/time.
+                                                            </small>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                            <button type="submit" class="btn btn-dark">Lock</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
 
                                     <div class="modal fade" id="anonymizeModal@(user.Id)" tabindex="-1">
                                         <div class="modal-dialog">

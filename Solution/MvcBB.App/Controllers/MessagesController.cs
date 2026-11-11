@@ -47,7 +47,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to load messages.";
                 return View(Array.Empty<MessageResponse>());
@@ -65,7 +65,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to load message.";
                 return RedirectToAction(nameof(Index));
@@ -105,7 +105,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 ModelState.AddModelError("", "Failed to send message. Please try again.");
                 return View(request);
@@ -125,7 +125,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to delete message.";
             }
@@ -147,7 +147,7 @@ namespace MvcBB.App.Controllers
 
                 return Json(matches);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Json(new object[] { });
             }

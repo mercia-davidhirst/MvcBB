@@ -12,7 +12,8 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT Id, Username, PasswordHash, Email, CreatedAt, LastLoginAt, Role,
-           Signature, Bio, AvatarUrl, ShowEmail, CustomTitle
+           Signature, Bio, AvatarUrl, ShowEmail, CustomTitle,
+           MustChangePassword, LockedUntil, LastLoginIp
     FROM dbo.Users
     WHERE Username = @Username;
 END;

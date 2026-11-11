@@ -66,8 +66,80 @@
             </div>
 
             <div class="mb-3">
+                <div class="form-check">
+                    <input asp-for="RegistrationEnabled" class="form-check-input" />
+                    <label asp-for="RegistrationEnabled" class="form-check-label"></label>
+                </div>
+                <small class="form-text text-muted">When off, the public registration page is disabled - new accounts can only be created by an admin (Users &gt; Create User).</small>
+            </div>
+
+            <div class="mb-3">
                 <button type="submit" class="btn btn-primary">Save settings</button>
             </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Password policy</h5>
+    </div>
+    <div class="card-body">
+        @{
+            // A separate <form>/action/model (PasswordPolicy, not
+            // DisplaySettingsViewModel) so saving this doesn't need the
+            // display-settings fields (SiteTitle etc.) to also be present and
+            // valid - these two groups are independent API resources
+            // (api/settings/display vs api/settings/password-policy).
+        }
+        <form asp-action="PasswordPolicy" method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label for="MinimumLength" class="form-label">Minimum Length</label>
+                <input name="MinimumLength" id="MinimumLength" class="form-control" type="number" min="4" max="100"
+                       style="max-width: 10rem;" value="@Model.PasswordPolicy.MinimumLength" />
+            </div>
+
+            <div class="mb-2 form-check">
+                <input type="checkbox" name="RequireUppercase" id="RequireUppercase" class="form-check-input"
+                       value="true" checked="@Model.PasswordPolicy.RequireUppercase" />
+                <label for="RequireUppercase" class="form-check-label">Require an uppercase letter</label>
+            </div>
+            <div class="mb-2 form-check">
+                <input type="checkbox" name="RequireLowercase" id="RequireLowercase" class="form-check-input"
+                       value="true" checked="@Model.PasswordPolicy.RequireLowercase" />
+                <label for="RequireLowercase" class="form-check-label">Require a lowercase letter</label>
+            </div>
+            <div class="mb-2 form-check">
+                <input type="checkbox" name="RequireDigit" id="RequireDigit" class="form-check-input"
+                       value="true" checked="@Model.PasswordPolicy.RequireDigit" />
+                <label for="RequireDigit" class="form-check-label">Require a digit</label>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" name="RequireSpecialCharacter" id="RequireSpecialCharacter" class="form-check-input"
+                       value="true" checked="@Model.PasswordPolicy.RequireSpecialCharacter" />
+                <label for="RequireSpecialCharacter" class="form-check-label">Require a special character</label>
+            </div>
+
+            <small class="form-text text-muted d-block mb-3">
+                Applies to new registrations, admin-created accounts, password changes, and password resets from this point on - it doesn't retroactively invalidate existing passwords.
+            </small>
+
+            <button type="submit" class="btn btn-primary">Save password policy</button>
+        </form>
+
+        <hr />
+
+        <form asp-action="RequirePasswordChangeForAll" method="post"
+              onsubmit="return confirm('This will require every user to set a new password the next time they log in. Continue?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-danger">
+                Force password reset for all users
+            </button>
+            <small class="form-text text-muted d-block mt-1">
+                Use this after tightening the policy above, to make sure everyone's password actually complies with it.
+            </small>
         </form>
     </div>
 </div>

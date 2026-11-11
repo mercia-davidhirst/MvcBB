@@ -52,7 +52,7 @@ namespace MvcBB.App.Controllers
 
                 return View(viewModel);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log the error
                 ModelState.AddModelError("", "An error occurred while searching. Please try again.");

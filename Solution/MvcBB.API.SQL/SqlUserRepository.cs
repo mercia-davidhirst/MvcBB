@@ -57,7 +57,10 @@ namespace MvcBB.API.SQL
                 user.Bio,
                 user.AvatarUrl,
                 user.ShowEmail,
-                user.CustomTitle
+                user.CustomTitle,
+                user.MustChangePassword,
+                user.LockedUntil,
+                user.LastLoginIp
             }, commandType: CommandType.StoredProcedure);
         }
 
@@ -76,7 +79,10 @@ namespace MvcBB.API.SQL
                 user.Bio,
                 user.AvatarUrl,
                 user.ShowEmail,
-                user.CustomTitle
+                user.CustomTitle,
+                user.MustChangePassword,
+                user.LockedUntil,
+                user.LastLoginIp
             }, commandType: CommandType.StoredProcedure);
         }
 

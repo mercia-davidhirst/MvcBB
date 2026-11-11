@@ -34,7 +34,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to load reports.";
                 return View(Array.Empty<ReportResponse>());
@@ -53,7 +53,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to load report details.";
                 return RedirectToAction(nameof(Index));
@@ -114,7 +114,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 ModelState.AddModelError("", "Failed to submit report. Please try again.");
                 return View(request);
@@ -135,7 +135,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to update report status.";
             }

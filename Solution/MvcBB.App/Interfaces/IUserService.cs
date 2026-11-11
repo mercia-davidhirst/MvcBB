@@ -22,5 +22,20 @@ namespace MvcBB.App.Interfaces
         Task AnonymizeUserAsync(int userId);
         Task ForgotPasswordAsync(ForgotPasswordRequest request);
         Task ResetPasswordAsync(ResetPasswordRequest request);
+
+        /// <summary>Admin-only. Forces the user to set a new password on their next login.</summary>
+        Task RequirePasswordChangeAsync(int userId);
+
+        /// <summary>Admin-only. Forces every non-deleted user to set a new password on their next login - e.g. after tightening the password policy. Returns how many users were affected.</summary>
+        Task<int> RequirePasswordChangeForAllAsync();
+
+        /// <summary>Admin-only. Changes a user's email without requiring their current password.</summary>
+        Task UpdateUserEmailAsync(int userId, string email);
+
+        /// <summary>Admin-only. Null or a past date unlocks the account; a future date locks it until then.</summary>
+        Task LockUserAsync(int userId, DateTime? lockedUntil);
+
+        /// <summary>Admin-only. Creates a user directly (no CAPTCHA, no auto sign-in, not subject to the registration-enabled toggle).</summary>
+        Task<UserResponse> AdminCreateUserAsync(AdminCreateUserRequest request);
     }
 } 

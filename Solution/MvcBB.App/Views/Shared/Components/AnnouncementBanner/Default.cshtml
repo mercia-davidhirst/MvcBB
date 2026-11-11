@@ -1,0 +1,14 @@
+@using MvcBB.App.ViewComponents
+@model List<AnnouncementBannerItem>
+
+@if (Model != null && Model.Any())
+{
+    foreach (var item in Model)
+    {
+        <div class="alert alert-info alert-dismissible fade show mt-3" role="alert">
+            <h5 class="alert-heading"><i class="bi bi-megaphone me-2"></i>@item.Title</h5>
+            <div>@Html.Raw(item.ContentHtml)</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+}

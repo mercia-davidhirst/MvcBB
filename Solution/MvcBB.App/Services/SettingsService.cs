@@ -46,6 +46,28 @@ namespace MvcBB.App.Services
             response.EnsureSuccessStatusCode();
         }
 
+        public async Task<PasswordPolicy> GetPasswordPolicyAsync()
+        {
+            var response = await _httpClient.GetAsync("api/settings/password-policy");
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<PasswordPolicy>(content, _jsonOptions)
+                ?? new PasswordPolicy();
+        }
+
+        public async Task UpdatePasswordPolicyAsync(PasswordPolicy policy)
+        {
+            var token = await GetTokenAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var json = JsonSerializer.Serialize(policy);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PutAsync("api/settings/password-policy", content);
+            response.EnsureSuccessStatusCode();
+        }
+
         private async Task<string> GetTokenAsync()
         {
             var credentials = new ApiCredentials

@@ -99,13 +99,8 @@
                                             </a>
                                         </li>
                                         <li>
-                                            <a class="dropdown-item" asp-controller="Account" asp-action="Users">
-                                                <i class="bi bi-people me-2"></i>Users
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Admin" asp-action="Boards">
-                                                <i class="bi bi-grid me-2"></i>Boards
+                                            <a class="dropdown-item" asp-controller="Admin" asp-action="Announcements">
+                                                <i class="bi bi-megaphone me-2"></i>Announcements
                                             </a>
                                         </li>
                                         <li>
@@ -114,18 +109,13 @@
                                             </a>
                                         </li>
                                         <li>
-                                            <a class="dropdown-item" asp-controller="Admin" asp-action="Smilies">
-                                                <i class="bi bi-emoji-smile me-2"></i>Smilies
+                                            <a class="dropdown-item" asp-controller="Admin" asp-action="Boards">
+                                                <i class="bi bi-grid me-2"></i>Boards
                                             </a>
                                         </li>
                                         <li>
                                             <a class="dropdown-item" asp-controller="Admin" asp-action="Ranks">
                                                 <i class="bi bi-award me-2"></i>Ranks
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Admin" asp-action="WordFilters">
-                                                <i class="bi bi-chat-square-text me-2"></i>Word Filter
                                             </a>
                                         </li>
                                         <li>
@@ -136,6 +126,21 @@
                                         <li>
                                             <a class="dropdown-item" asp-controller="Admin" asp-action="Settings">
                                                 <i class="bi bi-gear me-2"></i>Settings
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Admin" asp-action="Smilies">
+                                                <i class="bi bi-emoji-smile me-2"></i>Smilies
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Account" asp-action="Users">
+                                                <i class="bi bi-people me-2"></i>Users
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Admin" asp-action="WordFilters">
+                                                <i class="bi bi-chat-square-text me-2"></i>Word Filter
                                             </a>
                                         </li>
                                     </ul>
@@ -194,6 +199,7 @@
         </nav>
     </header>
     <div class="container">
+        @await Component.InvokeAsync("AnnouncementBanner")
         @if (TempData["Success"] != null)
         {
             <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">

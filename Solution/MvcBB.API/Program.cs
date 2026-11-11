@@ -37,8 +37,10 @@ switch (dataProvider)
 // Register services
 builder.Services.AddSingleton<ICoreBBCodeService, CoreBBCodeService>();
 builder.Services.AddScoped<IBBCodeManagementService, MvcBB.API.Services.BBCodeManagementService>();
+builder.Services.AddScoped<IAnnouncementManagementService, MvcBB.API.Services.AnnouncementManagementService>();
 builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender, MvcBB.API.Services.LoggingEmailSender>();
 builder.Services.AddSingleton<MvcBB.API.Services.IDisplaySettingsService, MvcBB.API.Services.DisplaySettingsService>();
+builder.Services.AddSingleton<MvcBB.API.Services.IPasswordPolicyService, MvcBB.API.Services.PasswordPolicyService>();
 
 // Configure JWT Authentication
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] 

@@ -23,19 +23,38 @@ namespace MvcBB.API.Controllers
         private readonly IPasswordResetTokenRepository _passwordResetTokenRepository;
         private readonly IEmailSender _emailSender;
         private readonly IRankRepository _rankRepository;
+        private readonly IDisplaySettingsService _displaySettingsService;
+        private readonly IPasswordPolicyService _passwordPolicyService;
 
         public UsersController(
             IConfiguration configuration,
             IUserRepository userRepository,
             IPasswordResetTokenRepository passwordResetTokenRepository,
             IEmailSender emailSender,
-            IRankRepository rankRepository)
+            IRankRepository rankRepository,
+            IDisplaySettingsService displaySettingsService,
+            IPasswordPolicyService passwordPolicyService)
         {
             _configuration = configuration;
             _userRepository = userRepository;
             _passwordResetTokenRepository = passwordResetTokenRepository;
             _emailSender = emailSender;
             _rankRepository = rankRepository;
+            _displaySettingsService = displaySettingsService;
+            _passwordPolicyService = passwordPolicyService;
+        }
+
+        private bool TryValidatePasswordPolicy(string password, string fieldKey, out ActionResult? errorResult)
+        {
+            if (PasswordPolicyValidator.TryValidate(password, _passwordPolicyService.GetPasswordPolicy(), out var error))
+            {
+                errorResult = null;
+                return true;
+            }
+
+            ModelState.AddModelError(fieldKey, error!);
+            errorResult = BadRequest(ModelState);
+            return false;
         }
 
         private static string HashPassword(string password)
@@ -85,6 +104,16 @@ namespace MvcBB.API.Controllers
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
+            }
+
+            if (!_displaySettingsService.GetDisplaySettings().RegistrationEnabled)
+            {
+                return BadRequest(new { message = "Registration is currently disabled." });
+            }
+
+            if (!TryValidatePasswordPolicy(request.Password, nameof(request.Password), out var policyError))
+            {
+                return policyError!;
             }
 
             if (_userRepository.ExistsWithUsername(request.Username))
@@ -143,7 +172,14 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "Invalid username or password" });
             }
 
+            if (user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { message = $"This account is locked until {user.LockedUntil.Value:u}." });
+            }
+
             user.LastLoginAt = DateTime.UtcNow;
+            user.LastLoginIp = request.IpAddress;
             _userRepository.Update(user);
 
             var token = GenerateJwtToken(user);
@@ -159,7 +195,8 @@ namespace MvcBB.API.Controllers
                     Email = user.Email,
                     CreatedAt = user.CreatedAt,
                     LastLoginAt = user.LastLoginAt,
-                    Role = user.Role
+                    Role = user.Role,
+                    MustChangePassword = user.MustChangePassword
                 },
                 ExpiresAt = expiresAt
             };
@@ -221,7 +258,13 @@ namespace MvcBB.API.Controllers
                 return BadRequest(new { message = "This reset link is invalid or has expired." });
             }
 
+            if (!TryValidatePasswordPolicy(request.NewPassword, nameof(request.NewPassword), out var policyError))
+            {
+                return policyError!;
+            }
+
             user.PasswordHash = HashPassword(request.NewPassword);
+            user.MustChangePassword = false;
             _userRepository.Update(user);
             _passwordResetTokenRepository.MarkUsed(token.Id);
 
@@ -421,9 +464,139 @@ namespace MvcBB.API.Controllers
                 return BadRequest(new { message = "Current password is incorrect" });
             }
 
+            if (!TryValidatePasswordPolicy(request.NewPassword, nameof(request.NewPassword), out var policyError))
+            {
+                return policyError!;
+            }
+
             user.PasswordHash = HashPassword(request.NewPassword);
+            user.MustChangePassword = false;
             _userRepository.Update(user);
             return NoContent();
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpPost("{id}/require-password-change")]
+        public ActionResult RequirePasswordChange(int id)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            user.MustChangePassword = true;
+            _userRepository.Update(user);
+            return Ok(new { message = "The user will be required to set a new password on their next login." });
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpPut("{id}/email")]
+        public ActionResult UpdateEmail(int id, AdminSetEmailRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var user = _userRepository.GetById(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            if (!user.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase) &&
+                _userRepository.ExistsWithEmail(request.Email, id))
+            {
+                return BadRequest(new { message = "Email is already registered" });
+            }
+
+            user.Email = request.Email;
+            _userRepository.Update(user);
+            return Ok(new { message = "Email updated successfully" });
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpPut("{id}/lock")]
+        public ActionResult LockUser(int id, LockUserRequest request)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (user.Id == currentUserId && request.LockedUntil.HasValue && request.LockedUntil.Value > DateTime.UtcNow)
+            {
+                return BadRequest(new { message = "Cannot lock your own account" });
+            }
+
+            user.LockedUntil = request.LockedUntil;
+            _userRepository.Update(user);
+
+            var message = user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow
+                ? $"User locked until {user.LockedUntil.Value:u}."
+                : "User unlocked.";
+            return Ok(new { message });
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpPost("admin-create")]
+        public ActionResult<UserResponse> AdminCreateUser(AdminCreateUserRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (_userRepository.ExistsWithUsername(request.Username))
+            {
+                return BadRequest(new { message = "Username is already taken" });
+            }
+
+            if (_userRepository.ExistsWithEmail(request.Email))
+            {
+                return BadRequest(new { message = "Email is already registered" });
+            }
+
+            if (!TryValidatePasswordPolicy(request.Password, nameof(request.Password), out var policyError))
+            {
+                return policyError!;
+            }
+
+            var user = new User
+            {
+                Username = request.Username,
+                Email = request.Email,
+                PasswordHash = HashPassword(request.Password),
+                CreatedAt = DateTime.UtcNow,
+                Role = request.Role,
+                MustChangePassword = request.MustChangePassword
+            };
+
+            user = _userRepository.Add(user);
+            return CreatedAtAction(nameof(GetById), new { id = user.Id }, MapToUserResponse(user, includeEmail: true));
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpPost("require-password-change-all")]
+        public ActionResult RequirePasswordChangeForAll()
+        {
+            var affected = 0;
+            foreach (var user in _userRepository.GetAll())
+            {
+                if (user.Role == UserRole.Deleted || user.MustChangePassword)
+                {
+                    continue;
+                }
+
+                user.MustChangePassword = true;
+                _userRepository.Update(user);
+                affected++;
+            }
+
+            return Ok(new { message = $"{affected} user(s) will be required to set a new password on their next login.", affectedCount = affected });
         }
 
         [Authorize(Roles = "Administrator")]
@@ -534,7 +707,12 @@ namespace MvcBB.API.Controllers
                 ShowEmail = u.ShowEmail,
                 RankTitle = hasCustomTitle ? u.CustomTitle : rank?.Title,
                 RankImagePath = rank?.ImagePath,
-                CustomTitle = u.CustomTitle
+                CustomTitle = u.CustomTitle,
+                MustChangePassword = u.MustChangePassword,
+                // Lock status/IP are only ever shown alongside email, i.e. only on
+                // the admin-only GetUsersForAdmin listing - not the public ones.
+                LockedUntil = includeEmail ? u.LockedUntil : null,
+                LastLoginIp = includeEmail ? u.LastLoginIp : null
             };
         }
     }

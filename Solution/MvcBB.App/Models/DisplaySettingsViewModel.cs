@@ -11,5 +11,7 @@ namespace MvcBB.App.Models
 
         [Display(Name = "Remove Current Logo")]
         public bool RemoveLogo { get; set; }
+
+        public PasswordPolicy PasswordPolicy { get; set; } = new();
     }
 }

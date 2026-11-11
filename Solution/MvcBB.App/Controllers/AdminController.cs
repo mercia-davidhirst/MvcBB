@@ -4,6 +4,7 @@ using MvcBB.App.Exceptions;
 using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
+using MvcBB.Shared.Models.Announcement;
 using MvcBB.Shared.Models.BBCode;
 using MvcBB.Shared.Models.Rank;
 using MvcBB.Shared.Models.WordFilter;
@@ -20,6 +21,8 @@ namespace MvcBB.App.Controllers
         private readonly IImageUploadService _imageUploadService;
         private readonly IRankService _rankService;
         private readonly IWordFilterService _wordFilterService;
+        private readonly IAnnouncementService _announcementService;
+        private readonly IUserService _userService;
 
         public AdminController(
             IMvcBBCodeService bbCodeService,
@@ -27,7 +30,9 @@ namespace MvcBB.App.Controllers
             IBoardService boardService,
             IImageUploadService imageUploadService,
             IRankService rankService,
-            IWordFilterService wordFilterService)
+            IWordFilterService wordFilterService,
+            IAnnouncementService announcementService,
+            IUserService userService)
         {
             _bbCodeService = bbCodeService;
             _settingsService = settingsService;
@@ -35,6 +40,8 @@ namespace MvcBB.App.Controllers
             _imageUploadService = imageUploadService;
             _rankService = rankService;
             _wordFilterService = wordFilterService;
+            _announcementService = announcementService;
+            _userService = userService;
         }
 
         public IActionResult Dashboard()
@@ -84,7 +91,7 @@ namespace MvcBB.App.Controllers
                 ModelState.AddModelError("", ex.Message);
                 return View(model);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 ModelState.AddModelError("", "Failed to add BBCode tag. Please try again.");
                 return View(model);
@@ -125,7 +132,7 @@ namespace MvcBB.App.Controllers
                 ModelState.AddModelError("", ex.Message);
                 return View(model);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 ModelState.AddModelError("", "Failed to update BBCode tag. Please try again.");
                 return View(model);
@@ -374,7 +381,7 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to delete BBCode tag.";
             }
@@ -422,7 +429,7 @@ namespace MvcBB.App.Controllers
                 ModelState.AddModelError("", ex.Message);
                 return View(model);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 ModelState.AddModelError("", "Failed to add smilie. Please try again.");
                 return View(model);
@@ -479,7 +486,7 @@ namespace MvcBB.App.Controllers
                 ModelState.AddModelError("", ex.Message);
                 return View(model);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 ModelState.AddModelError("", "Failed to update smilie. Please try again.");
                 return View(model);
@@ -502,11 +509,123 @@ namespace MvcBB.App.Controllers
             {
                 return await this.RedirectToSessionExpired();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["Error"] = "Failed to delete smilie.";
             }
             return RedirectToAction(nameof(Smilies));
+        }
+
+        public async Task<IActionResult> Announcements()
+        {
+            var announcements = await _announcementService.GetAnnouncementsAsync();
+            return View(announcements.OrderBy(a => a.SortOrder));
+        }
+
+        public async Task<IActionResult> AddAnnouncement()
+        {
+            var announcements = await _announcementService.GetAnnouncementsAsync();
+            ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+            return View(new AnnouncementModel { SortOrder = announcements.Count() + 1 });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddAnnouncement(AnnouncementModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+                return View(model);
+            }
+
+            try
+            {
+                await _announcementService.AddAnnouncementAsync(model);
+                TempData["Success"] = "Announcement added successfully.";
+                return RedirectToAction(nameof(Announcements));
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+                return View(model);
+            }
+            catch (Exception)
+            {
+                ModelState.AddModelError("", "Failed to add announcement. Please try again.");
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+                return View(model);
+            }
+        }
+
+        public async Task<IActionResult> EditAnnouncement(int id)
+        {
+            var announcement = await _announcementService.GetAnnouncementAsync(id);
+            if (announcement == null)
+            {
+                return NotFound();
+            }
+            ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+            return View(announcement);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditAnnouncement(int id, AnnouncementModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+                return View(model);
+            }
+
+            try
+            {
+                await _announcementService.UpdateAnnouncementAsync(id, model);
+                TempData["Success"] = "Announcement updated successfully.";
+                return RedirectToAction(nameof(Announcements));
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+                return View(model);
+            }
+            catch (Exception)
+            {
+                ModelState.AddModelError("", "Failed to update announcement. Please try again.");
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+                return View(model);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteAnnouncement(int id)
+        {
+            try
+            {
+                await _announcementService.DeleteAnnouncementAsync(id);
+                TempData["Success"] = "Announcement deleted successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Failed to delete announcement.";
+            }
+            return RedirectToAction(nameof(Announcements));
         }
 
         public async Task<IActionResult> Settings()
@@ -514,7 +633,8 @@ namespace MvcBB.App.Controllers
             try
             {
                 var settings = await _settingsService.GetDisplaySettingsAsync();
-                return View(ToViewModel(settings));
+                var passwordPolicy = await _settingsService.GetPasswordPolicyAsync();
+                return View(ToViewModel(settings, passwordPolicy));
             }
             catch
             {
@@ -556,20 +676,66 @@ namespace MvcBB.App.Controllers
             }
             catch
             {
-                TempData["Error"] = "Failed to save display settings.";
+                TempData["Error"] = "Failed to save settings.";
             }
 
             return RedirectToAction(nameof(Settings));
         }
 
-        private static DisplaySettingsViewModel ToViewModel(DisplaySettings settings) => new()
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PasswordPolicy(PasswordPolicy model)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Invalid password policy settings.";
+                return RedirectToAction(nameof(Settings));
+            }
+
+            try
+            {
+                await _settingsService.UpdatePasswordPolicyAsync(model);
+                TempData["Success"] = "Password policy saved successfully.";
+            }
+            catch
+            {
+                TempData["Error"] = "Failed to save password policy.";
+            }
+
+            return RedirectToAction(nameof(Settings));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RequirePasswordChangeForAll()
+        {
+            try
+            {
+                var affected = await _userService.RequirePasswordChangeForAllAsync();
+                TempData["Success"] = $"{affected} user(s) will be required to set a new password on their next login.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch
+            {
+                TempData["Error"] = "Failed to force a password reset for all users.";
+            }
+
+            return RedirectToAction(nameof(Settings));
+        }
+
+        private static DisplaySettingsViewModel ToViewModel(DisplaySettings settings, PasswordPolicy passwordPolicy) => new()
         {
             ThreadsPerPage = settings.ThreadsPerPage,
             SiteTitle = settings.SiteTitle,
             WelcomeMessage = settings.WelcomeMessage,
             SiteName = settings.SiteName,
             LogoPath = settings.LogoPath,
-            FooterDisclaimer = settings.FooterDisclaimer
+            FooterDisclaimer = settings.FooterDisclaimer,
+            RegistrationEnabled = settings.RegistrationEnabled,
+            PasswordPolicy = passwordPolicy
         };
     }
 } 
