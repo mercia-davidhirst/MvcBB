@@ -24,10 +24,6 @@ two-tier MVC + API application with a swappable persistence layer.
   scripts) — they haven't been exercised against a live SQL Server/PostgreSQL
   instance beyond schema/proc smoke tests.
 
-A companion console project, **MvcBB.DataMigration** (under `../Migration`),
-imports a legacy WoltLab Burning Board (WBB) MySQL dump into this schema for
-both SQL Server and PostgreSQL targets.
-
 ## Functionality
 
 ### Forums
