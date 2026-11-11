@@ -36,3 +36,60 @@
         }
     });
 })();
+
+// On-screen alert for new private messages. Polls a lightweight JSON
+// endpoint rather than pushing over a socket - this app has no real-time
+// transport (no SignalR/WebSockets), so a periodic check is the simplest
+// way to surface a new PM without the user navigating anywhere.
+(function () {
+    if (typeof window.mvcbbInitialUnreadCount === 'undefined') {
+        return; // Not authenticated - _Layout never set this.
+    }
+
+    var POLL_INTERVAL_MS = 30000;
+    var lastKnownCount = window.mvcbbInitialUnreadCount;
+
+    function updateBadge(count) {
+        var badge = document.getElementById('unreadMessageBadge');
+        if (!badge) {
+            return;
+        }
+        badge.textContent = count;
+        badge.classList.toggle('d-none', count === 0);
+    }
+
+    function showToast(count) {
+        var toastEl = document.getElementById('newMessageToast');
+        var textEl = document.getElementById('newMessageToastText');
+        if (!toastEl || !window.bootstrap) {
+            return;
+        }
+        if (textEl) {
+            textEl.textContent = count === 1
+                ? 'You have a new private message.'
+                : 'You have ' + count + ' new private messages.';
+        }
+        var toast = window.bootstrap.Toast.getOrCreateInstance(toastEl);
+        toast.show();
+    }
+
+    function poll() {
+        fetch('/Messages/UnreadCount', { headers: { 'Accept': 'application/json' } })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (data) {
+                if (!data) {
+                    return;
+                }
+                updateBadge(data.count);
+                if (data.count > lastKnownCount) {
+                    showToast(data.count);
+                }
+                lastKnownCount = data.count;
+            })
+            .catch(function () {
+                // Transient network/API hiccup - just skip this tick, next poll retries.
+            });
+    }
+
+    setInterval(poll, POLL_INTERVAL_MS);
+})();

@@ -15,5 +15,13 @@ namespace MvcBB.Shared.Models.User
         public string? Bio { get; set; }
         public string? AvatarUrl { get; set; }
         public bool ShowEmail { get; set; }
+        // Effective display title - CustomTitle if an admin set one, else the
+        // computed rank (RankCalculator.GetRank). RankImagePath is only ever
+        // populated for a computed rank; a custom title has no badge image.
+        public string? RankTitle { get; set; }
+        public string? RankImagePath { get; set; }
+
+        /// <summary>The raw admin override, or null if this user has none. Shown in the admin UI so it's clear whether RankTitle is computed or overridden.</summary>
+        public string? CustomTitle { get; set; }
     }
 }

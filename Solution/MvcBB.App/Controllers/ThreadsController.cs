@@ -249,6 +249,52 @@ namespace MvcBB.App.Controllers
             return RedirectToAction(nameof(Details), new { id = threadId });
         }
 
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Watch(int threadId, bool notifyViaMessage, bool notifyViaEmail)
+        {
+            try
+            {
+                await _threadService.SubscribeToThreadAsync(threadId, notifyViaMessage, notifyViaEmail);
+                TempData["Success"] = "You're now watching this thread.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                _logger.LogError(ex, "Failed to subscribe to thread {ThreadId}", threadId);
+                TempData["Error"] = "Failed to subscribe to thread.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = threadId });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Unwatch(int threadId)
+        {
+            try
+            {
+                await _threadService.UnsubscribeFromThreadAsync(threadId);
+                TempData["Success"] = "You've stopped watching this thread.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                _logger.LogError(ex, "Failed to unsubscribe from thread {ThreadId}", threadId);
+                TempData["Error"] = "Failed to unsubscribe from thread.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = threadId });
+        }
+
         [Authorize(Policy = "ManageThreads")]
         public async Task<IActionResult> Edit(int id)
         {

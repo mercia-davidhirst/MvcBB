@@ -16,6 +16,9 @@ namespace MvcBB.App.Interfaces
         Task UpdateProfileAsync(int userId, UpdateUserRequest request);
         Task ChangePasswordAsync(int userId, ChangePasswordRequest request);
         Task UpdateUserRoleAsync(int userId, UserRole newRole);
+
+        /// <summary>Admin-only. Null or empty clears the override and falls back to the computed rank.</summary>
+        Task SetCustomTitleAsync(int userId, string? customTitle);
         Task AnonymizeUserAsync(int userId);
         Task ForgotPasswordAsync(ForgotPasswordRequest request);
         Task ResetPasswordAsync(ResetPasswordRequest request);

@@ -17,6 +17,10 @@
         ordinary sp_user_update), not by a dedicated procedure.
       - CASCADE on the drop removes any dependent foreign keys/views so this
         script can be re-run standalone regardless of deployment order.
+      - custom_title is an admin-only override shown instead of the user's
+        computed rank (RankCalculator.GetRank) - NULL means "use the computed
+        rank", which is the default for everyone. Set via
+        UsersController.SetCustomTitle, never by the user themselves.
 */
 
 DROP TABLE IF EXISTS public.users CASCADE;
@@ -34,6 +38,7 @@ CREATE TABLE public.users
     bio             VARCHAR(2000)   NULL,
     avatar_url      VARCHAR(500)    NULL,
     show_email      BOOLEAN         NOT NULL DEFAULT FALSE,
+    custom_title    VARCHAR(70)     NULL,
     CONSTRAINT uq_users_username UNIQUE (username),
     CONSTRAINT uq_users_email UNIQUE (email),
     CONSTRAINT ck_users_role CHECK (role IN (0, 1, 2, 3))

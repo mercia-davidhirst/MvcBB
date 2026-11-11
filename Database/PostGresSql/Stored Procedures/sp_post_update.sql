@@ -1,6 +1,6 @@
 -- Matches IPostRepository.Update(Post post)
 
-DROP PROCEDURE IF EXISTS public.sp_post_update(integer, text, boolean, varchar, integer, boolean, integer, timestamptz, varchar, integer);
+DROP PROCEDURE IF EXISTS public.sp_post_update(integer, text, boolean, varchar, integer, boolean, integer, timestamptz, varchar, integer, varchar);
 
 CREATE PROCEDURE public.sp_post_update(
     p_id INTEGER,
@@ -12,7 +12,8 @@ CREATE PROCEDURE public.sp_post_update(
     p_deleted_by_user_id INTEGER DEFAULT NULL,
     p_deleted_at TIMESTAMPTZ DEFAULT NULL,
     p_delete_reason VARCHAR(500) DEFAULT NULL,
-    p_quoted_post_id INTEGER DEFAULT NULL
+    p_quoted_post_id INTEGER DEFAULT NULL,
+    p_image_url VARCHAR(500) DEFAULT NULL
 )
 LANGUAGE plpgsql
 AS $$
@@ -27,7 +28,8 @@ BEGIN
         deleted_by_user_id = p_deleted_by_user_id,
         deleted_at = p_deleted_at,
         delete_reason = p_delete_reason,
-        quoted_post_id = p_quoted_post_id
+        quoted_post_id = p_quoted_post_id,
+        image_url = p_image_url
     WHERE id = p_id;
 END;
 $$;

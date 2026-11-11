@@ -39,10 +39,17 @@ button.accept-policy {
   line-height: inherit;
 }
 
+/* Was position: absolute + a fixed 60px line-height, assuming the footer is
+   always exactly one line tall. Once the footer could grow a second line
+   (the admin-set disclaimer), a taller footer pushed its own top edge up
+   over the page content instead of the page growing to fit it, since an
+   absolutely-positioned box anchored by bottom:0 doesn't affect layout flow.
+   margin-top: auto in the flex column body (site.css) achieves the same
+   "stick to the bottom of a short page" look without a fixed height, and
+   can never overlap content regardless of how tall the footer gets. */
 .footer {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  white-space: nowrap;
-  line-height: 60px;
+  margin-top: auto;
+  /* The matching top gap is a padding-top on footer.footer in site.css
+     instead - margin-top is already claimed by "auto" above. */
+  margin-bottom: 10px;
 }

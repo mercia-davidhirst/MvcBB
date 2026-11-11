@@ -12,14 +12,16 @@ CREATE PROCEDURE dbo.usp_User_Insert
     @Signature NVARCHAR(1000) = NULL,
     @Bio NVARCHAR(2000) = NULL,
     @AvatarUrl NVARCHAR(500) = NULL,
-    @ShowEmail BIT = 0
+    @ShowEmail BIT = 0,
+    @CustomTitle NVARCHAR(70) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    INSERT INTO dbo.Users (Username, PasswordHash, Email, CreatedAt, Role, Signature, Bio, AvatarUrl, ShowEmail)
+    INSERT INTO dbo.Users (Username, PasswordHash, Email, CreatedAt, Role, Signature, Bio, AvatarUrl, ShowEmail, CustomTitle)
     OUTPUT inserted.Id, inserted.Username, inserted.PasswordHash, inserted.Email, inserted.CreatedAt,
-           inserted.LastLoginAt, inserted.Role, inserted.Signature, inserted.Bio, inserted.AvatarUrl, inserted.ShowEmail
-    VALUES (@Username, @PasswordHash, @Email, ISNULL(@CreatedAt, SYSUTCDATETIME()), @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail);
+           inserted.LastLoginAt, inserted.Role, inserted.Signature, inserted.Bio, inserted.AvatarUrl, inserted.ShowEmail,
+           inserted.CustomTitle
+    VALUES (@Username, @PasswordHash, @Email, ISNULL(@CreatedAt, SYSUTCDATETIME()), @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle);
 END;
 GO

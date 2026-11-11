@@ -5,6 +5,8 @@ using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
 using MvcBB.Shared.Models.BBCode;
+using MvcBB.Shared.Models.Rank;
+using MvcBB.Shared.Models.WordFilter;
 using MvcBB.Shared.Models.Settings;
 
 namespace MvcBB.App.Controllers
@@ -16,17 +18,23 @@ namespace MvcBB.App.Controllers
         private readonly ISettingsService _settingsService;
         private readonly IBoardService _boardService;
         private readonly IImageUploadService _imageUploadService;
+        private readonly IRankService _rankService;
+        private readonly IWordFilterService _wordFilterService;
 
         public AdminController(
             IMvcBBCodeService bbCodeService,
             ISettingsService settingsService,
             IBoardService boardService,
-            IImageUploadService imageUploadService)
+            IImageUploadService imageUploadService,
+            IRankService rankService,
+            IWordFilterService wordFilterService)
         {
             _bbCodeService = bbCodeService;
             _settingsService = settingsService;
             _boardService = boardService;
             _imageUploadService = imageUploadService;
+            _rankService = rankService;
+            _wordFilterService = wordFilterService;
         }
 
         public IActionResult Dashboard()
@@ -122,6 +130,235 @@ namespace MvcBB.App.Controllers
                 ModelState.AddModelError("", "Failed to update BBCode tag. Please try again.");
                 return View(model);
             }
+        }
+
+        public async Task<IActionResult> Ranks()
+        {
+            var ranks = await _rankService.GetRanksAsync();
+            return View(ranks.OrderBy(r => r.SortOrder));
+        }
+
+        public async Task<IActionResult> AddRank()
+        {
+            var ranks = await _rankService.GetRanksAsync();
+            return View(new RankViewModel { SortOrder = ranks.Count() + 1 });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddRank(RankViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            try
+            {
+                if (model.ImageFile != null)
+                {
+                    model.ImagePath = await _imageUploadService.SaveImageAsync(model.ImageFile, "ranks");
+                }
+
+                await _rankService.AddRankAsync(model);
+                TempData["Success"] = "Rank added successfully.";
+                return RedirectToAction(nameof(Ranks));
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(model);
+            }
+            catch (Exception)
+            {
+                ModelState.AddModelError("", "Failed to add rank. Please try again.");
+                return View(model);
+            }
+        }
+
+        public async Task<IActionResult> EditRank(int id)
+        {
+            var rank = await _rankService.GetRankAsync(id);
+            if (rank == null)
+            {
+                return NotFound();
+            }
+            var viewModel = new RankViewModel
+            {
+                Id = rank.Id,
+                Title = rank.Title,
+                MinPosts = rank.MinPosts,
+                ImagePath = rank.ImagePath,
+                IsActive = rank.IsActive,
+                SortOrder = rank.SortOrder
+            };
+            return View(viewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditRank(int id, RankViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            try
+            {
+                if (model.ImageFile != null)
+                {
+                    var oldRank = await _rankService.GetRankAsync(id);
+                    model.ImagePath = await _imageUploadService.SaveImageAsync(model.ImageFile, "ranks");
+                    _imageUploadService.DeleteImage(oldRank?.ImagePath);
+                }
+
+                await _rankService.UpdateRankAsync(id, model);
+                TempData["Success"] = "Rank updated successfully.";
+                return RedirectToAction(nameof(Ranks));
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(model);
+            }
+            catch (Exception)
+            {
+                ModelState.AddModelError("", "Failed to update rank. Please try again.");
+                return View(model);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteRank(int id)
+        {
+            try
+            {
+                await _rankService.DeleteRankAsync(id);
+                TempData["Success"] = "Rank deleted successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Failed to delete rank.";
+            }
+            return RedirectToAction(nameof(Ranks));
+        }
+
+        public async Task<IActionResult> WordFilters()
+        {
+            var filters = await _wordFilterService.GetWordFiltersAsync();
+            return View(filters.OrderBy(f => f.SortOrder));
+        }
+
+        public async Task<IActionResult> AddWordFilter()
+        {
+            var filters = await _wordFilterService.GetWordFiltersAsync();
+            return View(new WordFilterModel { SortOrder = filters.Count() + 1 });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddWordFilter(WordFilterModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            try
+            {
+                await _wordFilterService.AddWordFilterAsync(model);
+                TempData["Success"] = "Word filter added successfully.";
+                return RedirectToAction(nameof(WordFilters));
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(model);
+            }
+            catch (Exception)
+            {
+                ModelState.AddModelError("", "Failed to add word filter. Please try again.");
+                return View(model);
+            }
+        }
+
+        public async Task<IActionResult> EditWordFilter(int id)
+        {
+            var filter = await _wordFilterService.GetWordFilterAsync(id);
+            if (filter == null)
+            {
+                return NotFound();
+            }
+            return View(filter);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditWordFilter(int id, WordFilterModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            try
+            {
+                await _wordFilterService.UpdateWordFilterAsync(id, model);
+                TempData["Success"] = "Word filter updated successfully.";
+                return RedirectToAction(nameof(WordFilters));
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(model);
+            }
+            catch (Exception)
+            {
+                ModelState.AddModelError("", "Failed to update word filter. Please try again.");
+                return View(model);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteWordFilter(int id)
+        {
+            try
+            {
+                await _wordFilterService.DeleteWordFilterAsync(id);
+                TempData["Success"] = "Word filter deleted successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Failed to delete word filter.";
+            }
+            return RedirectToAction(nameof(WordFilters));
         }
 
         [HttpPost]
@@ -331,7 +568,8 @@ namespace MvcBB.App.Controllers
             SiteTitle = settings.SiteTitle,
             WelcomeMessage = settings.WelcomeMessage,
             SiteName = settings.SiteName,
-            LogoPath = settings.LogoPath
+            LogoPath = settings.LogoPath,
+            FooterDisclaimer = settings.FooterDisclaimer
         };
     }
 } 

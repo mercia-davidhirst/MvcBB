@@ -9,7 +9,7 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT Id, Username, PasswordHash, Email, CreatedAt, LastLoginAt, Role,
-           Signature, Bio, AvatarUrl, ShowEmail
+           Signature, Bio, AvatarUrl, ShowEmail, CustomTitle
     FROM dbo.Users
     ORDER BY Username;
 END;

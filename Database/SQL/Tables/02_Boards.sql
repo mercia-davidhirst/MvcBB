@@ -9,6 +9,8 @@
       - ParentId is a self-referencing FK supporting WBB-style nested board
         categories (arbitrary depth); NULL means a top-level board. IsCategory
         marks a pure organizational header with no threads of its own.
+      - IsPrivate hides the board (and its threads/posts) from anyone who
+        isn't signed in - see Board.IsPrivate / Board.IsVisibleTo.
 */
 
 DECLARE @sql NVARCHAR(MAX) = N'';
@@ -34,6 +36,7 @@ CREATE TABLE dbo.Boards
     IsActive            BIT                NOT NULL CONSTRAINT DF_Boards_IsActive DEFAULT (1),
     ParentId            INT                NULL,
     IsCategory          BIT                NOT NULL CONSTRAINT DF_Boards_IsCategory DEFAULT (0),
+    IsPrivate           BIT                NOT NULL CONSTRAINT DF_Boards_IsPrivate DEFAULT (0),
     CreatedAt           DATETIME2(3)       NOT NULL CONSTRAINT DF_Boards_CreatedAt DEFAULT (SYSUTCDATETIME()),
     UpdatedAt           DATETIME2(3)       NULL,
     ThreadCount         INT                NOT NULL CONSTRAINT DF_Boards_ThreadCount DEFAULT (0),

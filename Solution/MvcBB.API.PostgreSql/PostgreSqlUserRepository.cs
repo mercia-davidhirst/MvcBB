@@ -15,7 +15,7 @@ namespace MvcBB.API.PostgreSql
     public class PostgreSqlUserRepository : IUserRepository
     {
         private const string SelectColumns =
-            "id, username::text AS username, password_hash, email::text AS email, created_at, last_login_at, role, signature, bio, avatar_url, show_email";
+            "id, username::text AS username, password_hash, email::text AS email, created_at, last_login_at, role, signature, bio, avatar_url, show_email, custom_title";
 
         private readonly IPostgreSqlConnectionFactory _connectionFactory;
 
@@ -52,7 +52,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             var newId = connection.QuerySingle<int>(
-                "CALL public.sp_user_insert(@Username, @PasswordHash, @Email, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, NULL)",
+                "CALL public.sp_user_insert(@Username, @PasswordHash, @Email, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, NULL)",
                 new
                 {
                     user.Username,
@@ -62,7 +62,8 @@ namespace MvcBB.API.PostgreSql
                     user.Signature,
                     user.Bio,
                     user.AvatarUrl,
-                    user.ShowEmail
+                    user.ShowEmail,
+                    user.CustomTitle
                 });
 
             return connection.QuerySingle<User>($"SELECT {SelectColumns} FROM public.fn_user_get_by_id(@Id)", new { Id = newId });
@@ -72,7 +73,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             connection.Execute(
-                "CALL public.sp_user_update(@Id, @Username, @PasswordHash, @Email, @LastLoginAt, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail)",
+                "CALL public.sp_user_update(@Id, @Username, @PasswordHash, @Email, @LastLoginAt, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle)",
                 new
                 {
                     user.Id,
@@ -84,7 +85,8 @@ namespace MvcBB.API.PostgreSql
                     user.Signature,
                     user.Bio,
                     user.AvatarUrl,
-                    user.ShowEmail
+                    user.ShowEmail,
+                    user.CustomTitle
                 });
         }
 

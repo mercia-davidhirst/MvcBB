@@ -46,6 +46,19 @@
                             Role
                             <span class="badge bg-primary rounded-pill">@Model.RoleName</span>
                         </li>
+                        @if (!string.IsNullOrEmpty(Model.RankTitle))
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Rank
+                                <span>
+                                    @if (!string.IsNullOrEmpty(Model.RankImagePath))
+                                    {
+                                        <img src="@Model.RankImagePath" alt="@Model.RankTitle" style="height: 16px;" class="me-1" />
+                                    }
+                                    @Model.RankTitle
+                                </span>
+                            </li>
+                        }
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             Threads
                             <span class="badge bg-primary rounded-pill">@Model.ThreadCount</span>

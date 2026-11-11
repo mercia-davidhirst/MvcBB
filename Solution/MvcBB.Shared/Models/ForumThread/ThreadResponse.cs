@@ -27,5 +27,8 @@ namespace MvcBB.Shared.Models.ForumThread
         public int TotalLikes { get; set; }
         public int ParticipantCount { get; set; }
         public PollResponse? Poll { get; set; }
+        public bool IsSubscribed { get; set; }
+        public bool NotifyViaMessage { get; set; }
+        public bool NotifyViaEmail { get; set; }
     }
 } 

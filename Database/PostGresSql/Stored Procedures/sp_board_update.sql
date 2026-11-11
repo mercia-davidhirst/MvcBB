@@ -1,6 +1,6 @@
 -- Matches IBoardRepository.Update(Board board)
 
-DROP PROCEDURE IF EXISTS public.sp_board_update(integer, varchar, varchar, integer, boolean, integer, boolean, integer, integer, integer, timestamptz);
+DROP PROCEDURE IF EXISTS public.sp_board_update(integer, varchar, varchar, integer, boolean, integer, boolean, boolean, integer, integer, integer, timestamptz);
 
 CREATE PROCEDURE public.sp_board_update(
     p_id INTEGER,
@@ -10,6 +10,7 @@ CREATE PROCEDURE public.sp_board_update(
     p_is_active BOOLEAN,
     p_parent_id INTEGER DEFAULT NULL,
     p_is_category BOOLEAN DEFAULT FALSE,
+    p_is_private BOOLEAN DEFAULT FALSE,
     p_thread_count INTEGER DEFAULT 0,
     p_post_count INTEGER DEFAULT 0,
     p_last_post_by_user_id INTEGER DEFAULT NULL,
@@ -25,6 +26,7 @@ BEGIN
         is_active = p_is_active,
         parent_id = p_parent_id,
         is_category = p_is_category,
+        is_private = p_is_private,
         updated_at = now(),
         thread_count = p_thread_count,
         post_count = p_post_count,

@@ -19,6 +19,22 @@ namespace MvcBB.App.Controllers
             _userService = userService;
         }
 
+        // Polled client-side (site.js) to drive the on-screen "new PM" alert -
+        // a lightweight JSON endpoint rather than re-rendering the navbar badge.
+        [HttpGet]
+        public async Task<IActionResult> UnreadCount()
+        {
+            try
+            {
+                var count = await _messageService.GetUnreadCountAsync();
+                return Json(new { count });
+            }
+            catch (ServiceException)
+            {
+                return Json(new { count = 0 });
+            }
+        }
+
         public async Task<IActionResult> Index(string folder = "inbox")
         {
             try

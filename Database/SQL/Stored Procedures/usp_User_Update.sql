@@ -13,7 +13,8 @@ CREATE PROCEDURE dbo.usp_User_Update
     @Signature NVARCHAR(1000) = NULL,
     @Bio NVARCHAR(2000) = NULL,
     @AvatarUrl NVARCHAR(500) = NULL,
-    @ShowEmail BIT
+    @ShowEmail BIT,
+    @CustomTitle NVARCHAR(70) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -27,7 +28,8 @@ BEGIN
         Signature = @Signature,
         Bio = @Bio,
         AvatarUrl = @AvatarUrl,
-        ShowEmail = @ShowEmail
+        ShowEmail = @ShowEmail,
+        CustomTitle = @CustomTitle
     WHERE Id = @Id;
 END;
 GO

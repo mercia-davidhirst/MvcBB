@@ -17,5 +17,13 @@ namespace MvcBB.Shared.Models.User
         public string? Bio { get; set; }
         public string? AvatarUrl { get; set; }
         public bool ShowEmail { get; set; }
+
+        /// <summary>
+        /// Admin-set override shown next to the user's name instead of their
+        /// computed rank (see RankCalculator.GetRank) - null means "use the
+        /// computed rank" (the default for everyone). Not self-service; only
+        /// an admin can set this (UsersController.SetCustomTitle).
+        /// </summary>
+        public string? CustomTitle { get; set; }
     }
 } 

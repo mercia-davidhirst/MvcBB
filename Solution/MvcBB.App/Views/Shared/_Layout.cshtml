@@ -3,6 +3,11 @@
 @inject IMessageService MessageService
 @{
     var displaySettings = await SettingsService.GetDisplaySettingsAsync();
+    // Whatever Version/AssemblyVersion the MvcBB.App project is built with -
+    // GetEntryAssembly() (not GetExecutingAssembly()) so this reads the app's
+    // own version even though Razor views compile into their own assembly.
+    var appVersion = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
+    var appVersionText = appVersion != null ? $"v{appVersion.Major}.{appVersion.Minor}.{appVersion.Build}" : null;
     var unreadMessageCount = 0;
     if (User.Identity?.IsAuthenticated == true)
     {
@@ -77,10 +82,7 @@
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Messages" asp-action="Index">
                                     <i class="bi bi-envelope"></i> Messages
-                                    @if (unreadMessageCount > 0)
-                                    {
-                                        <span class="badge rounded-pill bg-danger">@unreadMessageCount</span>
-                                    }
+                                    <span id="unreadMessageBadge" class="badge rounded-pill bg-danger @(unreadMessageCount > 0 ? "" : "d-none")">@unreadMessageCount</span>
                                 </a>
                             </li>
                             @if (User.IsInRole("Administrator"))
@@ -114,6 +116,16 @@
                                         <li>
                                             <a class="dropdown-item" asp-controller="Admin" asp-action="Smilies">
                                                 <i class="bi bi-emoji-smile me-2"></i>Smilies
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Admin" asp-action="Ranks">
+                                                <i class="bi bi-award me-2"></i>Ranks
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Admin" asp-action="WordFilters">
+                                                <i class="bi bi-chat-square-text me-2"></i>Word Filter
                                             </a>
                                         </li>
                                         <li>
@@ -204,8 +216,37 @@
     <footer class="border-top footer text-muted">
         <div class="container">
             &copy; @DateTime.Now.Year - @displaySettings.SiteName
+            @if (!string.IsNullOrEmpty(appVersionText))
+            {
+                <span>@appVersionText</span>
+            }
+            @if (!string.IsNullOrEmpty(displaySettings.FooterDisclaimer))
+            {
+                <div class="text-center small mt-1">@displaySettings.FooterDisclaimer</div>
+            }
         </div>
     </footer>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+            <div id="newMessageToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-envelope-fill me-2"></i>
+                        <span id="newMessageToastText">You have new private messages.</span>
+                    </div>
+                    <a href="/Messages" class="btn btn-sm btn-light m-2">View</a>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        </div>
+        <script>
+            // Baseline for the new-PM polling in site.js - avoids toasting for
+            // messages already reflected in the navbar badge on page load.
+            window.mvcbbInitialUnreadCount = @unreadMessageCount;
+        </script>
+    }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

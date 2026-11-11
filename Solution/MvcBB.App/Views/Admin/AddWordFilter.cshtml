@@ -1,0 +1,51 @@
+@using MvcBB.Shared.Models.WordFilter
+@model WordFilterModel
+@{
+    ViewData["Title"] = "Add Filtered Word";
+    Layout = "_AdminLayout";
+}
+
+<div class="card">
+    <div class="card-body">
+        <form asp-action="AddWordFilter" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="Word" class="form-label"></label>
+                <input asp-for="Word" class="form-control" />
+                <span asp-validation-for="Word" class="text-danger"></span>
+                <small class="form-text text-muted">Matched as a whole word, case-insensitively, in thread titles and post content</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Replacement" class="form-label"></label>
+                <input asp-for="Replacement" class="form-control" />
+                <span asp-validation-for="Replacement" class="text-danger"></span>
+                <small class="form-text text-muted">What the word is replaced with (e.g. "****"). Leave blank to remove it entirely.</small>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input asp-for="IsActive" class="form-check-input" />
+                    <label asp-for="IsActive" class="form-check-label"></label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SortOrder" class="form-label"></label>
+                <input asp-for="SortOrder" class="form-control" type="number" />
+                <span asp-validation-for="SortOrder" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a asp-action="WordFilters" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

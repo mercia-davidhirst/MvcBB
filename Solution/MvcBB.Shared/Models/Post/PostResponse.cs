@@ -26,5 +26,7 @@ namespace MvcBB.Shared.Models.Post
         public string? DeletedByUsername { get; set; }
         public int LikeCount { get; set; }
         public bool IsLikedByCurrentUser { get; set; }
+        public string? CreatedByRankTitle { get; set; }
+        public string? CreatedByRankImagePath { get; set; }
     }
 } 

@@ -11,15 +11,17 @@ namespace MvcBB.App.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IAuthService _authService;
+        private readonly IConfiguration _configuration;
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        public SettingsService(IHttpClientFactory httpClientFactory, IAuthService authService)
+        public SettingsService(IHttpClientFactory httpClientFactory, IAuthService authService, IConfiguration configuration)
         {
             _httpClient = httpClientFactory.CreateClient("MvcBBApi");
             _authService = authService;
+            _configuration = configuration;
         }
 
         public async Task<DisplaySettings> GetDisplaySettingsAsync()
@@ -48,8 +50,8 @@ namespace MvcBB.App.Services
         {
             var credentials = new ApiCredentials
             {
-                ClientId = "mvc_client",
-                ClientSecret = "your_secure_secret_here"
+                ClientId = _configuration["Api:ClientId"] ?? string.Empty,
+                ClientSecret = _configuration["Api:ClientSecret"] ?? string.Empty
             };
             var response = await _authService.GetTokenAsync(credentials);
             return response.Token;

@@ -17,6 +17,10 @@
         PasswordHash/Signature/Bio/AvatarUrl overwritten with generic
         placeholders by UsersController's Anonymize action (via the ordinary
         usp_User_Update), not by a dedicated procedure.
+      - CustomTitle is an admin-only override shown instead of the user's
+        computed rank (RankCalculator.GetRank) - NULL means "use the computed
+        rank", which is the default for everyone. Set via
+        UsersController.SetCustomTitle, never by the user themselves.
 */
 
 -- Drop any foreign keys pointing at this table first so the table can be
@@ -48,6 +52,7 @@ CREATE TABLE dbo.Users
     Bio             NVARCHAR(2000)     NULL,
     AvatarUrl       NVARCHAR(500)      NULL,
     ShowEmail       BIT                NOT NULL CONSTRAINT DF_Users_ShowEmail DEFAULT (0),
+    CustomTitle     NVARCHAR(70)       NULL,
     CONSTRAINT PK_Users PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT UQ_Users_Username UNIQUE (Username),
     CONSTRAINT UQ_Users_Email UNIQUE (Email),

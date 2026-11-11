@@ -11,6 +11,8 @@
         stored columns here - see dbo.vw_PostDetails, which reconstructs them.
       - QuotedPostId is a self-reference; ON DELETE/UPDATE is left as NO ACTION
         (the default) to avoid multiple cascade paths back into dbo.Posts.
+      - ImageUrl is an optional relative path (e.g. "/images/posts/{guid}.png")
+        to an attached image, matching Users.AvatarUrl's sizing convention.
 */
 
 DECLARE @sql NVARCHAR(MAX) = N'';
@@ -43,6 +45,7 @@ CREATE TABLE dbo.Posts
     DeletedAt           DATETIME2(3)       NULL,
     DeleteReason        NVARCHAR(500)      NULL,
     QuotedPostId        INT                NULL,
+    ImageUrl            NVARCHAR(500)      NULL,
     CONSTRAINT PK_Posts PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT FK_Posts_Thread FOREIGN KEY (ThreadId) REFERENCES dbo.Threads (Id),
     CONSTRAINT FK_Posts_CreatedByUser FOREIGN KEY (CreatedByUserId) REFERENCES dbo.Users (Id),

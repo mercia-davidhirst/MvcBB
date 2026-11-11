@@ -11,7 +11,7 @@ BEGIN
     SELECT Id, Content, ThreadId, ThreadTitle, CreatedByUserId, CreatedByUsername,
            CreatedAt, IsEdited, EditReason, UpdatedAt, UpdatedByUserId, UpdatedByUsername,
            IsDeleted, DeletedByUserId, DeletedByUsername, DeletedAt, DeleteReason,
-           QuotedPostId, UserAvatar, UserSignature, UserPostCount, UserJoinedAt, UserRole
+           QuotedPostId, ImageUrl, UserAvatar, UserSignature, UserPostCount, UserJoinedAt, UserRole
     FROM dbo.vw_PostDetails
     ORDER BY Id;
 END;

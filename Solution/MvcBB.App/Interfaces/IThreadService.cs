@@ -28,5 +28,10 @@ namespace MvcBB.App.Interfaces
         /// voted or the option is invalid.
         /// </summary>
         Task<PollResponse> VotePollAsync(int threadId, int pollOptionId);
+
+        /// <summary>Subscribes the current user to a thread, or updates their notify preferences if already subscribed.</summary>
+        Task SubscribeToThreadAsync(int threadId, bool notifyViaMessage, bool notifyViaEmail);
+
+        Task UnsubscribeFromThreadAsync(int threadId);
     }
 } 

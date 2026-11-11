@@ -375,6 +375,32 @@ namespace MvcBB.App.Controllers
         [HttpPost]
         [Authorize(Policy = "ManageUsers")]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetCustomTitle(int userId, string? customTitle)
+        {
+            try
+            {
+                await _userService.SetCustomTitleAsync(userId, customTitle);
+                TempData["Success"] = "Custom title updated successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Failed to update custom title.";
+            }
+
+            return RedirectToAction(nameof(Users));
+        }
+
+        [HttpPost]
+        [Authorize(Policy = "ManageUsers")]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> AnonymizeUser(int userId)
         {
             try

@@ -23,6 +23,9 @@ namespace MvcBB.API.SQL
             services.AddScoped<IPostRepository, SqlPostRepository>();
             services.AddScoped<IPostLikeRepository, SqlPostLikeRepository>();
             services.AddScoped<IPollRepository, SqlPollRepository>();
+            services.AddScoped<IRankRepository, SqlRankRepository>();
+            services.AddScoped<IWordFilterRepository, SqlWordFilterRepository>();
+            services.AddScoped<IThreadSubscriptionRepository, SqlThreadSubscriptionRepository>();
             services.AddScoped<IMessageRepository, SqlMessageRepository>();
             services.AddScoped<IReportRepository, SqlReportRepository>();
             services.AddScoped<IBBCodeTagRepository, SqlBBCodeTagRepository>();

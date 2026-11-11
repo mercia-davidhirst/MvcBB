@@ -30,8 +30,15 @@ html {
   min-height: 100%;
 }
 
+/* Flex column so the footer (.footer { margin-top: auto; } in
+   _Layout.cshtml.css) sticks to the bottom of short pages without the old
+   fixed-height/absolute-position trick - a footer of any height (e.g. once
+   the admin-set disclaimer adds a second line) just pushes normally instead
+   of overlapping the page content above it. */
 body {
-  margin-bottom: 60px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* BBCode and Smilie Styles */
@@ -184,6 +191,24 @@ a:hover {
     color: #fff;
 }
 
+/* Thread/post action buttons (Reply, Watch, Report, Edit, Delete, Like,
+   Quote) span several Bootstrap variants (success/info/warning/secondary/
+   danger/primary) - some of those (btn-warning, btn-info) get dark text by
+   Bootstrap's own default, which looked inconsistent next to the others'
+   white text. Forcing white here keeps every button in these two groups
+   visually consistent, in both the light and dark schemes (this rule isn't
+   inside the dark-theme block, so it applies to both).
+   Scoped to the Watch toggle itself (not >.btn-group>.btn, not any deeper)
+   so the Subscribe/Unwatch buttons inside its dropdown panel are untouched -
+   that panel sits on a plain light/dark card background, not the purple
+   header, so forcing white there would make btn-outline-danger unreadable
+   in light mode. */
+.thread-header > div > .btn,
+.thread-header > div > .btn-group > .btn,
+.post-actions .btn {
+    color: #fff !important;
+}
+
 /* Posts in a thread sit flush against each other like a single list rather
    than separate, gapped cards. */
 .thread-posts .card {
@@ -207,6 +232,13 @@ a:hover {
 
 footer.footer {
     border-top-color: var(--mvcbb-light-purple) !important;
+    /* Visual gap above the footer's text, below its top border. Padding
+       rather than margin-top because margin-top is already "auto" on this
+       element (see .footer in _Layout.cshtml.css) to stick it to the bottom
+       of short pages - a literal margin-top would conflict with that; the
+       matching bottom gap is set as a real margin-bottom there instead,
+       since that side isn't claimed by auto. */
+    padding-top: 10px;
 }
 
 /* Consecutive boards on the Boards index sit flush against each other
@@ -389,4 +421,44 @@ footer.footer {
     --bs-table-hover-bg: rgba(255, 255, 255, 0.075);
     color: var(--mvcbb-dark-text);
     border-color: var(--mvcbb-dark-border);
+}
+
+/* Select2 (the "To" recipient picker on New Message) ships its own CSS from
+   a CDN with a hardcoded light theme - none of the dark-theme rules above
+   touch it since it's not a Bootstrap component. Covers both the default
+   theme Select2 actually renders with here and the bootstrap-5 theme class
+   it's configured to use (its stylesheet isn't loaded, so elements may carry
+   either class depending on version). */
+:root[data-theme="dark"] .select2-container--default .select2-selection--single,
+:root[data-theme="dark"] .select2-container--bootstrap-5 .select2-selection {
+    background-color: var(--mvcbb-dark-surface-alt);
+    border-color: var(--mvcbb-dark-border);
+}
+
+:root[data-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered,
+:root[data-theme="dark"] .select2-container--bootstrap-5 .select2-selection__rendered {
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .select2-dropdown {
+    background-color: var(--mvcbb-dark-surface);
+    border-color: var(--mvcbb-dark-border);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .select2-search__field {
+    background-color: var(--mvcbb-dark-surface-alt);
+    border-color: var(--mvcbb-dark-border);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .select2-results__option {
+    background-color: var(--mvcbb-dark-surface);
+    color: var(--mvcbb-dark-text);
+}
+
+:root[data-theme="dark"] .select2-results__option--highlighted,
+:root[data-theme="dark"] .select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--mvcbb-dark-surface-alt);
+    color: var(--mvcbb-dark-text);
 }

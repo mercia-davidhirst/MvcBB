@@ -1,6 +1,6 @@
 -- Matches IUserRepository.Update(User user)
 
-DROP PROCEDURE IF EXISTS public.sp_user_update(integer, varchar, varchar, varchar, timestamptz, smallint, varchar, varchar, varchar, boolean);
+DROP PROCEDURE IF EXISTS public.sp_user_update(integer, varchar, varchar, varchar, timestamptz, smallint, varchar, varchar, varchar, boolean, varchar);
 
 CREATE PROCEDURE public.sp_user_update(
     p_id INTEGER,
@@ -12,7 +12,8 @@ CREATE PROCEDURE public.sp_user_update(
     p_signature VARCHAR(1000) DEFAULT NULL,
     p_bio VARCHAR(2000) DEFAULT NULL,
     p_avatar_url VARCHAR(500) DEFAULT NULL,
-    p_show_email BOOLEAN DEFAULT FALSE
+    p_show_email BOOLEAN DEFAULT FALSE,
+    p_custom_title VARCHAR(70) DEFAULT NULL
 )
 LANGUAGE plpgsql
 AS $$
@@ -26,7 +27,8 @@ BEGIN
         signature = p_signature,
         bio = p_bio,
         avatar_url = p_avatar_url,
-        show_email = p_show_email
+        show_email = p_show_email,
+        custom_title = p_custom_title
     WHERE id = p_id;
 END;
 $$;

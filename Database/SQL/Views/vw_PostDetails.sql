@@ -33,6 +33,7 @@ SELECT
     p.DeletedAt,
     p.DeleteReason,
     p.QuotedPostId,
+    p.ImageUrl,
     creator.AvatarUrl                  AS UserAvatar,
     creator.Signature                  AS UserSignature,
     postCounts.UserPostCount,

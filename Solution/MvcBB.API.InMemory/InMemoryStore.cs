@@ -4,8 +4,11 @@ using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Message;
 using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
+using MvcBB.Shared.Models.Rank;
 using MvcBB.Shared.Models.Report;
 using MvcBB.Shared.Models.User;
+using MvcBB.Shared.Models.WordFilter;
+using MvcBB.Shared.Models.ThreadSubscription;
 
 namespace MvcBB.API.InMemory
 {
@@ -27,6 +30,9 @@ namespace MvcBB.API.InMemory
         public List<BBCodeTagModel> BBCodeTags { get; } = new();
         public List<SmilieModel> Smilies { get; } = new();
         public List<PasswordResetToken> PasswordResetTokens { get; } = new();
+        public List<RankModel> Ranks { get; } = new();
+        public List<WordFilterModel> WordFilters { get; } = new();
+        public List<ThreadSubscriptionModel> ThreadSubscriptions { get; } = new();
 
         public InMemoryStore()
         {

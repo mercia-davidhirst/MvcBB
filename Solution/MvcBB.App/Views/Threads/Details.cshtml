@@ -27,6 +27,36 @@
                 {
                     <a asp-action="Reply" asp-route-threadId="@Model.Id" class="btn btn-success">Reply</a>
                 }
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="btn-group">
+                        <button type="button" class="btn @(Model.IsSubscribed ? "btn-info" : "btn-outline-light")" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi @(Model.IsSubscribed ? "bi-eye-fill" : "bi-eye")"></i> @(Model.IsSubscribed ? "Watching" : "Watch")
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-3" style="min-width: 260px;">
+                            <form asp-action="Watch" asp-route-threadId="@Model.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <p class="small text-muted">Notify me of new replies via:</p>
+                                <div class="form-check">
+                                    <input type="checkbox" name="notifyViaMessage" value="true" class="form-check-input" id="notifyViaMessage" @(Model.NotifyViaMessage ? "checked" : "") />
+                                    <label class="form-check-label" for="notifyViaMessage">Private message</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" name="notifyViaEmail" value="true" class="form-check-input" id="notifyViaEmail" @(Model.NotifyViaEmail ? "checked" : "") />
+                                    <label class="form-check-label" for="notifyViaEmail">Email</label>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-primary w-100">@(Model.IsSubscribed ? "Update" : "Subscribe")</button>
+                            </form>
+                            @if (Model.IsSubscribed)
+                            {
+                                <form asp-action="Unwatch" asp-route-threadId="@Model.Id" method="post" class="mt-2">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">Unwatch</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
                 <a asp-controller="Reports" asp-action="Create"
                    asp-route-type="Thread" asp-route-contentId="@Model.Id"
                    class="btn btn-warning">
@@ -147,7 +177,21 @@
                                 <i class="bi bi-person-circle me-2" style="font-size: 32px; line-height: 1;"></i>
                             }
                             <div>
-                                <strong>@post.CreatedByUsername</strong>
+                                <strong>
+                                    <a asp-controller="Account" asp-action="Profile" asp-route-username="@post.CreatedByUsername" class="text-decoration-none">
+                                        @post.CreatedByUsername
+                                    </a>
+                                </strong>
+                                @if (!string.IsNullOrEmpty(post.CreatedByRankTitle))
+                                {
+                                    <small class="d-block">
+                                        @if (!string.IsNullOrEmpty(post.CreatedByRankImagePath))
+                                        {
+                                            <img src="@post.CreatedByRankImagePath" alt="@post.CreatedByRankTitle" style="height: 14px;" class="me-1" />
+                                        }
+                                        <span class="text-muted">@post.CreatedByRankTitle</span>
+                                    </small>
+                                }
                                 <small class="text-muted d-block">
                                     posted @post.CreatedAt.ToString("g")
                                     @if (post.IsEdited)
@@ -157,7 +201,7 @@
                                 </small>
                             </div>
                         </div>
-                        <div>
+                        <div class="post-actions">
                             @if (User.Identity?.IsAuthenticated == true)
                             {
                                 <form asp-action="LikePost" asp-route-id="@post.Id" asp-route-threadId="@Model.Id" method="post" class="d-inline">
@@ -173,6 +217,13 @@
                                 <span class="btn btn-sm btn-primary disabled">
                                     <i class="bi bi-hand-thumbs-up"></i> @post.LikeCount
                                 </span>
+                            }
+                            @if (User.Identity?.IsAuthenticated == true && post.CreatedByUserId != currentUserId)
+                            {
+                                <a asp-controller="Messages" asp-action="Create" asp-route-recipientId="@post.CreatedByUserId"
+                                   class="btn btn-sm btn-secondary">
+                                    <i class="bi bi-envelope"></i> PM
+                                </a>
                             }
                             @if (!Model.IsLocked || User.IsInRole("Administrator") || User.IsInRole("Moderator"))
                             {

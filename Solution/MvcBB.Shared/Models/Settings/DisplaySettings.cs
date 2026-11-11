@@ -28,5 +28,13 @@ namespace MvcBB.Shared.Models.Settings
         /// </summary>
         [Display(Name = "Site Logo")]
         public string? LogoPath { get; set; }
+
+        /// <summary>
+        /// Optional centered text shown in the footer (e.g. a disclaimer) -
+        /// blank by default, so nothing extra renders until an admin sets one.
+        /// </summary>
+        [StringLength(500, ErrorMessage = "Footer disclaimer cannot exceed 500 characters")]
+        [Display(Name = "Footer Disclaimer")]
+        public string? FooterDisclaimer { get; set; }
     }
 }

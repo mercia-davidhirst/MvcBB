@@ -11,6 +11,7 @@
                     <th>Username</th>
                     <th>Email</th>
                     <th>Role</th>
+                    <th>Rank / Title</th>
                     <th>Joined</th>
                     <th>Last Login</th>
                     <th>Activity</th>
@@ -34,6 +35,24 @@
                                                   user.Role == UserRole.Deleted ? "secondary" : "primary")">
                                 @user.RoleName
                             </span>
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(user.RankTitle))
+                            {
+                                <span>@user.RankTitle</span>
+                                @if (string.IsNullOrEmpty(user.CustomTitle))
+                                {
+                                    <small class="text-muted d-block">(computed)</small>
+                                }
+                                else
+                                {
+                                    <small class="text-muted d-block">(custom)</small>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted">&mdash;</span>
+                            }
                         </td>
                         <td>@user.CreatedAt.ToLocalTime().ToString("g")</td>
                         <td>@(user.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</td>
@@ -82,6 +101,38 @@
                                         </ul>
                                     </div>
                                 }
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        data-bs-toggle="modal" data-bs-target="#customTitleModal@(user.Id)">
+                                    Set Title
+                                </button>
+
+                                <div class="modal fade" id="customTitleModal@(user.Id)" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Set Custom Title for @user.Username</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form asp-action="SetCustomTitle" method="post">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="userId" value="@user.Id" />
+                                                <div class="modal-body">
+                                                    <label for="customTitle@(user.Id)" class="form-label">Custom title</label>
+                                                    <input type="text" name="customTitle" id="customTitle@(user.Id)"
+                                                           class="form-control" maxlength="70" value="@user.CustomTitle" />
+                                                    <small class="form-text text-muted">
+                                                        Replaces this user's computed rank everywhere it's shown. Leave blank to clear it and go back to the computed rank.
+                                                    </small>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-primary">Save</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 @if (!isCurrentUser)
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-danger"

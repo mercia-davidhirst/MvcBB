@@ -12,31 +12,27 @@ namespace MvcBB.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IConfiguration _configuration;
-        private readonly Dictionary<string, ApiCredentials> _validClients;
 
         public AuthController(IConfiguration configuration)
         {
             _configuration = configuration;
-            
-            // In a real application, these would come from a database or configuration
-            _validClients = new Dictionary<string, ApiCredentials>
-            {
-                {
-                    "mvc_client",
-                    new ApiCredentials
-                    {
-                        ClientId = "mvc_client",
-                        ClientSecret = "your_secure_secret_here" // In production, use a secure secret
-                    }
-                }
-            };
         }
 
         [HttpPost("token")]
         public ActionResult<LoginResponse> GetToken(LoginRequest request)
         {
-            // Validate client credentials
-            if (!_validClients.TryGetValue(request.Username, out var client) ||
+            // The single known service client (MvcBB.App's own anonymous/service
+            // calls) - credentials live in appsettings.json (ApiClient:ClientId/
+            // ClientSecret), not hardcoded here, so they can be rotated/overridden
+            // per environment without a code change.
+            var client = new ApiCredentials
+            {
+                ClientId = _configuration["ApiClient:ClientId"] ?? string.Empty,
+                ClientSecret = _configuration["ApiClient:ClientSecret"] ?? string.Empty
+            };
+
+            if (string.IsNullOrEmpty(client.ClientId) ||
+                request.Username != client.ClientId ||
                 client.ClientSecret != request.Password)
             {
                 return Unauthorized();

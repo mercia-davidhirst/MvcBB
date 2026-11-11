@@ -15,16 +15,18 @@ namespace MvcBB.App.Services
         private readonly HttpClient _httpClient;
         private readonly IAuthService _authService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IConfiguration _configuration;
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        public UserService(IHttpClientFactory httpClientFactory, IAuthService authService, IHttpContextAccessor httpContextAccessor)
+        public UserService(IHttpClientFactory httpClientFactory, IAuthService authService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
         {
             _httpClient = httpClientFactory.CreateClient("MvcBBApi");
             _authService = authService;
             _httpContextAccessor = httpContextAccessor;
+            _configuration = configuration;
         }
 
         public async Task<IEnumerable<UserResponse>> GetUsersAsync()
@@ -183,8 +185,8 @@ namespace MvcBB.App.Services
         {
             var credentials = new ApiCredentials
             {
-                ClientId = "mvc_client",
-                ClientSecret = "your_secure_secret_here"
+                ClientId = _configuration["Api:ClientId"] ?? string.Empty,
+                ClientSecret = _configuration["Api:ClientSecret"] ?? string.Empty
             };
             var response = await _authService.GetTokenAsync(credentials);
             return response.Token;
@@ -213,6 +215,18 @@ namespace MvcBB.App.Services
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync($"api/users/update-role", content);
+            response.EnsureSuccessStatusCode();
+        }
+
+        public async Task SetCustomTitleAsync(int userId, string? customTitle)
+        {
+            var token = GetCurrentUserToken();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var json = JsonSerializer.Serialize(new SetCustomTitleRequest { CustomTitle = customTitle });
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PutAsync($"api/users/{userId}/custom-title", content);
             response.EnsureSuccessStatusCode();
         }
 

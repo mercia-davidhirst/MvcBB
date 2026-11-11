@@ -56,7 +56,8 @@ namespace MvcBB.API.SQL
                 user.Signature,
                 user.Bio,
                 user.AvatarUrl,
-                user.ShowEmail
+                user.ShowEmail,
+                user.CustomTitle
             }, commandType: CommandType.StoredProcedure);
         }
 
@@ -74,7 +75,8 @@ namespace MvcBB.API.SQL
                 user.Signature,
                 user.Bio,
                 user.AvatarUrl,
-                user.ShowEmail
+                user.ShowEmail,
+                user.CustomTitle
             }, commandType: CommandType.StoredProcedure);
         }
 

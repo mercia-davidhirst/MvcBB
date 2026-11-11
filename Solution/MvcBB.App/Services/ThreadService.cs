@@ -9,6 +9,7 @@ using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
+using MvcBB.Shared.Models.ThreadSubscription;
 
 namespace MvcBB.App.Services
 {
@@ -327,6 +328,49 @@ namespace MvcBB.App.Services
             catch (HttpRequestException ex)
             {
                 throw new ServiceException("Failed to cast vote", ex);
+            }
+        }
+
+        /// <summary>
+        /// Subscribes the current user to a thread, or updates their notify
+        /// preferences if already subscribed (the API treats PUT as an upsert).
+        /// </summary>
+        public async Task SubscribeToThreadAsync(int threadId, bool notifyViaMessage, bool notifyViaEmail)
+        {
+            try
+            {
+                var token = GetCurrentUserToken();
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                var json = JsonSerializer.Serialize(new SubscribeToThreadRequest
+                {
+                    NotifyViaMessage = notifyViaMessage,
+                    NotifyViaEmail = notifyViaEmail
+                });
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PutAsync($"api/threads/{threadId}/subscription", content);
+                response.EnsureSuccessStatusCode();
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ServiceException("Failed to subscribe to thread", ex);
+            }
+        }
+
+        public async Task UnsubscribeFromThreadAsync(int threadId)
+        {
+            try
+            {
+                var token = GetCurrentUserToken();
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                var response = await _httpClient.DeleteAsync($"api/threads/{threadId}/subscription");
+                response.EnsureSuccessStatusCode();
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ServiceException("Failed to unsubscribe from thread", ex);
             }
         }
 

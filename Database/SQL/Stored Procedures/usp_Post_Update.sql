@@ -14,7 +14,8 @@ CREATE PROCEDURE dbo.usp_Post_Update
     @DeletedByUserId INT = NULL,
     @DeletedAt DATETIME2(3) = NULL,
     @DeleteReason NVARCHAR(500) = NULL,
-    @QuotedPostId INT = NULL
+    @QuotedPostId INT = NULL,
+    @ImageUrl NVARCHAR(500) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -29,7 +30,8 @@ BEGIN
         DeletedByUserId = @DeletedByUserId,
         DeletedAt = @DeletedAt,
         DeleteReason = @DeleteReason,
-        QuotedPostId = @QuotedPostId
+        QuotedPostId = @QuotedPostId,
+        ImageUrl = @ImageUrl
     WHERE Id = @Id;
 END;
 GO

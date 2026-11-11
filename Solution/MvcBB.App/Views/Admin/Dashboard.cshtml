@@ -43,6 +43,24 @@
     <div class="col">
         <div class="card h-100">
             <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-award me-2"></i>Ranks</h5>
+                <p class="card-text text-muted">Manage post-count ranks and their badges.</p>
+                <a asp-controller="Admin" asp-action="Ranks" class="btn btn-outline-primary btn-sm">Manage Ranks</a>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-chat-square-text me-2"></i>Word Filter</h5>
+                <p class="card-text text-muted">Manage the censor list applied to posts.</p>
+                <a asp-controller="Admin" asp-action="WordFilters" class="btn btn-outline-primary btn-sm">Manage Word Filter</a>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-flag me-2"></i>Reports</h5>
                 <p class="card-text text-muted">Review and resolve member-submitted reports.</p>
                 <a asp-controller="Reports" asp-action="Index" class="btn btn-outline-primary btn-sm">View Reports</a>

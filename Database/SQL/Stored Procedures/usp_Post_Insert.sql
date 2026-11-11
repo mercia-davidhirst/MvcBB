@@ -11,13 +11,14 @@ CREATE PROCEDURE dbo.usp_Post_Insert
     @ThreadId INT,
     @CreatedByUserId INT,
     @CreatedAt DATETIME2(3) = NULL,
-    @QuotedPostId INT = NULL
+    @QuotedPostId INT = NULL,
+    @ImageUrl NVARCHAR(500) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    INSERT INTO dbo.Posts (Content, ThreadId, CreatedByUserId, CreatedAt, QuotedPostId)
+    INSERT INTO dbo.Posts (Content, ThreadId, CreatedByUserId, CreatedAt, QuotedPostId, ImageUrl)
     OUTPUT inserted.Id
-    VALUES (@Content, @ThreadId, @CreatedByUserId, ISNULL(@CreatedAt, SYSUTCDATETIME()), @QuotedPostId);
+    VALUES (@Content, @ThreadId, @CreatedByUserId, ISNULL(@CreatedAt, SYSUTCDATETIME()), @QuotedPostId, @ImageUrl);
 END;
 GO

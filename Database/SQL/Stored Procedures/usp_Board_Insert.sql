@@ -10,6 +10,7 @@ CREATE PROCEDURE dbo.usp_Board_Insert
     @IsActive BIT = 1,
     @ParentId INT = NULL,
     @IsCategory BIT = 0,
+    @IsPrivate BIT = 0,
     @CreatedAt DATETIME2(3) = NULL,
     @ThreadCount INT = 0,
     @PostCount INT = 0,
@@ -19,10 +20,10 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    INSERT INTO dbo.Boards (Name, Description, SortOrder, IsActive, ParentId, IsCategory, CreatedAt, ThreadCount, PostCount, LastPostByUserId, LastPostAt)
+    INSERT INTO dbo.Boards (Name, Description, SortOrder, IsActive, ParentId, IsCategory, IsPrivate, CreatedAt, ThreadCount, PostCount, LastPostByUserId, LastPostAt)
     OUTPUT inserted.Id, inserted.Name, inserted.Description, inserted.SortOrder, inserted.IsActive,
-           inserted.ParentId, inserted.IsCategory, inserted.CreatedAt, inserted.UpdatedAt,
+           inserted.ParentId, inserted.IsCategory, inserted.IsPrivate, inserted.CreatedAt, inserted.UpdatedAt,
            inserted.ThreadCount, inserted.PostCount, inserted.LastPostByUserId, inserted.LastPostAt
-    VALUES (@Name, @Description, @SortOrder, @IsActive, @ParentId, @IsCategory, ISNULL(@CreatedAt, SYSUTCDATETIME()), @ThreadCount, @PostCount, @LastPostByUserId, @LastPostAt);
+    VALUES (@Name, @Description, @SortOrder, @IsActive, @ParentId, @IsCategory, @IsPrivate, ISNULL(@CreatedAt, SYSUTCDATETIME()), @ThreadCount, @PostCount, @LastPostByUserId, @LastPostAt);
 END;
 GO

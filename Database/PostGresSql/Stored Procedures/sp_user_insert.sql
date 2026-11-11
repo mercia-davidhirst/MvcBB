@@ -1,8 +1,8 @@
 -- Matches IUserRepository.Add(User user)
--- Invoke with: CALL sp_user_insert('alice', '<hash>', 'alice@example.com', 0, NULL, NULL, NULL, FALSE, NULL);
+-- Invoke with: CALL sp_user_insert('alice', '<hash>', 'alice@example.com', 0, NULL, NULL, NULL, FALSE, NULL, NULL);
 -- p_id comes back populated with the generated identity.
 
-DROP PROCEDURE IF EXISTS public.sp_user_insert(varchar, varchar, varchar, smallint, varchar, varchar, varchar, boolean);
+DROP PROCEDURE IF EXISTS public.sp_user_insert(varchar, varchar, varchar, smallint, varchar, varchar, varchar, boolean, varchar);
 
 CREATE PROCEDURE public.sp_user_insert(
     p_username VARCHAR(50),
@@ -13,13 +13,14 @@ CREATE PROCEDURE public.sp_user_insert(
     p_bio VARCHAR(2000) DEFAULT NULL,
     p_avatar_url VARCHAR(500) DEFAULT NULL,
     p_show_email BOOLEAN DEFAULT FALSE,
+    p_custom_title VARCHAR(70) DEFAULT NULL,
     OUT p_id INTEGER
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    INSERT INTO public.users (username, password_hash, email, role, signature, bio, avatar_url, show_email)
-    VALUES (p_username, p_password_hash, p_email, p_role, p_signature, p_bio, p_avatar_url, p_show_email)
+    INSERT INTO public.users (username, password_hash, email, role, signature, bio, avatar_url, show_email, custom_title)
+    VALUES (p_username, p_password_hash, p_email, p_role, p_signature, p_bio, p_avatar_url, p_show_email, p_custom_title)
     RETURNING id INTO p_id;
 END;
 $$;

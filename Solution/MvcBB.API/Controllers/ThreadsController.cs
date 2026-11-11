@@ -4,7 +4,9 @@ using MvcBB.Shared.Models.Board;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
+using MvcBB.Shared.Models.ThreadSubscription;
 using MvcBB.Shared.Interfaces;
+using MvcBB.Shared.Services;
 using System.Security.Claims;
 
 namespace MvcBB.API.Controllers
@@ -19,6 +21,8 @@ namespace MvcBB.API.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IPostLikeRepository _postLikeRepository;
         private readonly IPollRepository _pollRepository;
+        private readonly IWordFilterRepository _wordFilterRepository;
+        private readonly IThreadSubscriptionRepository _subscriptionRepository;
         private readonly MvcBB.API.Services.IDisplaySettingsService _displaySettingsService;
 
         public ThreadsController(
@@ -28,6 +32,8 @@ namespace MvcBB.API.Controllers
             IUserRepository userRepository,
             IPostLikeRepository postLikeRepository,
             IPollRepository pollRepository,
+            IWordFilterRepository wordFilterRepository,
+            IThreadSubscriptionRepository subscriptionRepository,
             MvcBB.API.Services.IDisplaySettingsService displaySettingsService)
         {
             _threadRepository = threadRepository;
@@ -36,6 +42,8 @@ namespace MvcBB.API.Controllers
             _userRepository = userRepository;
             _postLikeRepository = postLikeRepository;
             _pollRepository = pollRepository;
+            _wordFilterRepository = wordFilterRepository;
+            _subscriptionRepository = subscriptionRepository;
             _displaySettingsService = displaySettingsService;
         }
 
@@ -126,10 +134,11 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
+            var wordFilters = _wordFilterRepository.GetAll();
             var now = DateTime.UtcNow;
             var thread = new ForumThread
             {
-                Title = request.Title,
+                Title = WordFilterApplier.Apply(request.Title, wordFilters),
                 BoardId = request.BoardId,
                 CreatedByUserId = userId,
                 CreatedAt = now,
@@ -144,7 +153,7 @@ namespace MvcBB.API.Controllers
             // would have zero posts and nothing for GetThreadPosts to return.
             _postRepository.Add(new Post
             {
-                Content = request.Content,
+                Content = WordFilterApplier.Apply(request.Content, wordFilters),
                 ThreadId = thread.Id,
                 CreatedByUserId = userId,
                 CreatedAt = now
@@ -214,6 +223,57 @@ namespace MvcBB.API.Controllers
             return Ok(MapToPollResponse(_pollRepository.GetByThreadId(id)));
         }
 
+        [HttpPut("{id}/subscription")]
+        [Authorize]
+        public ActionResult SubscribeToThread(int id, SubscribeToThreadRequest request)
+        {
+            var thread = _threadRepository.GetById(id);
+            if (thread == null)
+            {
+                return NotFound(new { message = "Thread not found" });
+            }
+
+            var userId = CurrentUserId;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not found" });
+            }
+
+            var existing = _subscriptionRepository.GetByThreadAndUser(id, userId);
+            if (existing == null)
+            {
+                _subscriptionRepository.Add(new MvcBB.Shared.Models.ThreadSubscription.ThreadSubscriptionModel
+                {
+                    ThreadId = id,
+                    UserId = userId,
+                    NotifyViaMessage = request.NotifyViaMessage,
+                    NotifyViaEmail = request.NotifyViaEmail
+                });
+            }
+            else
+            {
+                existing.NotifyViaMessage = request.NotifyViaMessage;
+                existing.NotifyViaEmail = request.NotifyViaEmail;
+                _subscriptionRepository.Update(existing);
+            }
+
+            return Ok(new { message = "Subscribed to thread" });
+        }
+
+        [HttpDelete("{id}/subscription")]
+        [Authorize]
+        public ActionResult UnsubscribeFromThread(int id)
+        {
+            var userId = CurrentUserId;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not found" });
+            }
+
+            _subscriptionRepository.Remove(id, userId);
+            return Ok(new { message = "Unsubscribed from thread" });
+        }
+
         [HttpPut("{id}")]
         [Authorize]
         public ActionResult<ThreadResponse> UpdateThread(int id, UpdateForumThreadRequest request)
@@ -278,6 +338,7 @@ namespace MvcBB.API.Controllers
             var posts = _postRepository.GetByThreadId(t.Id);
             var postIds = posts.Select(p => p.Id).ToList();
             var likeCounts = _postLikeRepository.GetLikeCounts(postIds);
+            var subscription = CurrentUserId != null ? _subscriptionRepository.GetByThreadAndUser(t.Id, CurrentUserId) : null;
 
             return new ThreadResponse
             {
@@ -298,7 +359,10 @@ namespace MvcBB.API.Controllers
                 LastPostByUsername = GetUsername(t.LastPostByUserId),
                 TotalLikes = likeCounts.Values.Sum(),
                 ParticipantCount = posts.Select(p => p.CreatedByUserId).Distinct().Count(),
-                Poll = MapToPollResponse(_pollRepository.GetByThreadId(t.Id))
+                Poll = MapToPollResponse(_pollRepository.GetByThreadId(t.Id)),
+                IsSubscribed = subscription != null,
+                NotifyViaMessage = subscription?.NotifyViaMessage ?? false,
+                NotifyViaEmail = subscription?.NotifyViaEmail ?? false
             };
         }
 

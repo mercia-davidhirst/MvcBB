@@ -21,6 +21,9 @@ namespace MvcBB.API.InMemory
             services.AddSingleton<IPostRepository, InMemoryPostRepository>();
             services.AddSingleton<IPostLikeRepository, InMemoryPostLikeRepository>();
             services.AddSingleton<IPollRepository, InMemoryPollRepository>();
+            services.AddSingleton<IRankRepository, InMemoryRankRepository>();
+            services.AddSingleton<IWordFilterRepository, InMemoryWordFilterRepository>();
+            services.AddSingleton<IThreadSubscriptionRepository, InMemoryThreadSubscriptionRepository>();
             services.AddSingleton<IMessageRepository, InMemoryMessageRepository>();
             services.AddSingleton<IReportRepository, InMemoryReportRepository>();
             services.AddSingleton<IBBCodeTagRepository, InMemoryBBCodeTagRepository>();

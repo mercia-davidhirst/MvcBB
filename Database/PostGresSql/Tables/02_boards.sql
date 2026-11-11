@@ -9,6 +9,8 @@
       - parent_id is a self-referencing FK supporting WBB-style nested board
         categories (arbitrary depth); NULL means a top-level board. is_category
         marks a pure organizational header with no threads of its own.
+      - is_private hides the board (and its threads/posts) from anyone who
+        isn't signed in - see Board.IsPrivate / Board.IsVisibleTo.
 */
 
 DROP TABLE IF EXISTS public.boards CASCADE;
@@ -22,6 +24,7 @@ CREATE TABLE public.boards
     is_active               BOOLEAN         NOT NULL DEFAULT TRUE,
     parent_id               INTEGER         NULL REFERENCES public.boards (id),
     is_category             BOOLEAN         NOT NULL DEFAULT FALSE,
+    is_private              BOOLEAN         NOT NULL DEFAULT FALSE,
     created_at              TIMESTAMPTZ     NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ     NULL,
     thread_count            INTEGER         NOT NULL DEFAULT 0,

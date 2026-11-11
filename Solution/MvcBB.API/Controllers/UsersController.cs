@@ -9,6 +9,7 @@ using MvcBB.Shared.Models.User;
 using MvcBB.Shared.Models.Member;
 using MvcBB.Shared.Models.Common;
 using MvcBB.Shared.Interfaces;
+using MvcBB.Shared.Services;
 using MvcBB.API.Services;
 
 namespace MvcBB.API.Controllers
@@ -21,17 +22,20 @@ namespace MvcBB.API.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IPasswordResetTokenRepository _passwordResetTokenRepository;
         private readonly IEmailSender _emailSender;
+        private readonly IRankRepository _rankRepository;
 
         public UsersController(
             IConfiguration configuration,
             IUserRepository userRepository,
             IPasswordResetTokenRepository passwordResetTokenRepository,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            IRankRepository rankRepository)
         {
             _configuration = configuration;
             _userRepository = userRepository;
             _passwordResetTokenRepository = passwordResetTokenRepository;
             _emailSender = emailSender;
+            _rankRepository = rankRepository;
         }
 
         private static string HashPassword(string password)
@@ -449,6 +453,26 @@ namespace MvcBB.API.Controllers
         }
 
         [Authorize(Roles = "Administrator")]
+        [HttpPut("{id}/custom-title")]
+        public ActionResult SetCustomTitle(int id, SetCustomTitleRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var user = _userRepository.GetById(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            user.CustomTitle = string.IsNullOrWhiteSpace(request.CustomTitle) ? null : request.CustomTitle.Trim();
+            _userRepository.Update(user);
+            return Ok(new { message = "Custom title updated successfully" });
+        }
+
+        [Authorize(Roles = "Administrator")]
         [HttpPost("{id}/anonymize")]
         public ActionResult Anonymize(int id)
         {
@@ -490,6 +514,10 @@ namespace MvcBB.API.Controllers
 
         private UserResponse MapToUserResponse(User u, bool includeEmail = false)
         {
+            var postCount = _userRepository.CountPostsByUsername(u.Username);
+            var hasCustomTitle = !string.IsNullOrEmpty(u.CustomTitle);
+            var rank = hasCustomTitle ? null : RankCalculator.GetRank(_rankRepository.GetAll(), postCount);
+
             return new UserResponse
             {
                 Id = u.Id,
@@ -498,12 +526,15 @@ namespace MvcBB.API.Controllers
                 CreatedAt = u.CreatedAt,
                 LastLoginAt = u.LastLoginAt,
                 ThreadCount = _userRepository.CountThreadsByUsername(u.Username),
-                PostCount = _userRepository.CountPostsByUsername(u.Username),
+                PostCount = postCount,
                 Role = u.Role,
                 Signature = u.Signature,
                 Bio = u.Bio,
                 AvatarUrl = u.AvatarUrl,
-                ShowEmail = u.ShowEmail
+                ShowEmail = u.ShowEmail,
+                RankTitle = hasCustomTitle ? u.CustomTitle : rank?.Title,
+                RankImagePath = rank?.ImagePath,
+                CustomTitle = u.CustomTitle
             };
         }
     }

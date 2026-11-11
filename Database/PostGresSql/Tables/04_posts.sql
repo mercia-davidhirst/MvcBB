@@ -13,6 +13,8 @@
       - quoted_post_id is a self-reference; ON DELETE/UPDATE is left as the
         default (NO ACTION) to avoid multiple cascade paths back into
         public.posts.
+      - image_url is an optional relative path (e.g. "/images/posts/{guid}.png")
+        to an attached image, matching users.avatar_url's sizing convention.
 */
 
 DROP TABLE IF EXISTS public.posts CASCADE;
@@ -33,6 +35,7 @@ CREATE TABLE public.posts
     deleted_at               TIMESTAMPTZ    NULL,
     delete_reason           VARCHAR(500)    NULL,
     quoted_post_id          INTEGER         NULL REFERENCES public.posts (id),
+    image_url               VARCHAR(500)    NULL,
     CONSTRAINT ck_posts_content_length CHECK (char_length(content) <= 10000)
 );
 
