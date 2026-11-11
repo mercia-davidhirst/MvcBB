@@ -33,7 +33,7 @@
                         </small>
                         <small class="text-muted">@quotedPost.CreatedAt.ToLocalTime().ToString("g")</small>
                     </div>
-                    <div class="quoted-content">@Html.Raw(BBCodeService.ParseBBCode(quotedPost.Content))</div>
+                    <div class="quoted-content">@Html.Raw(BBCodeService.ParseBBCode(quotedPost.Content, smilies))</div>
                 </div>
             }
 
@@ -79,7 +79,7 @@
         let previewVisible = true;
         const quotedPreviewHtml = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
             quotedPost != null
-                ? $"<blockquote class=\"blockquote\"><p class=\"mb-0\">{BBCodeService.ParseBBCode(quotedPost.Content)}</p><footer class=\"blockquote-footer\"><cite>{quotedPost.CreatedByUsername}</cite></footer></blockquote>"
+                ? $"<blockquote class=\"blockquote\"><p class=\"mb-0\">{BBCodeService.ParseBBCode(quotedPost.Content, smilies)}</p><footer class=\"blockquote-footer\"><cite>{quotedPost.CreatedByUsername}</cite></footer></blockquote>"
                 : ""));
 
         function updatePreview() {

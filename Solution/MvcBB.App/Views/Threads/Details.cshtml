@@ -250,7 +250,7 @@
                         @if (post.QuotedPost != null)
                         {
                             <blockquote class="blockquote mb-3">
-                                <p class="mb-0">@Html.Raw(BBCodeService.ParseBBCode(post.QuotedPost.Content))</p>
+                                <p class="mb-0">@Html.Raw(BBCodeService.ParseBBCode(post.QuotedPost.Content, smilies))</p>
                                 <footer class="blockquote-footer">
                                     <a href="#post-@post.QuotedPost.Id" class="text-decoration-none">
                                         <cite>@post.QuotedPost.CreatedByUsername</cite> wrote this <i class="bi bi-arrow-up-short"></i>
@@ -258,7 +258,7 @@
                                 </footer>
                             </blockquote>
                         }
-                        @Html.Raw(BBCodeService.ParseBBCode(post.Content))
+                        @Html.Raw(BBCodeService.ParseBBCode(post.Content, smilies))
                         @if (!string.IsNullOrEmpty(post.ImageUrl))
                         {
                             <div class="mt-3">

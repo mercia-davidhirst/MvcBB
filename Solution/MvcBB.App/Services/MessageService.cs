@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Message;
 
@@ -30,7 +31,7 @@ namespace MvcBB.App.Services
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
             var response = await _httpClient.GetAsync($"api/messages?folder={folder}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             return await response.Content.ReadFromJsonAsync<IEnumerable<MessageResponse>>() ?? Array.Empty<MessageResponse>();
         }
 
@@ -38,7 +39,7 @@ namespace MvcBB.App.Services
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
             var response = await _httpClient.GetAsync($"api/messages/{id}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             return await response.Content.ReadFromJsonAsync<MessageResponse>() ?? throw new Exception("Failed to load message");
         }
 
@@ -46,7 +47,7 @@ namespace MvcBB.App.Services
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
             var response = await _httpClient.PostAsJsonAsync("api/messages", request);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             return await response.Content.ReadFromJsonAsync<MessageResponse>() ?? throw new Exception("Failed to create message");
         }
 
@@ -54,14 +55,14 @@ namespace MvcBB.App.Services
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
             var response = await _httpClient.DeleteAsync($"api/messages/{id}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         public async Task<int> GetUnreadCountAsync()
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
             var response = await _httpClient.GetAsync("api/messages/unread-count");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             var result = await response.Content.ReadFromJsonAsync<UnreadCountResponse>();
             return result?.UnreadCount ?? 0;
         }

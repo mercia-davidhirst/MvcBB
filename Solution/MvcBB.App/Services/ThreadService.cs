@@ -45,7 +45,7 @@ namespace MvcBB.App.Services
                 if (boardId.HasValue)
                 {
                     var response = await _httpClient.GetAsync($"api/threads/board/{boardId}");
-                    response.EnsureSuccessStatusCode();
+                    response.EnsureSuccessOrSessionExpired();
                     var content = await response.Content.ReadAsStringAsync();
                     var threads = JsonSerializer.Deserialize<List<ThreadResponse>>(content, _jsonOptions) ?? new List<ThreadResponse>();
                     return new ThreadListResponse
@@ -63,7 +63,7 @@ namespace MvcBB.App.Services
                     query.Add($"pageSize={pageSize.Value}");
                 var url = "api/threads?" + string.Join("&", query);
                 var listResponse = await _httpClient.GetAsync(url);
-                listResponse.EnsureSuccessStatusCode();
+                listResponse.EnsureSuccessOrSessionExpired();
                 var listContent = await listResponse.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<ThreadListResponse>(listContent, _jsonOptions)
                     ?? new ThreadListResponse();
@@ -87,7 +87,7 @@ namespace MvcBB.App.Services
             {
                 AttachCurrentUserTokenIfPresent();
                 var response = await _httpClient.GetAsync($"api/threads/{id}");
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
                 
                 var content = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<ThreadResponse>(content, _jsonOptions)
@@ -117,7 +117,7 @@ namespace MvcBB.App.Services
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
                 var response = await _httpClient.PostAsync("api/threads", content);
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
                 
                 var responseContent = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<ThreadResponse>(responseContent, _jsonOptions)
@@ -147,7 +147,7 @@ namespace MvcBB.App.Services
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
                 var response = await _httpClient.PutAsync($"api/threads/{id}", content);
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
             }
             catch (HttpRequestException ex)
             {
@@ -166,7 +166,7 @@ namespace MvcBB.App.Services
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var response = await _httpClient.DeleteAsync($"api/threads/{id}");
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
             }
             catch (HttpRequestException ex)
             {
@@ -183,7 +183,7 @@ namespace MvcBB.App.Services
             {
                 AttachCurrentUserTokenIfPresent();
                 var response = await _httpClient.GetAsync($"api/posts/thread/{threadId}");
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
 
                 var content = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<IEnumerable<PostResponse>>(content, _jsonOptions)
@@ -214,7 +214,7 @@ namespace MvcBB.App.Services
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
                 var response = await _httpClient.PostAsync("api/posts", content);
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
                 
                 var responseContent = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<PostResponse>(responseContent, _jsonOptions)
@@ -239,7 +239,7 @@ namespace MvcBB.App.Services
             {
                 AttachCurrentUserTokenIfPresent();
                 var response = await _httpClient.GetAsync($"api/posts/{id}");
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
                 
                 var content = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<PostResponse>(content, _jsonOptions)
@@ -269,7 +269,7 @@ namespace MvcBB.App.Services
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
                 var response = await _httpClient.PutAsync($"api/posts/{id}", content);
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
             }
             catch (HttpRequestException ex)
             {
@@ -288,7 +288,7 @@ namespace MvcBB.App.Services
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var response = await _httpClient.PostAsync($"api/posts/{postId}/like", content: null);
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
 
                 var result = await response.Content.ReadFromJsonAsync<ToggleLikeResponse>();
                 return (result?.Liked ?? false, result?.LikeCount ?? 0);
@@ -350,7 +350,7 @@ namespace MvcBB.App.Services
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PutAsync($"api/threads/{threadId}/subscription", content);
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
             }
             catch (HttpRequestException ex)
             {
@@ -366,7 +366,7 @@ namespace MvcBB.App.Services
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var response = await _httpClient.DeleteAsync($"api/threads/{threadId}/subscription");
-                response.EnsureSuccessStatusCode();
+                response.EnsureSuccessOrSessionExpired();
             }
             catch (HttpRequestException ex)
             {
@@ -382,6 +382,11 @@ namespace MvcBB.App.Services
             if (response.IsSuccessStatusCode)
             {
                 return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                throw new SessionExpiredException();
             }
 
             var body = await response.Content.ReadAsStringAsync();
@@ -403,7 +408,7 @@ namespace MvcBB.App.Services
                 // Body wasn't the expected shape - fall through to the generic exception below.
             }
 
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         // Creating/editing threads and posts, and deleting threads, all require the

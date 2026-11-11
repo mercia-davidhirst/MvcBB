@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.BBCode;
 
@@ -80,7 +81,7 @@ namespace MvcBB.App.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.DeleteAsync($"api/bbcode/tags/{id}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         public async Task<IEnumerable<SmilieModel>> GetSmiliesAsync()
@@ -136,7 +137,7 @@ namespace MvcBB.App.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.DeleteAsync($"api/bbcode/smilies/{id}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         public async Task<Dictionary<string, string>> GetAvailableSmiliesAsync()
@@ -168,6 +169,11 @@ namespace MvcBB.App.Services
             if (response.IsSuccessStatusCode)
             {
                 return;
+            }
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                throw new SessionExpiredException();
             }
 
             var body = await response.Content.ReadAsStringAsync();

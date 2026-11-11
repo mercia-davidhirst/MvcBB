@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.User;
 using MvcBB.Shared.Models.Member;
@@ -49,7 +50,7 @@ namespace MvcBB.App.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.GetAsync("api/users/admin");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
 
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<IEnumerable<UserResponse>>(content, _jsonOptions) ?? Array.Empty<UserResponse>();
@@ -127,7 +128,7 @@ namespace MvcBB.App.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.GetAsync("api/users/profile");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
 
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<UserResponse>(content, _jsonOptions) ?? throw new Exception("Failed to deserialize user profile");
@@ -215,7 +216,7 @@ namespace MvcBB.App.Services
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync($"api/users/update-role", content);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         public async Task SetCustomTitleAsync(int userId, string? customTitle)
@@ -227,7 +228,7 @@ namespace MvcBB.App.Services
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PutAsync($"api/users/{userId}/custom-title", content);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         public async Task AnonymizeUserAsync(int userId)
@@ -236,7 +237,7 @@ namespace MvcBB.App.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.PostAsync($"api/users/{userId}/anonymize", null);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         public async Task ForgotPasswordAsync(ForgotPasswordRequest request)

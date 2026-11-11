@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MvcBB.App.Interfaces;
 using MvcBB.Shared.Interfaces;
 
 namespace MvcBB.App.Controllers
@@ -7,10 +8,12 @@ namespace MvcBB.App.Controllers
     public class BBCodeController : Controller
     {
         private readonly IBBCodeService _bbCodeService;
+        private readonly IMvcBBCodeService _mvcBBCodeService;
 
-        public BBCodeController(IBBCodeService bbCodeService)
+        public BBCodeController(IBBCodeService bbCodeService, IMvcBBCodeService mvcBBCodeService)
         {
             _bbCodeService = bbCodeService;
+            _mvcBBCodeService = mvcBBCodeService;
         }
 
         public class PreviewRequest
@@ -19,9 +22,10 @@ namespace MvcBB.App.Controllers
         }
 
         [HttpPost("preview")]
-        public IActionResult Preview([FromBody] PreviewRequest request)
+        public async Task<IActionResult> Preview([FromBody] PreviewRequest request)
         {
-            var html = _bbCodeService.ParseBBCode(request.Content);
+            var smilies = await _mvcBBCodeService.GetAvailableSmiliesAsync();
+            var html = _bbCodeService.ParseBBCode(request.Content, smilies);
             return Content(html, "text/html");
         }
     }

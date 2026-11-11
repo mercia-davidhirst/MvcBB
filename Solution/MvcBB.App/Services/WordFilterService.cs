@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.WordFilter;
 
@@ -35,7 +36,7 @@ namespace MvcBB.App.Services
         {
             AttachCurrentUserToken();
             var response = await _httpClient.GetAsync("api/wordfilters");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
 
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<IEnumerable<WordFilterModel>>(content, _jsonOptions)
@@ -50,7 +51,7 @@ namespace MvcBB.App.Services
             {
                 return null;
             }
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
 
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<WordFilterModel>(content, _jsonOptions);
@@ -80,7 +81,7 @@ namespace MvcBB.App.Services
         {
             AttachCurrentUserToken();
             var response = await _httpClient.DeleteAsync($"api/wordfilters/{id}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         private void AttachCurrentUserToken()
@@ -99,6 +100,11 @@ namespace MvcBB.App.Services
             if (response.IsSuccessStatusCode)
             {
                 return;
+            }
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                throw new SessionExpiredException();
             }
 
             var body = await response.Content.ReadAsStringAsync();

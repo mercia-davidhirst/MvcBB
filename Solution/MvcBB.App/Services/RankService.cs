@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Rank;
 
@@ -78,7 +79,7 @@ namespace MvcBB.App.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.DeleteAsync($"api/ranks/{id}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         private string GetCurrentUserToken()
@@ -92,6 +93,11 @@ namespace MvcBB.App.Services
             if (response.IsSuccessStatusCode)
             {
                 return;
+            }
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                throw new SessionExpiredException();
             }
 
             var body = await response.Content.ReadAsStringAsync();

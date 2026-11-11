@@ -1,6 +1,18 @@
 @model Dictionary<string, string>
 @{
     var smilies = Model ?? new Dictionary<string, string>();
+
+    // Matches the number of smilies the app ships with by default - once an
+    // admin adds more than this inline, the rest only show in the "more
+    // smilies" picker below rather than growing the toolbar's button row
+    // without bound (the old forum had hundreds of smilies and needed the
+    // same split for exactly this reason).
+    const int DefaultInlineCount = 12;
+    var inlineSmilies = smilies.Take(DefaultInlineCount).ToList();
+    var hasMoreSmilies = smilies.Count > DefaultInlineCount;
+
+    var allSmiliesJson = System.Text.Json.JsonSerializer.Serialize(
+        smilies.Select(s => new { code = s.Key, html = s.Value }));
 }
 
 <div class="bbcode-toolbar">
@@ -67,17 +79,191 @@
         </ul>
     </div>
 
-    <div class="mt-2">
-        @foreach (var smilie in smilies)
+    <div class="mt-2 d-flex flex-wrap align-items-center gap-1">
+        @foreach (var smilie in inlineSmilies)
         {
-            <button type="button" class="btn btn-sm btn-outline-light smilie-btn" 
-                    onclick="insertSmilie('@smilie.Key')" 
+            <button type="button" class="btn btn-sm btn-outline-light smilie-btn"
+                    onclick="insertSmilie('@smilie.Key')"
                     title="@smilie.Key">
                 @Html.Raw(smilie.Value)
             </button>
         }
+        @if (hasMoreSmilies)
+        {
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#smilieModal" title="More smilies">
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+            </button>
+        }
     </div>
 </div>
+
+@if (hasMoreSmilies)
+{
+    <script id="smilieData" type="application/json">@Html.Raw(allSmiliesJson)</script>
+
+    <div class="modal fade" id="smilieModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Smilies</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 d-flex flex-wrap gap-1" id="smilieAZBar"></div>
+                    <div class="d-flex flex-wrap gap-2" id="smilieGrid" style="min-height: 220px;"></div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="smiliePrevBtn">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </button>
+                        <span class="text-muted small" id="smiliePageInfo"></span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="smilieNextBtn">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Paginated, A-Z-grouped smilie picker. Everything runs client-side
+        // against the full smilie list embedded above - with hundreds of
+        // smilies that's still a small payload, and it avoids a round trip
+        // per page/letter click. Grouped by Description (e.g. "Smile"), not
+        // by the symbol-based code, so it actually reads as alphabetical.
+        (function () {
+            var dataEl = document.getElementById('smilieData');
+            if (!dataEl) {
+                return;
+            }
+
+            var PAGE_SIZE = 48;
+            var currentLetter = null;
+            var currentPage = 0;
+
+            // Smilie codes are symbols (":)", ";-D", ...) with no letters to
+            // group by - the human-readable name lives in the <img alt="...">
+            // inside each smilie's html instead, so pull that out for both
+            // A-Z grouping and sorting (falls back to the code if somehow
+            // there's no alt text).
+            function nameOf(smilie) {
+                var match = /alt="([^"]*)"/.exec(smilie.html);
+                return (match ? match[1] : smilie.code) || smilie.code;
+            }
+
+            function letterOf(smilie) {
+                var ch = nameOf(smilie).replace(/^[^A-Za-z0-9]+/, '').charAt(0).toUpperCase();
+                return /[A-Z0-9]/.test(ch) ? ch : '#';
+            }
+
+            var allSmilies = JSON.parse(dataEl.textContent)
+                .sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b)); });
+
+            function filtered() {
+                return currentLetter
+                    ? allSmilies.filter(function (s) { return letterOf(s) === currentLetter; })
+                    : allSmilies;
+            }
+
+            function renderAZBar() {
+                var letters = [];
+                allSmilies.forEach(function (s) {
+                    var l = letterOf(s);
+                    if (letters.indexOf(l) === -1) {
+                        letters.push(l);
+                    }
+                });
+                letters.sort();
+
+                var bar = document.getElementById('smilieAZBar');
+                bar.innerHTML = '';
+
+                function addButton(label, isActive, onClick) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-sm ' + (isActive ? 'btn-primary' : 'btn-outline-secondary');
+                    btn.textContent = label;
+                    btn.addEventListener('click', onClick);
+                    bar.appendChild(btn);
+                }
+
+                addButton('All', currentLetter === null, function () {
+                    currentLetter = null;
+                    currentPage = 0;
+                    renderAZBar();
+                    renderGrid();
+                });
+
+                letters.forEach(function (letter) {
+                    addButton(letter, currentLetter === letter, function () {
+                        currentLetter = letter;
+                        currentPage = 0;
+                        renderAZBar();
+                        renderGrid();
+                    });
+                });
+            }
+
+            function renderGrid() {
+                var items = filtered();
+                var totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+                currentPage = Math.min(currentPage, totalPages - 1);
+                var pageItems = items.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+                var grid = document.getElementById('smilieGrid');
+                grid.innerHTML = '';
+
+                if (pageItems.length === 0) {
+                    var empty = document.createElement('p');
+                    empty.className = 'text-muted';
+                    empty.textContent = 'No smilies found.';
+                    grid.appendChild(empty);
+                }
+
+                pageItems.forEach(function (s) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-sm btn-outline-light smilie-grid-btn d-flex flex-column align-items-center';
+                    btn.title = nameOf(s);
+                    var img = document.createElement('span');
+                    img.innerHTML = s.html;
+                    var label = document.createElement('small');
+                    label.className = 'smilie-btn-label';
+                    label.textContent = nameOf(s);
+                    btn.appendChild(img);
+                    btn.appendChild(label);
+                    // Declarative dismiss (not the bootstrap.Modal JS API) so this
+                    // doesn't depend on load order relative to the bootstrap bundle
+                    // script tag at the bottom of _Layout.
+                    btn.setAttribute('data-bs-dismiss', 'modal');
+                    btn.addEventListener('click', function () {
+                        insertSmilie(s.code);
+                    });
+                    grid.appendChild(btn);
+                });
+
+                document.getElementById('smiliePageInfo').textContent = 'Page ' + (currentPage + 1) + ' of ' + totalPages;
+                document.getElementById('smiliePrevBtn').disabled = currentPage === 0;
+                document.getElementById('smilieNextBtn').disabled = currentPage >= totalPages - 1;
+            }
+
+            document.getElementById('smiliePrevBtn').addEventListener('click', function () {
+                currentPage--;
+                renderGrid();
+            });
+            document.getElementById('smilieNextBtn').addEventListener('click', function () {
+                currentPage++;
+                renderGrid();
+            });
+
+            renderAZBar();
+            renderGrid();
+        })();
+    </script>
+}
 
 <script>
 function insertBBCode(tag, defaultText = '') {
@@ -85,7 +271,7 @@ function insertBBCode(tag, defaultText = '') {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selectedText = textarea.value.substring(start, end) || defaultText;
-    
+
     let insertText;
     if (tag.includes('=')) {
         const [tagName, value] = tag.split('=');
@@ -93,10 +279,10 @@ function insertBBCode(tag, defaultText = '') {
     } else {
         insertText = `[${tag}]${selectedText}[/${tag}]`;
     }
-    
+
     textarea.value = textarea.value.substring(0, start) + insertText + textarea.value.substring(end);
     textarea.focus();
-    
+
     // Update preview if it exists
     if (typeof updatePreview === 'function') {
         updatePreview();
@@ -106,13 +292,13 @@ function insertBBCode(tag, defaultText = '') {
 function insertSmilie(smilie) {
     const textarea = document.getElementById('Content');
     const start = textarea.selectionStart;
-    
+
     textarea.value = textarea.value.substring(0, start) + smilie + textarea.value.substring(start);
     textarea.focus();
-    
+
     // Update preview if it exists
     if (typeof updatePreview === 'function') {
         updatePreview();
     }
 }
-</script> 
+</script>

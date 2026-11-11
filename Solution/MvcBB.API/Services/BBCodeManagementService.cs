@@ -30,7 +30,7 @@ namespace MvcBB.API.Services
         // and PostService). They still have to exist here only because
         // IBBCodeManagementService extends the shared IBBCodeService interface,
         // which CoreBBCodeService (the App's real implementation) also implements.
-        public string ParseBBCode(string input) => _coreBBCodeService.ParseBBCode(input);
+        public string ParseBBCode(string input, IReadOnlyDictionary<string, string>? smilies = null) => _coreBBCodeService.ParseBBCode(input, smilies);
 
         public string StripBBCode(string input) => _coreBBCodeService.StripBBCode(input);
 

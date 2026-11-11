@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Http;
 using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Report;
 
@@ -36,7 +37,7 @@ namespace MvcBB.App.Services
 
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
             var response = await _httpClient.GetAsync(url);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             return await response.Content.ReadFromJsonAsync<IEnumerable<ReportResponse>>() ?? Array.Empty<ReportResponse>();
         }
 
@@ -44,7 +45,7 @@ namespace MvcBB.App.Services
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
             var response = await _httpClient.GetAsync($"api/reports/{id}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             return await response.Content.ReadFromJsonAsync<ReportResponse>() ?? throw new Exception("Failed to load report");
         }
 
@@ -52,7 +53,7 @@ namespace MvcBB.App.Services
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
             var response = await _httpClient.PostAsJsonAsync("api/reports", request);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             return await response.Content.ReadFromJsonAsync<ReportResponse>() ?? throw new Exception("Failed to create report");
         }
 
@@ -60,7 +61,7 @@ namespace MvcBB.App.Services
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
             var response = await _httpClient.PutAsJsonAsync($"api/reports/{id}", request);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             return await response.Content.ReadFromJsonAsync<ReportResponse>() ?? throw new Exception("Failed to update report");
         }
     }

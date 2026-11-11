@@ -420,6 +420,7 @@ namespace MvcBB.App.Controllers
 
                 ViewData["Post"] = post;
                 ViewData["ThreadTitle"] = thread.Title;
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
                 return View(updateRequest);
             }
             catch (ServiceException ex)
@@ -456,6 +457,7 @@ namespace MvcBB.App.Controllers
                 {
                     ViewData["Post"] = post;
                     ViewData["ThreadTitle"] = thread.Title;
+                    ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
                     return View(request);
                 }
 

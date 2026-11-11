@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using MvcBB.Shared.Interfaces;
+using System.Linq;
 
 namespace MvcBB.Shared.Services
 {
@@ -23,7 +24,7 @@ namespace MvcBB.Shared.Services
         private static readonly Regex SafeColorPattern = new(@"^[a-zA-Z]+$|^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$", RegexOptions.Compiled);
         private static readonly Regex SafeSizePattern = new(@"^\d{1,3}$", RegexOptions.Compiled);
 
-        public string ParseBBCode(string input)
+        public string ParseBBCode(string input, IReadOnlyDictionary<string, string>? smilies = null)
         {
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
@@ -62,7 +63,26 @@ namespace MvcBB.Shared.Services
                 });
             } while (output != previous && ++pass < 10);
 
+            if (smilies != null && smilies.Count > 0)
+            {
+                output = ReplaceSmilies(output, smilies);
+            }
+
             return output;
+        }
+
+        // Runs after BBCode tag parsing, since smilie codes (":)", ";-D", ...)
+        // contain no "[" or "]" and so can't interfere with tag matching.
+        // Longest-code-first so e.g. ":-)" matches before the shorter ":)"
+        // would otherwise consume part of it.
+        private static string ReplaceSmilies(string html, IReadOnlyDictionary<string, string> smilies)
+        {
+            foreach (var pair in smilies.OrderByDescending(p => p.Key.Length))
+            {
+                html = html.Replace(pair.Key, pair.Value);
+            }
+
+            return html;
         }
 
         public string StripBBCode(string input)

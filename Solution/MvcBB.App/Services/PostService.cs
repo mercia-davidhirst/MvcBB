@@ -38,7 +38,7 @@ public class PostService : IPostService
         {
             AttachCurrentUserTokenIfPresent();
             var response = await _httpClient.GetAsync($"api/posts/{id}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             
             var content = await response.Content.ReadAsStringAsync();
             var post = JsonSerializer.Deserialize<Post>(content, _jsonOptions);

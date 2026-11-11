@@ -75,6 +75,29 @@ body {
     height: 16px;
 }
 
+/* Smilie picker modal grid buttons - distinct from the small inline toolbar
+   buttons above, since these need room for a visible name label underneath
+   the image rather than just a hover tooltip. */
+.smilie-grid-btn {
+    width: 72px;
+    padding: 6px 4px;
+}
+
+.smilie-grid-btn img {
+    width: 20px;
+    height: 20px;
+}
+
+.smilie-grid-btn .smilie-btn-label {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
 .bbcode-preview {
     border: 1px solid #dee2e6;
     padding: 15px;
@@ -341,6 +364,12 @@ footer.footer {
 :root[data-theme="dark"] .modal-content {
     background-color: var(--mvcbb-dark-surface);
     color: var(--mvcbb-dark-text);
+}
+
+/* Bootstrap's .btn-close icon is a near-black SVG with no dark-theme variant
+   of its own - invert it so the X stays visible against a dark modal. */
+:root[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%);
 }
 
 :root[data-theme="dark"] .bbcode-toolbar {

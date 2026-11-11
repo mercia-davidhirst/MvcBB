@@ -9,17 +9,17 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Smilies)
 BEGIN
     INSERT INTO dbo.Smilies (Code, Description, ImagePath, IsActive, SortOrder)
     VALUES
-        (N':)', N'Smile', N'/images/smilies/smile.png', 1, 1),
-        (N':-)', N'Smile', N'/images/smilies/smile.png', 1, 2),
-        (N':(', N'Sad', N'/images/smilies/sad.png', 1, 3),
-        (N':-(', N'Sad', N'/images/smilies/sad.png', 1, 4),
-        (N':D', N'Grin', N'/images/smilies/grin.png', 1, 5),
-        (N':-D', N'Grin', N'/images/smilies/grin.png', 1, 6),
-        (N';)', N'Wink', N'/images/smilies/wink.png', 1, 7),
-        (N';-)', N'Wink', N'/images/smilies/wink.png', 1, 8),
-        (N':P', N'Tongue', N'/images/smilies/tongue.png', 1, 9),
-        (N':-P', N'Tongue', N'/images/smilies/tongue.png', 1, 10),
-        (N':O', N'Surprised', N'/images/smilies/surprised.png', 1, 11),
-        (N':-O', N'Surprised', N'/images/smilies/surprised.png', 1, 12);
+        (N':)', N'Smile', N'/images/smilies/smile.gif', 1, 1),
+        (N':-)', N'Smile', N'/images/smilies/smile.gif', 1, 2),
+        (N':(', N'Sad', N'/images/smilies/sad.gif', 1, 3),
+        (N':-(', N'Sad', N'/images/smilies/sad.gif', 1, 4),
+        (N':D', N'Grin', N'/images/smilies/grin.gif', 1, 5),
+        (N':-D', N'Grin', N'/images/smilies/grin.gif', 1, 6),
+        (N';)', N'Wink', N'/images/smilies/wink.gif', 1, 7),
+        (N';-)', N'Wink', N'/images/smilies/wink.gif', 1, 8),
+        (N':P', N'Tongue', N'/images/smilies/tongue.gif', 1, 9),
+        (N':-P', N'Tongue', N'/images/smilies/tongue.gif', 1, 10),
+        (N':O', N'Surprised', N'/images/smilies/surprised.gif', 1, 11),
+        (N':-O', N'Surprised', N'/images/smilies/surprised.gif', 1, 12);
 END;
 GO

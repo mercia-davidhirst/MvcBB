@@ -90,18 +90,18 @@ namespace MvcBB.API.InMemory
                     SortOrder = sortOrder
                 });
 
-            Add(":)", "Smile", "/images/smilies/smile.png", 1);
-            Add(":-)", "Smile", "/images/smilies/smile.png", 2);
-            Add(":(", "Sad", "/images/smilies/sad.png", 3);
-            Add(":-(", "Sad", "/images/smilies/sad.png", 4);
-            Add(":D", "Grin", "/images/smilies/grin.png", 5);
-            Add(":-D", "Grin", "/images/smilies/grin.png", 6);
-            Add(";)", "Wink", "/images/smilies/wink.png", 7);
-            Add(";-)", "Wink", "/images/smilies/wink.png", 8);
-            Add(":P", "Tongue", "/images/smilies/tongue.png", 9);
-            Add(":-P", "Tongue", "/images/smilies/tongue.png", 10);
-            Add(":O", "Surprised", "/images/smilies/surprised.png", 11);
-            Add(":-O", "Surprised", "/images/smilies/surprised.png", 12);
+            Add(":)", "Smile", "/images/smilies/smile.gif", 1);
+            Add(":-)", "Smile", "/images/smilies/smile.gif", 2);
+            Add(":(", "Sad", "/images/smilies/sad.gif", 3);
+            Add(":-(", "Sad", "/images/smilies/sad.gif", 4);
+            Add(":D", "Grin", "/images/smilies/grin.gif", 5);
+            Add(":-D", "Grin", "/images/smilies/grin.gif", 6);
+            Add(";)", "Wink", "/images/smilies/wink.gif", 7);
+            Add(";-)", "Wink", "/images/smilies/wink.gif", 8);
+            Add(":P", "Tongue", "/images/smilies/tongue.gif", 9);
+            Add(":-P", "Tongue", "/images/smilies/tongue.gif", 10);
+            Add(":O", "Surprised", "/images/smilies/surprised.gif", 11);
+            Add(":-O", "Surprised", "/images/smilies/surprised.gif", 12);
         }
     }
 }

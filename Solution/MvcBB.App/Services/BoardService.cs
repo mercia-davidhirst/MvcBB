@@ -33,7 +33,7 @@ namespace MvcBB.App.Services
         {
             AttachCurrentUserTokenIfPresent();
             var response = await _httpClient.GetAsync("api/boards");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
 
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<IEnumerable<BoardResponse>>(content, _jsonOptions)
@@ -44,7 +44,7 @@ namespace MvcBB.App.Services
         {
             AttachCurrentUserTokenIfPresent();
             var response = await _httpClient.GetAsync($"api/boards/{id}");
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<BoardResponse>(content, _jsonOptions) 
@@ -60,7 +60,7 @@ namespace MvcBB.App.Services
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             
             var response = await _httpClient.PostAsync("api/boards", content);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
             
             var responseContent = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<BoardResponse>(responseContent, _jsonOptions) 
@@ -76,7 +76,7 @@ namespace MvcBB.App.Services
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             
             var response = await _httpClient.PutAsync($"api/boards/{id}", content);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         public async Task DeleteBoardAsync(int id)
