@@ -38,8 +38,8 @@
     PostgreSQL role to connect as. Defaults to "postgres".
 
 .PARAMETER Password
-    Optional password, as a SecureString. If omitted, psql falls back to a
-    configured .pgpass file or prompts interactively.
+    Optional password. If omitted, psql falls back to a configured .pgpass
+    file or prompts interactively.
 
 .PARAMETER CreateDatabase
     Create the target database first if it doesn't already exist.
@@ -59,7 +59,7 @@ param(
 
     [string]$Username = "postgres",
 
-    [SecureString]$Password,
+    [string]$Password,
 
     [switch]$CreateDatabase
 )
@@ -74,12 +74,7 @@ if (-not (Get-Command psql -ErrorAction SilentlyContinue)) {
 # Use the PGPASSWORD env var rather than a command-line argument so the
 # password never appears as a plain process argument.
 if ($Password) {
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
-    try {
-        $env:PGPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-    } finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-    }
+    $env:PGPASSWORD = $Password
 }
 
 function Invoke-SqlFile {

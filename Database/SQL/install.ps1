@@ -23,7 +23,7 @@
     SQL Server login. If omitted, Windows/integrated authentication is used.
 
 .PARAMETER Password
-    Password for -Username, as a SecureString. Prompted for interactively if
+    Password for -Username. Prompted for interactively (without echoing) if
     -Username is supplied without -Password.
 
 .PARAMETER CreateDatabase
@@ -33,7 +33,7 @@
     ./install.ps1 -ServerInstance localhost -Database MvcBB -CreateDatabase
 
 .EXAMPLE
-    ./install.ps1 -ServerInstance localhost -Database MvcBB -Username sa
+    ./install.ps1 -ServerInstance localhost -Database MvcBB -Username sa -Password "MyPassword123"
 #>
 [CmdletBinding()]
 param(
@@ -45,7 +45,7 @@ param(
 
     [string]$Username,
 
-    [SecureString]$Password,
+    [string]$Password,
 
     [switch]$CreateDatabase
 )
@@ -57,21 +57,26 @@ if (-not (Get-Command sqlcmd -ErrorAction SilentlyContinue)) {
     throw "sqlcmd was not found on PATH. Install the SQL Server command-line tools (sqlcmd) and try again."
 }
 
-# Prefer SQLCMDUSER/SQLCMDPASSWORD env vars over -U/-P so the password never
-# appears as a plain command-line argument (e.g. in process listings).
+# -U must be passed explicitly on the command line: sqlcmd defaults to
+# Windows/Integrated Authentication whenever -U is absent, regardless of
+# SQLCMDUSER/SQLCMDPASSWORD - that mismatch is what previously produced
+# "Login failed...this login is from an untrusted domain and cannot be used
+# with Integrated Authentication" even when a username/password were given.
+# The password itself still goes through the SQLCMDPASSWORD env var (not -P)
+# so it never appears as a plain command-line argument.
 $authArgs = @("-E")
 if ($Username) {
     if (-not $Password) {
-        $Password = Read-Host -Prompt "Password for $Username" -AsSecureString
+        $securePassword = Read-Host -Prompt "Password for $Username" -AsSecureString
+        $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+        try {
+            $Password = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+        } finally {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+        }
     }
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
-    try {
-        $env:SQLCMDUSER = $Username
-        $env:SQLCMDPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-    } finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-    }
-    $authArgs = @()
+    $env:SQLCMDPASSWORD = $Password
+    $authArgs = @("-U", $Username)
 }
 
 function Invoke-SqlFile {
@@ -125,6 +130,5 @@ try {
 
     Write-Host "`nDone."
 } finally {
-    Remove-Item Env:\SQLCMDUSER -ErrorAction SilentlyContinue
     Remove-Item Env:\SQLCMDPASSWORD -ErrorAction SilentlyContinue
 }
