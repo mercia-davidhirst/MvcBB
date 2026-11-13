@@ -6,8 +6,9 @@ namespace MvcBB.App.Interfaces
     /// Validates and saves an uploaded image under wwwroot/images/&lt;subfolder&gt;,
     /// returning its public relative path (e.g. "/images/logos/{guid}.png"). Shared
     /// by every feature that lets an admin or user upload an image - smilies, the
-    /// site logo, and (in future) avatars/attachments - so the same file-type and
-    /// size rules apply everywhere.
+    /// site logo, post images (AccountController/ThreadsController) and avatars
+    /// (AccountController.UpdateProfile) - so the same file-type and size rules
+    /// apply everywhere.
     /// </summary>
     public interface IImageUploadService
     {

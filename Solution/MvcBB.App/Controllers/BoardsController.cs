@@ -28,7 +28,7 @@ namespace MvcBB.App.Controllers
             catch (Exception)
             {
                 TempData["Error"] = "Failed to load boards. Please try again later.";
-                return View(Array.Empty<Board>());
+                return View(Array.Empty<BoardResponse>());
             }
         }
 

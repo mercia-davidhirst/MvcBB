@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Interfaces;
+using MvcBB.Shared.Models.Member;
 using MvcBB.Shared.Models.User;
 
 namespace MvcBB.App.Controllers
@@ -17,13 +18,17 @@ namespace MvcBB.App.Controllers
         {
             try
             {
-                var users = await _userService.GetUsersAsync();
-                var teamMembers = users.Where(u => 
-                    u.Role == UserRole.Administrator || 
-                    u.Role == UserRole.Moderator)
+                // Administrators/Moderators are a tiny fraction of the user
+                // base in any real community - filtered server-side by role
+                // (two small, bounded calls) rather than loading every user
+                // just to pick these out.
+                var admins = await _userService.GetMembersAsync(new MemberRequest { Role = UserRole.Administrator, SortBy = "username", PageSize = 100 });
+                var moderators = await _userService.GetMembersAsync(new MemberRequest { Role = UserRole.Moderator, SortBy = "username", PageSize = 100 });
+                var teamMembers = admins.Members
+                    .Concat(moderators.Members)
                     .OrderByDescending(u => u.Role)
                     .ThenBy(u => u.Username);
-                    
+
                 return View(teamMembers);
             }
             catch (Exception)

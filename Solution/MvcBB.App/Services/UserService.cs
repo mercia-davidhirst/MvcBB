@@ -56,6 +56,19 @@ namespace MvcBB.App.Services
             return JsonSerializer.Deserialize<IEnumerable<UserResponse>>(content, _jsonOptions) ?? Array.Empty<UserResponse>();
         }
 
+        public async Task<UserStatsResponse> GetUserStatsAsync(int activeSinceDays = 7)
+        {
+            var token = await GetTokenAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _httpClient.GetAsync($"api/users/stats?activeSinceDays={activeSinceDays}");
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<UserStatsResponse>(content, _jsonOptions)
+                ?? throw new Exception("Failed to deserialize user stats response");
+        }
+
         public async Task<UserResponse?> GetUserByIdAsync(int userId)
         {
             var token = await GetTokenAsync();

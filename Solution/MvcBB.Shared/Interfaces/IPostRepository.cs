@@ -29,5 +29,13 @@ namespace MvcBB.Shared.Interfaces
         /// filtered count, not just the page returned.
         /// </summary>
         (IReadOnlyList<Post> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take);
+
+        /// <summary>
+        /// A user's most recent non-deleted posts (newest first, capped at
+        /// take) - filtered, sorted and limited in the data layer instead of
+        /// loading every post in the table to find one user's handful of
+        /// recent ones. Used by a member's profile page.
+        /// </summary>
+        IReadOnlyList<Post> GetByUserId(int userId, int take);
     }
 }

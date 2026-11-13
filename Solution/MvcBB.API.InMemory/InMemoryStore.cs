@@ -7,6 +7,7 @@ using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
 using MvcBB.Shared.Models.Rank;
 using MvcBB.Shared.Models.Report;
+using MvcBB.Shared.Models.Settings;
 using MvcBB.Shared.Models.User;
 using MvcBB.Shared.Models.WordFilter;
 using MvcBB.Shared.Models.ThreadSubscription;
@@ -35,6 +36,8 @@ namespace MvcBB.API.InMemory
         public List<WordFilterModel> WordFilters { get; } = new();
         public List<ThreadSubscriptionModel> ThreadSubscriptions { get; } = new();
         public List<AnnouncementModel> Announcements { get; } = new();
+        public DisplaySettings DisplaySettings { get; set; } = new();
+        public PasswordPolicy PasswordPolicy { get; set; } = new();
 
         public InMemoryStore()
         {

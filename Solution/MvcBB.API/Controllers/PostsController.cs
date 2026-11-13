@@ -68,11 +68,7 @@ namespace MvcBB.API.Controllers
         public ActionResult<IEnumerable<PostResponse>> GetPostsByUser(int userId, [FromQuery] int take = 5)
         {
             take = Math.Clamp(take, 1, 50);
-            var posts = _postRepository.GetAll()
-                .Where(p => !p.IsDeleted && p.CreatedByUserId == userId.ToString())
-                .OrderByDescending(p => p.CreatedAt)
-                .Take(take)
-                .ToList();
+            var posts = _postRepository.GetByUserId(userId, take);
 
             return Ok(MapToPostResponses(posts));
         }

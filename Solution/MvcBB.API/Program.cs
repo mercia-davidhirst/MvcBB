@@ -49,8 +49,12 @@ else
 {
     builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender, MvcBB.API.Services.LoggingEmailSender>();
 }
-builder.Services.AddSingleton<MvcBB.API.Services.IDisplaySettingsService, MvcBB.API.Services.DisplaySettingsService>();
-builder.Services.AddSingleton<MvcBB.API.Services.IPasswordPolicyService, MvcBB.API.Services.PasswordPolicyService>();
+// Scoped, not Singleton: both now read/write through a repository that's
+// itself Scoped for the Sql/PostgreSql providers (a new connection per
+// request) - a Singleton can't depend on a Scoped service in ASP.NET Core's
+// DI container.
+builder.Services.AddScoped<MvcBB.API.Services.IDisplaySettingsService, MvcBB.API.Services.DisplaySettingsService>();
+builder.Services.AddScoped<MvcBB.API.Services.IPasswordPolicyService, MvcBB.API.Services.PasswordPolicyService>();
 
 // Configure JWT Authentication
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] 

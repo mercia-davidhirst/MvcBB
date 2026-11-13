@@ -107,5 +107,45 @@ namespace MvcBB.API.InMemory
 
             return (filtered.Skip(skip).Take(take).ToList(), filtered.Count);
         }
+
+        public (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take)
+        {
+            var filtered = _store.Users.AsEnumerable();
+
+            if (role.HasValue)
+            {
+                filtered = filtered.Where(u => u.Role == role.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.ToLowerInvariant();
+                filtered = filtered.Where(u => u.Username.ToLowerInvariant().Contains(s));
+            }
+
+            var filteredUsers = filtered.ToList();
+
+            IOrderedEnumerable<User> ordered = sortBy?.ToLowerInvariant() switch
+            {
+                "joined" => sortDescending
+                    ? filteredUsers.OrderByDescending(u => u.CreatedAt)
+                    : filteredUsers.OrderBy(u => u.CreatedAt),
+                "posts" => sortDescending
+                    ? filteredUsers.OrderByDescending(u => _store.Posts.Count(p => p.CreatedByUserId == u.Id.ToString() && !p.IsDeleted))
+                    : filteredUsers.OrderBy(u => _store.Posts.Count(p => p.CreatedByUserId == u.Id.ToString() && !p.IsDeleted)),
+                "threads" => sortDescending
+                    ? filteredUsers.OrderByDescending(u => _store.Threads.Count(t => t.CreatedByUserId == u.Id.ToString()))
+                    : filteredUsers.OrderBy(u => _store.Threads.Count(t => t.CreatedByUserId == u.Id.ToString())),
+                _ => sortDescending
+                    ? filteredUsers.OrderByDescending(u => u.Username)
+                    : filteredUsers.OrderBy(u => u.Username)
+            };
+
+            var page = ordered.Skip(skip).Take(take).ToList();
+            return (page, filteredUsers.Count);
+        }
+
+        public (int TotalMembers, int ActiveMembers) GetStats(DateTime activeSince) =>
+            (_store.Users.Count, _store.Users.Count(u => u.LastLoginAt >= activeSince));
     }
 }

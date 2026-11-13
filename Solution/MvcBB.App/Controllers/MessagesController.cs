@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Exceptions;
 using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
+using MvcBB.Shared.Models.Member;
 using MvcBB.Shared.Models.Message;
 
 namespace MvcBB.App.Controllers
@@ -138,11 +139,16 @@ namespace MvcBB.App.Controllers
         {
             try
             {
-                var users = await _userService.GetUsersAsync();
-                var matches = users
-                    .Where(u => u.Username.Contains(term, StringComparison.OrdinalIgnoreCase))
+                // Filtered and limited to 10 at the data layer, rather than
+                // loading every user to filter/take here on every keystroke.
+                var result = await _userService.GetMembersAsync(new MemberRequest
+                {
+                    Search = term ?? string.Empty,
+                    Page = 1,
+                    PageSize = 10
+                });
+                var matches = result.Members
                     .Select(u => new { id = u.Id, text = u.Username })
-                    .Take(10)
                     .ToList();
 
                 return Json(matches);

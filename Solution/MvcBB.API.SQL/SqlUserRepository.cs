@@ -201,5 +201,35 @@ namespace MvcBB.API.SQL
                 commandType: CommandType.StoredProcedure);
             return (rows.ToList(), totalCount);
         }
+
+        public (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var totalCount = connection.ExecuteScalar<int>(
+                "dbo.usp_User_GetMembersPageCount",
+                new { Role = role, Search = search },
+                commandType: CommandType.StoredProcedure);
+            var rows = connection.Query<User>(
+                "dbo.usp_User_GetMembersPage",
+                new { Role = role, Search = search, SortBy = sortBy, SortDescending = sortDescending, Skip = skip, Take = take },
+                commandType: CommandType.StoredProcedure);
+            return (rows.ToList(), totalCount);
+        }
+
+        public (int TotalMembers, int ActiveMembers) GetStats(DateTime activeSince)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var row = connection.QuerySingle<StatsRow>(
+                "dbo.usp_User_GetStats",
+                new { ActiveSince = activeSince },
+                commandType: CommandType.StoredProcedure);
+            return (row.TotalMembers, row.ActiveMembers);
+        }
+
+        private class StatsRow
+        {
+            public int TotalMembers { get; set; }
+            public int ActiveMembers { get; set; }
+        }
     }
 }

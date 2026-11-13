@@ -7,6 +7,9 @@ namespace MvcBB.App.Interfaces
     {
         Task<IEnumerable<UserResponse>> GetUsersAsync();
         Task<IEnumerable<UserResponse>> GetUsersForAdminAsync();
+
+        /// <summary>Total member count and how many have logged in within the last activeSinceDays days - for the homepage statistics panel.</summary>
+        Task<UserStatsResponse> GetUserStatsAsync(int activeSinceDays = 7);
         Task<UserResponse> GetUserProfileAsync();
         Task<UserResponse?> GetUserByIdAsync(int userId);
         Task<UserResponse?> GetUserByUsernameAsync(string username);

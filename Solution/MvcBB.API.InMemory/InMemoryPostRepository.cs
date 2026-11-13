@@ -57,6 +57,17 @@ namespace MvcBB.API.InMemory
             return _store.Posts.Where(p => idSet.Contains(p.Id)).Select(Hydrate).ToDictionary(p => p.Id);
         }
 
+        public IReadOnlyList<Post> GetByUserId(int userId, int take)
+        {
+            var idString = userId.ToString();
+            return _store.Posts
+                .Where(p => !p.IsDeleted && p.CreatedByUserId == idString)
+                .Select(Hydrate)
+                .OrderByDescending(p => p.CreatedAt)
+                .Take(take)
+                .ToList();
+        }
+
         public (IReadOnlyList<Post> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take)
         {
             var boardIdByThreadId = _store.Threads.ToDictionary(t => t.Id, t => t.BoardId);

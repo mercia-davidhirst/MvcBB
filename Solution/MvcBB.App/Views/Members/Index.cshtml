@@ -82,8 +82,15 @@
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <i class="bi bi-person-circle fs-4 me-2"></i>
-                                            <a asp-controller="Account" asp-action="Profile" 
+                                            @if (!string.IsNullOrEmpty(member.AvatarUrl))
+                                            {
+                                                <img src="@member.AvatarUrl" alt="@member.Username" class="rounded-circle me-2" style="width: 28px; height: 28px; object-fit: cover;" />
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-person-circle fs-4 me-2"></i>
+                                            }
+                                            <a asp-controller="Account" asp-action="Profile"
                                                asp-route-username="@member.Username">
                                                 @member.Username
                                             </a>

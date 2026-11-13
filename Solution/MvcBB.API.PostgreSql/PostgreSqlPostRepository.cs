@@ -143,6 +143,15 @@ namespace MvcBB.API.PostgreSql
             return (rows.Select(MapToPost).ToList(), (int)totalCount);
         }
 
+        public IReadOnlyList<Post> GetByUserId(int userId, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<PostRow>(
+                $"SELECT {SelectColumns} FROM public.fn_post_get_by_user_id(@UserId, @Take)",
+                new { UserId = userId, Take = take });
+            return rows.Select(MapToPost).ToList();
+        }
+
         private class ThreadPostRow
         {
             public int PostId { get; set; }

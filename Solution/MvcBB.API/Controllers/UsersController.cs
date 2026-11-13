@@ -271,21 +271,47 @@ namespace MvcBB.API.Controllers
             return Ok(new { message = "Password reset successfully." });
         }
 
+        // Unauthenticated and was previously completely unbounded (every row
+        // in the Users table, in one response) - bounded here the same way
+        // GetMembers is, so it can't become a full-table dump as the member
+        // base grows. Capped lower than the admin variant below since this
+        // one needs no authorization at all.
         [HttpGet]
-        public ActionResult<IEnumerable<UserResponse>> GetUsers()
+        public ActionResult<IEnumerable<UserResponse>> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 100)
         {
-            return Ok(MapToUserResponses(_userRepository.GetAll()));
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 200);
+            var (users, _) = _userRepository.GetMembersPage(role: null, search: null, sortBy: "username", sortDescending: false, skip: (page - 1) * pageSize, take: pageSize);
+            return Ok(MapToUserResponses(users));
         }
 
         // For the admin User Management page specifically - this is the only
         // listing endpoint that includes email, and it's locked to real
         // Administrators so the unauthenticated GetUsers() above can't be used
-        // to harvest every member's email address.
+        // to harvest every member's email address. Defaults to a generous
+        // page size (large enough to still return "everyone" for a typical
+        // community) rather than GetUsers()'s smaller default, since admins
+        // managing users need the full picture; Account/Users.cshtml doesn't
+        // have paging controls yet, so this keeps it working unchanged while
+        // no longer being capable of an unbounded full-table scan.
         [Authorize(Roles = "Administrator")]
         [HttpGet("admin")]
-        public ActionResult<IEnumerable<UserResponse>> GetUsersForAdmin()
+        public ActionResult<IEnumerable<UserResponse>> GetUsersForAdmin([FromQuery] int page = 1, [FromQuery] int pageSize = 500)
         {
-            return Ok(MapToUserResponses(_userRepository.GetAll(), includeEmail: true));
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 1000);
+            var (users, _) = _userRepository.GetMembersPage(role: null, search: null, sortBy: "username", sortDescending: false, skip: (page - 1) * pageSize, take: pageSize);
+            return Ok(MapToUserResponses(users, includeEmail: true));
+        }
+
+        // Backs the homepage statistics panel - a couple of aggregate COUNTs
+        // instead of the caller loading every user to total them up itself.
+        [HttpGet("stats")]
+        public ActionResult<UserStatsResponse> GetStats([FromQuery] int activeSinceDays = 7)
+        {
+            var activeSince = DateTime.UtcNow.AddDays(-Math.Max(0, activeSinceDays));
+            var (totalMembers, activeMembers) = _userRepository.GetStats(activeSince);
+            return Ok(new UserStatsResponse { TotalMembers = totalMembers, ActiveMembers = activeMembers });
         }
 
         // Public member-profile lookup - e.g. clicking a username elsewhere in the
@@ -322,63 +348,23 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            var filtered = _userRepository.GetAll().AsEnumerable();
-
-            if (request.Role.HasValue)
-            {
-                filtered = filtered.Where(u => u.Role == request.Role.Value);
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Search))
-            {
-                var search = request.Search.ToLower();
-                filtered = filtered.Where(u => u.Username.ToLower().Contains(search));
-            }
-
-            var filteredUsers = filtered.ToList();
-
-            // "posts"/"threads" sorting needs each user's count, which the
-            // repository can only give per-username - fetch all of them in
-            // one batched call each, rather than one count call per user.
-            IEnumerable<User> ordered;
-            var sortBy = request.SortBy?.ToLower();
-            if (sortBy is "posts" or "threads")
-            {
-                var usernames = filteredUsers.Select(u => u.Username).ToList();
-                var counts = sortBy == "posts"
-                    ? _userRepository.GetPostCountsByUsernames(usernames)
-                    : _userRepository.GetThreadCountsByUsernames(usernames);
-
-                ordered = request.SortDirection == SortDirection.Descending
-                    ? filteredUsers.OrderByDescending(u => counts.TryGetValue(u.Username, out var c) ? c : 0)
-                    : filteredUsers.OrderBy(u => counts.TryGetValue(u.Username, out var c) ? c : 0);
-            }
-            else
-            {
-                ordered = sortBy switch
-                {
-                    "username" => request.SortDirection == SortDirection.Descending
-                        ? filteredUsers.OrderByDescending(u => u.Username)
-                        : filteredUsers.OrderBy(u => u.Username),
-                    "joined" => request.SortDirection == SortDirection.Descending
-                        ? filteredUsers.OrderByDescending(u => u.CreatedAt)
-                        : filteredUsers.OrderBy(u => u.CreatedAt),
-                    _ => filteredUsers.OrderBy(u => u.Username)
-                };
-            }
-
-            var totalMembers = filteredUsers.Count;
             var pageSize = Math.Max(1, request.PageSize);
             var page = Math.Max(1, request.Page);
-            var totalPages = (int)Math.Ceiling(totalMembers / (double)pageSize);
             var skip = (page - 1) * pageSize;
 
-            var memberUsers = ordered.Skip(skip).Take(pageSize).ToList();
-            var members = MapToUserResponses(memberUsers);
+            var (users, totalMembers) = _userRepository.GetMembersPage(
+                request.Role,
+                string.IsNullOrWhiteSpace(request.Search) ? null : request.Search,
+                request.SortBy,
+                request.SortDirection == SortDirection.Descending,
+                skip,
+                pageSize);
+
+            var totalPages = (int)Math.Ceiling(totalMembers / (double)pageSize);
 
             return Ok(new MemberResponse
             {
-                Members = members,
+                Members = MapToUserResponses(users),
                 TotalMembers = totalMembers,
                 Page = page,
                 PageSize = pageSize,

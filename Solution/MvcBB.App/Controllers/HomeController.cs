@@ -2,6 +2,8 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
+using MvcBB.Shared.Models.Common;
+using MvcBB.Shared.Models.Member;
 
 namespace MvcBB.App.Controllers;
 
@@ -38,20 +40,27 @@ public class HomeController : Controller
                 .Take(10)
                 .ToList();
 
-            // Get newest members
-            var users = await _userService.GetUsersAsync();
-            var newestMembers = users
-                .OrderByDescending(u => u.CreatedAt)
-                .Take(5)
-                .ToList();
+            // Get newest members - filtered, sorted and limited to 5 at the
+            // data layer, rather than loading every member to sort/take here.
+            var membersResult = await _userService.GetMembersAsync(new MemberRequest
+            {
+                SortBy = "joined",
+                SortDirection = SortDirection.Descending,
+                Page = 1,
+                PageSize = 5
+            });
+            var newestMembers = membersResult.Members;
 
-            // Calculate statistics
+            // Calculate statistics - both counts come from the data layer as
+            // aggregate COUNTs, rather than loading every member to total
+            // them up here.
+            var userStats = await _userService.GetUserStatsAsync(activeSinceDays: 7);
             var stats = new ForumStatistics
             {
-                TotalMembers = users.Count(),
+                TotalMembers = userStats.TotalMembers,
                 TotalThreads = threadResult.TotalThreads,
                 TotalPosts = threadResult.Threads.Sum(t => t.ReplyCount),
-                ActiveUsers = users.Count(u => u.LastLoginAt >= DateTime.UtcNow.AddDays(-7))
+                ActiveUsers = userStats.ActiveMembers
             };
 
             var displaySettings = await _settingsService.GetDisplaySettingsAsync();

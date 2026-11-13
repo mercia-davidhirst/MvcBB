@@ -211,5 +211,32 @@ namespace MvcBB.API.PostgreSql
                 new { Query = query, Skip = skip, Take = take });
             return (rows.ToList(), (int)totalCount);
         }
+
+        public (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var totalCount = connection.ExecuteScalar<long>(
+                "SELECT public.fn_user_get_members_page_count(@Role, @Search)",
+                new { Role = (short?)role, Search = search });
+            var rows = connection.Query<User>(
+                $"SELECT {SelectColumns} FROM public.fn_user_get_members_page(@Role, @Search, @SortBy, @SortDescending, @Skip, @Take)",
+                new { Role = (short?)role, Search = search, SortBy = sortBy, SortDescending = sortDescending, Skip = skip, Take = take });
+            return (rows.ToList(), (int)totalCount);
+        }
+
+        public (int TotalMembers, int ActiveMembers) GetStats(DateTime activeSince)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var row = connection.QuerySingle<StatsRow>(
+                "SELECT * FROM public.fn_user_get_stats(@ActiveSince)",
+                new { ActiveSince = activeSince });
+            return ((int)row.TotalMembers, (int)row.ActiveMembers);
+        }
+
+        private class StatsRow
+        {
+            public long TotalMembers { get; set; }
+            public long ActiveMembers { get; set; }
+        }
     }
 }

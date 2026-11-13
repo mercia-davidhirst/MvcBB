@@ -34,5 +34,26 @@ namespace MvcBB.Shared.Interfaces
         /// returned.
         /// </summary>
         (IReadOnlyList<User> Items, int TotalCount) Search(string query, int skip, int take);
+
+        /// <summary>
+        /// A single page of users, optionally filtered by role and/or a
+        /// username search substring (case-insensitive), sorted by
+        /// username/joined date/post count/thread count - entirely in the
+        /// data layer (including the posts/threads sort, via a correlated
+        /// count), instead of loading every user in the table first to
+        /// filter/sort/paginate in memory. TotalCount is the full filtered
+        /// count, not just the page returned. sortBy recognizes "joined",
+        /// "posts", "threads" and "username" (case-insensitive); anything
+        /// else falls back to username.
+        /// </summary>
+        (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take);
+
+        /// <summary>
+        /// Total user count and how many have logged in since activeSince -
+        /// both computed as aggregate COUNTs in the data layer (the
+        /// homepage statistics panel's need), instead of loading every user
+        /// to call Count()/Count(predicate) in memory.
+        /// </summary>
+        (int TotalMembers, int ActiveMembers) GetStats(DateTime activeSince);
     }
 }

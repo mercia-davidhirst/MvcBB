@@ -1,3 +1,4 @@
+using MvcBB.Shared.Interfaces;
 using MvcBB.Shared.Models.Settings;
 
 namespace MvcBB.API.Services
@@ -8,51 +9,28 @@ namespace MvcBB.API.Services
         void UpdateDisplaySettings(DisplaySettings settings);
     }
 
+    /// <summary>
+    /// Thin wrapper over IDisplaySettingsRepository - previously held its own
+    /// state in a static field (seeded once from appsettings.json), which
+    /// meant admin changes never survived an app restart and never applied
+    /// to the other side of a multi-instance deployment. Now every call
+    /// reads/writes the single DisplaySettings row through the data layer.
+    /// </summary>
     public class DisplaySettingsService : IDisplaySettingsService
     {
-        private static DisplaySettings _settings = new();
-        private readonly IConfiguration _configuration;
-        private static bool _initialized;
+        private readonly IDisplaySettingsRepository _repository;
 
-        public DisplaySettingsService(IConfiguration configuration)
+        public DisplaySettingsService(IDisplaySettingsRepository repository)
         {
-            _configuration = configuration;
-            if (!_initialized)
-            {
-                _settings.ThreadsPerPage = _configuration.GetValue("Display:ThreadsPerPage", 20);
-                _settings.SiteTitle = _configuration.GetValue("Display:SiteTitle", _settings.SiteTitle) ?? _settings.SiteTitle;
-                _settings.WelcomeMessage = _configuration.GetValue("Display:WelcomeMessage", _settings.WelcomeMessage) ?? _settings.WelcomeMessage;
-                _settings.SiteName = _configuration.GetValue("Display:SiteName", _settings.SiteName) ?? _settings.SiteName;
-                _settings.LogoPath = _configuration.GetValue<string?>("Display:LogoPath", null);
-                _settings.FooterDisclaimer = _configuration.GetValue<string?>("Display:FooterDisclaimer", null);
-                _settings.RegistrationEnabled = _configuration.GetValue("Display:RegistrationEnabled", true);
-                _initialized = true;
-            }
+            _repository = repository;
         }
 
-        public DisplaySettings GetDisplaySettings()
-        {
-            return new DisplaySettings
-            {
-                ThreadsPerPage = _settings.ThreadsPerPage,
-                SiteTitle = _settings.SiteTitle,
-                WelcomeMessage = _settings.WelcomeMessage,
-                SiteName = _settings.SiteName,
-                LogoPath = _settings.LogoPath,
-                FooterDisclaimer = _settings.FooterDisclaimer,
-                RegistrationEnabled = _settings.RegistrationEnabled
-            };
-        }
+        public DisplaySettings GetDisplaySettings() => _repository.Get();
 
         public void UpdateDisplaySettings(DisplaySettings settings)
         {
-            _settings.ThreadsPerPage = Math.Clamp(settings.ThreadsPerPage, 1, 100);
-            _settings.SiteTitle = settings.SiteTitle;
-            _settings.WelcomeMessage = settings.WelcomeMessage;
-            _settings.SiteName = settings.SiteName;
-            _settings.LogoPath = settings.LogoPath;
-            _settings.FooterDisclaimer = settings.FooterDisclaimer;
-            _settings.RegistrationEnabled = settings.RegistrationEnabled;
+            settings.ThreadsPerPage = Math.Clamp(settings.ThreadsPerPage, 1, 100);
+            _repository.Update(settings);
         }
     }
 }

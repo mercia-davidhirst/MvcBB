@@ -133,6 +133,16 @@ namespace MvcBB.API.SQL
             return (rows.Select(MapToPost).ToList(), totalCount);
         }
 
+        public IReadOnlyList<Post> GetByUserId(int userId, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<PostRow>(
+                "dbo.usp_Post_GetByUserId",
+                new { UserId = userId, Take = take },
+                commandType: CommandType.StoredProcedure);
+            return rows.Select(MapToPost).ToList();
+        }
+
         private class ThreadPostRow
         {
             public int PostId { get; set; }

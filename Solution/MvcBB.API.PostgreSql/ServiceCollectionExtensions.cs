@@ -45,6 +45,8 @@ namespace MvcBB.API.PostgreSql
             services.AddScoped<ISmilieRepository, PostgreSqlSmilieRepository>();
             services.AddScoped<IPasswordResetTokenRepository, PostgreSqlPasswordResetTokenRepository>();
             services.AddScoped<IAnnouncementRepository, PostgreSqlAnnouncementRepository>();
+            services.AddScoped<IDisplaySettingsRepository, PostgreSqlDisplaySettingsRepository>();
+            services.AddScoped<IPasswordPolicyRepository, PostgreSqlPasswordPolicyRepository>();
             services.AddSingleton<IDatabaseHealthCheck, PostgreSqlDatabaseHealthCheck>();
 
             return services;
