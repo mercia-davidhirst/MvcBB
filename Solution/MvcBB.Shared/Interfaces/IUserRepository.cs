@@ -26,5 +26,13 @@ namespace MvcBB.Shared.Interfaces
 
         /// <summary>Thread counts for several usernames at once, in one query.</summary>
         IReadOnlyDictionary<string, int> GetThreadCountsByUsernames(IEnumerable<string> usernames);
+
+        /// <summary>
+        /// Users whose username or email contains the query (case-
+        /// insensitive), newest-first and paginated entirely in the data
+        /// layer. TotalCount is the full filtered count, not just the page
+        /// returned.
+        /// </summary>
+        (IReadOnlyList<User> Items, int TotalCount) Search(string query, int skip, int take);
     }
 }

@@ -131,6 +131,18 @@ namespace MvcBB.API.PostgreSql
             return rows.Select(MapToPost).ToDictionary(p => p.Id);
         }
 
+        public (IReadOnlyList<Post> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var totalCount = connection.ExecuteScalar<long>(
+                "SELECT public.fn_search_posts_count(@Query, @BoardId, @IncludePrivateBoards)",
+                new { Query = query, BoardId = boardId, IncludePrivateBoards = includePrivateBoards });
+            var rows = connection.Query<PostRow>(
+                $"SELECT {SelectColumns} FROM public.fn_search_posts(@Query, @BoardId, @IncludePrivateBoards, @Skip, @Take)",
+                new { Query = query, BoardId = boardId, IncludePrivateBoards = includePrivateBoards, Skip = skip, Take = take });
+            return (rows.Select(MapToPost).ToList(), (int)totalCount);
+        }
+
         private class ThreadPostRow
         {
             public int PostId { get; set; }

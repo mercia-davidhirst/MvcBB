@@ -123,6 +123,33 @@ namespace MvcBB.API.PostgreSql
             return rows.Select(MapToThread).ToDictionary(t => t.BoardId);
         }
 
+        public IReadOnlyDictionary<int, ForumThread> GetByIds(IEnumerable<int> ids)
+        {
+            var idArray = ids.Distinct().ToArray();
+            if (idArray.Length == 0)
+            {
+                return new Dictionary<int, ForumThread>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<ThreadRow>(
+                "SELECT * FROM public.vw_thread_details WHERE id = ANY(@Ids)",
+                new { Ids = idArray });
+            return rows.Select(MapToThread).ToDictionary(t => t.Id);
+        }
+
+        public (IReadOnlyList<ForumThread> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var totalCount = connection.ExecuteScalar<long>(
+                "SELECT public.fn_search_threads_count(@Query, @BoardId, @IncludePrivateBoards)",
+                new { Query = query, BoardId = boardId, IncludePrivateBoards = includePrivateBoards });
+            var rows = connection.Query<ThreadRow>(
+                "SELECT * FROM public.fn_search_threads(@Query, @BoardId, @IncludePrivateBoards, @Skip, @Take)",
+                new { Query = query, BoardId = boardId, IncludePrivateBoards = includePrivateBoards, Skip = skip, Take = take });
+            return (rows.Select(MapToThread).ToList(), (int)totalCount);
+        }
+
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private static ForumThread MapToThread(ThreadRow row) => new()

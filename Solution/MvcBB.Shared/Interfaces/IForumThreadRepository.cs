@@ -30,5 +30,18 @@ namespace MvcBB.Shared.Interfaces
         /// replies to an existing one, so they go stale.
         /// </summary>
         IReadOnlyDictionary<int, ForumThread> GetLastActiveThreadsByBoardIds(IEnumerable<int> boardIds);
+
+        /// <summary>Multiple threads by id in one query - e.g. batch-resolving each search result's board.</summary>
+        IReadOnlyDictionary<int, ForumThread> GetByIds(IEnumerable<int> ids);
+
+        /// <summary>
+        /// Threads whose title or author username contains the query (case-
+        /// insensitive), optionally restricted to one board, filtered to
+        /// boards visible to the caller, newest-first and paginated entirely
+        /// in the data layer - so search doesn't mean loading every thread
+        /// in the table first. TotalCount is the full filtered count, not
+        /// just the page returned.
+        /// </summary>
+        (IReadOnlyList<ForumThread> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take);
     }
 }

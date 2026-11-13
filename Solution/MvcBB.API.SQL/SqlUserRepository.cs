@@ -187,5 +187,19 @@ namespace MvcBB.API.SQL
             public string Username { get; set; } = string.Empty;
             public int Count { get; set; }
         }
+
+        public (IReadOnlyList<User> Items, int TotalCount) Search(string query, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var totalCount = connection.ExecuteScalar<int>(
+                "dbo.usp_Search_UsersCount",
+                new { Query = query },
+                commandType: CommandType.StoredProcedure);
+            var rows = connection.Query<User>(
+                "dbo.usp_Search_Users",
+                new { Query = query, Skip = skip, Take = take },
+                commandType: CommandType.StoredProcedure);
+            return (rows.ToList(), totalCount);
+        }
     }
 }

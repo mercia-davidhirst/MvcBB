@@ -73,6 +73,31 @@ namespace MvcBB.API.InMemory
                     g => Hydrate(g.OrderByDescending(t => t.LastPostAt ?? t.CreatedAt).First()));
         }
 
+        public IReadOnlyDictionary<int, ForumThread> GetByIds(IEnumerable<int> ids)
+        {
+            var idSet = ids.ToHashSet();
+            return _store.Threads.Where(t => idSet.Contains(t.Id)).Select(Hydrate).ToDictionary(t => t.Id);
+        }
+
+        public (IReadOnlyList<ForumThread> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take)
+        {
+            var visibleBoardIds = _store.Boards
+                .Where(b => includePrivateBoards || !b.IsPrivate)
+                .Select(b => b.Id)
+                .ToHashSet();
+
+            var q = query.ToLowerInvariant();
+            var filtered = _store.Threads
+                .Where(t => visibleBoardIds.Contains(t.BoardId))
+                .Where(t => !boardId.HasValue || t.BoardId == boardId.Value)
+                .Select(Hydrate)
+                .Where(t => t.Title.ToLowerInvariant().Contains(q) || t.CreatedByUsername.ToLowerInvariant().Contains(q))
+                .OrderByDescending(t => t.CreatedAt)
+                .ToList();
+
+            return (filtered.Skip(skip).Take(take).ToList(), filtered.Count);
+        }
+
         // Populates the denormalized presentation fields (BoardName,
         // BoardIsPrivate, CreatedByUsername, LastPostByUsername) from the
         // current Board/User records, matching what the SQL/PostgreSQL

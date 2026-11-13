@@ -20,5 +20,14 @@ namespace MvcBB.Shared.Interfaces
 
         /// <summary>Multiple posts by id in one query - e.g. batch-resolving quoted posts on a page.</summary>
         IReadOnlyDictionary<int, Post> GetByIds(IEnumerable<int> ids);
+
+        /// <summary>
+        /// Posts whose content or author username contains the query (case-
+        /// insensitive), optionally restricted to one board (via the post's
+        /// thread), filtered to boards visible to the caller, newest-first
+        /// and paginated entirely in the data layer. TotalCount is the full
+        /// filtered count, not just the page returned.
+        /// </summary>
+        (IReadOnlyList<Post> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take);
     }
 }

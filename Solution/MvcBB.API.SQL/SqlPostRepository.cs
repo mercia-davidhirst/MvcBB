@@ -119,6 +119,20 @@ namespace MvcBB.API.SQL
             return rows.Select(MapToPost).ToDictionary(p => p.Id);
         }
 
+        public (IReadOnlyList<Post> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var totalCount = connection.ExecuteScalar<int>(
+                "dbo.usp_Search_PostsCount",
+                new { Query = query, BoardId = boardId, IncludePrivateBoards = includePrivateBoards },
+                commandType: CommandType.StoredProcedure);
+            var rows = connection.Query<PostRow>(
+                "dbo.usp_Search_Posts",
+                new { Query = query, BoardId = boardId, IncludePrivateBoards = includePrivateBoards, Skip = skip, Take = take },
+                commandType: CommandType.StoredProcedure);
+            return (rows.Select(MapToPost).ToList(), totalCount);
+        }
+
         private class ThreadPostRow
         {
             public int PostId { get; set; }

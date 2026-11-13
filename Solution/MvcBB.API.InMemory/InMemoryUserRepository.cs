@@ -96,5 +96,16 @@ namespace MvcBB.API.InMemory
                     u => _store.Threads.Count(t => t.CreatedByUserId == u.Id.ToString()),
                     StringComparer.OrdinalIgnoreCase);
         }
+
+        public (IReadOnlyList<User> Items, int TotalCount) Search(string query, int skip, int take)
+        {
+            var q = query.ToLowerInvariant();
+            var filtered = _store.Users
+                .Where(u => u.Username.ToLowerInvariant().Contains(q) || u.Email.ToLowerInvariant().Contains(q))
+                .OrderByDescending(u => u.CreatedAt)
+                .ToList();
+
+            return (filtered.Skip(skip).Take(take).ToList(), filtered.Count);
+        }
     }
 }

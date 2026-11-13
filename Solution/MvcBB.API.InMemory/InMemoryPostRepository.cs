@@ -57,6 +57,28 @@ namespace MvcBB.API.InMemory
             return _store.Posts.Where(p => idSet.Contains(p.Id)).Select(Hydrate).ToDictionary(p => p.Id);
         }
 
+        public (IReadOnlyList<Post> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take)
+        {
+            var boardIdByThreadId = _store.Threads.ToDictionary(t => t.Id, t => t.BoardId);
+            var boardsById = _store.Boards.ToDictionary(b => b.Id);
+            var q = query.ToLowerInvariant();
+
+            var filtered = _store.Posts
+                .Select(Hydrate)
+                .Where(p => p.Content.ToLowerInvariant().Contains(q) || p.CreatedByUsername.ToLowerInvariant().Contains(q))
+                .Where(p =>
+                {
+                    var board = boardIdByThreadId.TryGetValue(p.ThreadId, out var bId) && boardsById.TryGetValue(bId, out var b) ? b : null;
+                    if (boardId.HasValue && board?.Id != boardId.Value)
+                        return false;
+                    return includePrivateBoards || board == null || !board.IsPrivate;
+                })
+                .OrderByDescending(p => p.CreatedAt)
+                .ToList();
+
+            return (filtered.Skip(skip).Take(take).ToList(), filtered.Count);
+        }
+
         // Populates the denormalized presentation fields (ThreadTitle,
         // CreatedByUsername/UpdatedByUsername/DeletedByUsername, UserAvatar,
         // UserSignature, UserPostCount, UserJoinedAt, UserRole) from the

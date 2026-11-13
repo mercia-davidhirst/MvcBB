@@ -199,5 +199,17 @@ namespace MvcBB.API.PostgreSql
             public string Username { get; set; } = string.Empty;
             public int Count { get; set; }
         }
+
+        public (IReadOnlyList<User> Items, int TotalCount) Search(string query, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var totalCount = connection.ExecuteScalar<long>(
+                "SELECT public.fn_search_users_count(@Query)",
+                new { Query = query });
+            var rows = connection.Query<User>(
+                $"SELECT {SelectColumns} FROM public.fn_search_users(@Query, @Skip, @Take)",
+                new { Query = query, Skip = skip, Take = take });
+            return (rows.ToList(), (int)totalCount);
+        }
     }
 }

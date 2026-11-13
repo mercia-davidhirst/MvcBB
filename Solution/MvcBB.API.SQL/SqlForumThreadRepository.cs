@@ -128,6 +128,33 @@ namespace MvcBB.API.SQL
             return rows.Select(MapToThread).ToDictionary(t => t.BoardId);
         }
 
+        public IReadOnlyDictionary<int, ForumThread> GetByIds(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToList();
+            if (idList.Count == 0)
+            {
+                return new Dictionary<int, ForumThread>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<ThreadRow>("SELECT * FROM dbo.vw_ThreadDetails WHERE Id IN @Ids", new { Ids = idList });
+            return rows.Select(MapToThread).ToDictionary(t => t.Id);
+        }
+
+        public (IReadOnlyList<ForumThread> Items, int TotalCount) Search(string query, int? boardId, bool includePrivateBoards, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var totalCount = connection.ExecuteScalar<int>(
+                "dbo.usp_Search_ThreadsCount",
+                new { Query = query, BoardId = boardId, IncludePrivateBoards = includePrivateBoards },
+                commandType: CommandType.StoredProcedure);
+            var rows = connection.Query<ThreadRow>(
+                "dbo.usp_Search_Threads",
+                new { Query = query, BoardId = boardId, IncludePrivateBoards = includePrivateBoards, Skip = skip, Take = take },
+                commandType: CommandType.StoredProcedure);
+            return (rows.Select(MapToThread).ToList(), totalCount);
+        }
+
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private static ForumThread MapToThread(ThreadRow row) => new()
