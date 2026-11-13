@@ -123,6 +123,63 @@ app.UseCors("AllowMvcApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Default page: a bare visual status check (no auth, no other details) for
+// whoever is hosting this to confirm at a glance that the deployed API can
+// actually reach its configured database - see IDatabaseHealthCheck.
+app.MapGet("/", (IDatabaseHealthCheck healthCheck) =>
+{
+    bool healthy;
+    try
+    {
+        healthy = healthCheck.IsHealthy();
+    }
+    catch
+    {
+        healthy = false;
+    }
+
+    var color = healthy ? "#2ecc71" : "#e74c3c";
+    var html = $$"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="utf-8" />
+            <title>MvcBB API Status</title>
+            <style>
+                body {
+                    margin: 0;
+                    height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #111;
+                    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                }
+                .status {
+                    font-size: 2.5rem;
+                    color: #eee;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6em;
+                }
+                .dot {
+                    width: 0.9em;
+                    height: 0.9em;
+                    border-radius: 50%;
+                    background: {{color}};
+                }
+            </style>
+        </head>
+        <body>
+            <div class="status">Status is <span class="dot"></span></div>
+        </body>
+        </html>
+        """;
+
+    return Results.Content(html, "text/html", System.Text.Encoding.UTF8,
+        healthy ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
+});
+
 app.MapControllers();
 
 app.Run(); 

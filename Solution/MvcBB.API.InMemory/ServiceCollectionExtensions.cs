@@ -30,6 +30,7 @@ namespace MvcBB.API.InMemory
             services.AddSingleton<ISmilieRepository, InMemorySmilieRepository>();
             services.AddSingleton<IPasswordResetTokenRepository, InMemoryPasswordResetTokenRepository>();
             services.AddSingleton<IAnnouncementRepository, InMemoryAnnouncementRepository>();
+            services.AddSingleton<IDatabaseHealthCheck, InMemoryDatabaseHealthCheck>();
 
             return services;
         }
