@@ -79,5 +79,32 @@ namespace MvcBB.API.InMemory
 
         public int? GetVotedOptionId(int pollId, string userId) =>
             _store.PollVotes.FirstOrDefault(v => v.PollId == pollId && v.UserId == userId)?.PollOptionId;
+
+        public IReadOnlyDictionary<int, Poll> GetByThreadIds(IEnumerable<int> threadIds)
+        {
+            var idSet = threadIds.ToHashSet();
+            return _store.Polls
+                .Where(p => idSet.Contains(p.ThreadId))
+                .ToDictionary(p => p.ThreadId, WithOptions);
+        }
+
+        public IReadOnlyDictionary<int, IReadOnlyDictionary<int, int>> GetVoteCountsByPollIds(IEnumerable<int> pollIds)
+        {
+            var idSet = pollIds.ToHashSet();
+            return _store.PollVotes
+                .Where(v => idSet.Contains(v.PollId))
+                .GroupBy(v => v.PollId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => (IReadOnlyDictionary<int, int>)g.GroupBy(v => v.PollOptionId).ToDictionary(og => og.Key, og => og.Count()));
+        }
+
+        public IReadOnlyDictionary<int, int> GetVotedOptionIdsByPollIds(IEnumerable<int> pollIds, string userId)
+        {
+            var idSet = pollIds.ToHashSet();
+            return _store.PollVotes
+                .Where(v => idSet.Contains(v.PollId) && v.UserId == userId)
+                .ToDictionary(v => v.PollId, v => v.PollOptionId);
+        }
     }
 }

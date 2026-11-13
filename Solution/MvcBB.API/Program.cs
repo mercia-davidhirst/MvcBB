@@ -38,7 +38,17 @@ switch (dataProvider)
 builder.Services.AddSingleton<ICoreBBCodeService, CoreBBCodeService>();
 builder.Services.AddScoped<IBBCodeManagementService, MvcBB.API.Services.BBCodeManagementService>();
 builder.Services.AddScoped<IAnnouncementManagementService, MvcBB.API.Services.AnnouncementManagementService>();
-builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender, MvcBB.API.Services.LoggingEmailSender>();
+// Real SMTP delivery kicks in only once Smtp:Host is actually set - a fresh
+// install with nothing configured keeps logging the email instead (see
+// LoggingEmailSender) rather than failing outright.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Host"]))
+{
+    builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender, MvcBB.API.Services.SmtpEmailSender>();
+}
+else
+{
+    builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender, MvcBB.API.Services.LoggingEmailSender>();
+}
 builder.Services.AddSingleton<MvcBB.API.Services.IDisplaySettingsService, MvcBB.API.Services.DisplaySettingsService>();
 builder.Services.AddSingleton<MvcBB.API.Services.IPasswordPolicyService, MvcBB.API.Services.PasswordPolicyService>();
 

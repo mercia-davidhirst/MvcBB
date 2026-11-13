@@ -119,5 +119,85 @@ namespace MvcBB.API.PostgreSql
             using var connection = _connectionFactory.CreateConnection();
             return connection.QuerySingle<int>("SELECT public.fn_user_count_threads_by_username(@Username)", new { Username = username });
         }
+
+        public IReadOnlyDictionary<int, User> GetByIds(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToArray();
+            if (idList.Length == 0)
+            {
+                return new Dictionary<int, User>();
+            }
+
+            // A variable-length IN-list doesn't fit a stored function's fixed
+            // parameters - this batch method goes straight against the table.
+            using var connection = _connectionFactory.CreateConnection();
+            var users = connection.Query<User>($"SELECT {SelectColumns} FROM public.users WHERE id = ANY(@Ids)", new { Ids = idList });
+            return users.ToDictionary(u => u.Id);
+        }
+
+        public IReadOnlyDictionary<int, string> GetUsernamesByIds(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToArray();
+            if (idList.Length == 0)
+            {
+                return new Dictionary<int, string>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<UsernameRow>(
+                "SELECT id, username::text AS username FROM public.users WHERE id = ANY(@Ids)",
+                new { Ids = idList });
+            return rows.ToDictionary(r => r.Id, r => r.Username);
+        }
+
+        private class UsernameRow
+        {
+            public int Id { get; set; }
+            public string Username { get; set; } = string.Empty;
+        }
+
+        public IReadOnlyDictionary<string, int> GetPostCountsByUsernames(IEnumerable<string> usernames)
+        {
+            var nameList = usernames.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (nameList.Length == 0)
+            {
+                return new Dictionary<string, int>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<UsernameCountRow>(
+                @"SELECT u.username::text AS username, COUNT(p.id) AS count
+                  FROM public.users u
+                  LEFT JOIN public.posts p ON p.created_by_user_id = u.id AND p.is_deleted = FALSE
+                  WHERE u.username = ANY(@Usernames)
+                  GROUP BY u.username",
+                new { Usernames = nameList });
+            return rows.ToDictionary(r => r.Username, r => r.Count, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public IReadOnlyDictionary<string, int> GetThreadCountsByUsernames(IEnumerable<string> usernames)
+        {
+            var nameList = usernames.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (nameList.Length == 0)
+            {
+                return new Dictionary<string, int>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<UsernameCountRow>(
+                @"SELECT u.username::text AS username, COUNT(t.id) AS count
+                  FROM public.users u
+                  LEFT JOIN public.threads t ON t.created_by_user_id = u.id
+                  WHERE u.username = ANY(@Usernames)
+                  GROUP BY u.username",
+                new { Usernames = nameList });
+            return rows.ToDictionary(r => r.Username, r => r.Count, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private class UsernameCountRow
+        {
+            public string Username { get; set; } = string.Empty;
+            public int Count { get; set; }
+        }
     }
 }

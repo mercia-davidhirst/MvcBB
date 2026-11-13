@@ -12,19 +12,23 @@ namespace MvcBB.API.InMemory
             _store = store;
         }
 
-        public IReadOnlyList<Post> GetAll() => _store.Posts.ToList();
+        public IReadOnlyList<Post> GetAll() => _store.Posts.Select(Hydrate).ToList();
 
         public IReadOnlyList<Post> GetByThreadId(int threadId) =>
-            _store.Posts.Where(p => p.ThreadId == threadId).OrderBy(p => p.CreatedAt).ToList();
+            _store.Posts.Where(p => p.ThreadId == threadId).OrderBy(p => p.CreatedAt).Select(Hydrate).ToList();
 
-        public Post? GetById(int id) => _store.Posts.FirstOrDefault(p => p.Id == id);
+        public Post? GetById(int id)
+        {
+            var post = _store.Posts.FirstOrDefault(p => p.Id == id);
+            return post == null ? null : Hydrate(post);
+        }
 
         public Post Add(Post post)
         {
             if (post.Id == 0)
                 post.Id = _store.Posts.Count == 0 ? 1 : _store.Posts.Max(p => p.Id) + 1;
             _store.Posts.Add(post);
-            return post;
+            return Hydrate(post);
         }
 
         public void Update(Post post)
@@ -32,6 +36,57 @@ namespace MvcBB.API.InMemory
             var index = _store.Posts.FindIndex(p => p.Id == post.Id);
             if (index >= 0)
                 _store.Posts[index] = post;
+        }
+
+        public IReadOnlyDictionary<int, ThreadPostSummary> GetThreadSummaries(IEnumerable<int> threadIds)
+        {
+            var idSet = threadIds.ToHashSet();
+            return _store.Posts
+                .Where(p => idSet.Contains(p.ThreadId))
+                .GroupBy(p => p.ThreadId)
+                .ToDictionary(g => g.Key, g => new ThreadPostSummary
+                {
+                    ParticipantCount = g.Select(p => p.CreatedByUserId).Distinct().Count(),
+                    PostIds = g.Select(p => p.Id).ToList()
+                });
+        }
+
+        public IReadOnlyDictionary<int, Post> GetByIds(IEnumerable<int> ids)
+        {
+            var idSet = ids.ToHashSet();
+            return _store.Posts.Where(p => idSet.Contains(p.Id)).Select(Hydrate).ToDictionary(p => p.Id);
+        }
+
+        // Populates the denormalized presentation fields (ThreadTitle,
+        // CreatedByUsername/UpdatedByUsername/DeletedByUsername, UserAvatar,
+        // UserSignature, UserPostCount, UserJoinedAt, UserRole) from the
+        // current Thread/User records, matching what the SQL/PostgreSQL
+        // repositories get for free from vw_PostDetails/vw_post_details.
+        private Post Hydrate(Post post)
+        {
+            post.ThreadTitle = _store.Threads.FirstOrDefault(t => t.Id == post.ThreadId)?.Title ?? string.Empty;
+
+            if (int.TryParse(post.CreatedByUserId, out var creatorId))
+            {
+                var creator = _store.Users.FirstOrDefault(u => u.Id == creatorId);
+                post.CreatedByUsername = creator?.Username ?? string.Empty;
+                post.UserAvatar = creator?.AvatarUrl;
+                post.UserSignature = creator?.Signature;
+                post.UserJoinedAt = creator?.CreatedAt ?? default;
+                post.UserRole = creator?.Role.ToString();
+            }
+
+            post.UserPostCount = _store.Posts.Count(p => p.CreatedByUserId == post.CreatedByUserId && !p.IsDeleted);
+
+            post.UpdatedByUsername = int.TryParse(post.UpdatedByUserId, out var updaterId)
+                ? _store.Users.FirstOrDefault(u => u.Id == updaterId)?.Username
+                : null;
+
+            post.DeletedByUsername = int.TryParse(post.DeletedByUserId, out var deleterId)
+                ? _store.Users.FirstOrDefault(u => u.Id == deleterId)?.Username
+                : null;
+
+            return post;
         }
     }
 }

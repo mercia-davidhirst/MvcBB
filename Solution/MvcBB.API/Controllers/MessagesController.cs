@@ -44,7 +44,7 @@ namespace MvcBB.API.Controllers
                 messages = _messageRepository.GetByRecipientUserId(userId);
             }
 
-            return Ok(messages.Select(MapToResponse));
+            return Ok(MapToResponses(messages.ToList()));
         }
 
         [HttpGet("{id}")]
@@ -152,9 +152,35 @@ namespace MvcBB.API.Controllers
             return Ok(new { unreadCount });
         }
 
-        private MessageResponse MapToResponse(Message m)
+        private MessageResponse MapToResponse(Message m) => MapToResponses(new[] { m }).Single();
+
+        /// <summary>
+        /// Maps a page's worth of messages with one batched username lookup
+        /// across every sender/recipient on the page, instead of two lookups
+        /// per message.
+        /// </summary>
+        private List<MessageResponse> MapToResponses(IReadOnlyList<Message> messages)
         {
-            return new MessageResponse
+            if (messages.Count == 0)
+            {
+                return new List<MessageResponse>();
+            }
+
+            var userIds = messages
+                .SelectMany(m => new[] { m.SenderUserId, m.RecipientUserId })
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Select(id => int.TryParse(id, out var uid) ? uid : (int?)null)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct();
+            var usernames = _userRepository.GetUsernamesByIds(userIds);
+
+            string Resolve(string? userId) =>
+                !string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id) && usernames.TryGetValue(id, out var name)
+                    ? name
+                    : string.Empty;
+
+            return messages.Select(m => new MessageResponse
             {
                 Id = m.Id,
                 Subject = m.Subject,
@@ -163,18 +189,9 @@ namespace MvcBB.API.Controllers
                 RecipientUserId = m.RecipientUserId,
                 CreatedAt = m.CreatedAt,
                 ReadAt = m.ReadAt,
-                SenderUsername = GetUsername(m.SenderUserId),
-                RecipientUsername = GetUsername(m.RecipientUserId)
-            };
-        }
-
-        private string GetUsername(string? userId)
-        {
-            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
-            {
-                return _userRepository.GetById(id)?.Username ?? string.Empty;
-            }
-            return string.Empty;
+                SenderUsername = Resolve(m.SenderUserId),
+                RecipientUsername = Resolve(m.RecipientUserId)
+            }).ToList();
         }
     }
 }

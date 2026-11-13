@@ -274,8 +274,7 @@ namespace MvcBB.API.Controllers
         [HttpGet]
         public ActionResult<IEnumerable<UserResponse>> GetUsers()
         {
-            var users = _userRepository.GetAll();
-            return Ok(users.Select(u => MapToUserResponse(u)));
+            return Ok(MapToUserResponses(_userRepository.GetAll()));
         }
 
         // For the admin User Management page specifically - this is the only
@@ -286,8 +285,7 @@ namespace MvcBB.API.Controllers
         [HttpGet("admin")]
         public ActionResult<IEnumerable<UserResponse>> GetUsersForAdmin()
         {
-            var users = _userRepository.GetAll();
-            return Ok(users.Select(u => MapToUserResponse(u, includeEmail: true)));
+            return Ok(MapToUserResponses(_userRepository.GetAll(), includeEmail: true));
         }
 
         // Public member-profile lookup - e.g. clicking a username elsewhere in the
@@ -324,44 +322,59 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            var query = _userRepository.GetAll().AsEnumerable();
+            var filtered = _userRepository.GetAll().AsEnumerable();
 
             if (request.Role.HasValue)
             {
-                query = query.Where(u => u.Role == request.Role.Value);
+                filtered = filtered.Where(u => u.Role == request.Role.Value);
             }
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 var search = request.Search.ToLower();
-                query = query.Where(u => u.Username.ToLower().Contains(search));
+                filtered = filtered.Where(u => u.Username.ToLower().Contains(search));
             }
 
-            query = request.SortBy?.ToLower() switch
-            {
-                "username" => request.SortDirection == SortDirection.Descending
-                    ? query.OrderByDescending(u => u.Username)
-                    : query.OrderBy(u => u.Username),
-                "joined" => request.SortDirection == SortDirection.Descending
-                    ? query.OrderByDescending(u => u.CreatedAt)
-                    : query.OrderBy(u => u.CreatedAt),
-                "posts" => request.SortDirection == SortDirection.Descending
-                    ? query.OrderByDescending(u => _userRepository.CountPostsByUsername(u.Username))
-                    : query.OrderBy(u => _userRepository.CountPostsByUsername(u.Username)),
-                "threads" => request.SortDirection == SortDirection.Descending
-                    ? query.OrderByDescending(u => _userRepository.CountThreadsByUsername(u.Username))
-                    : query.OrderBy(u => _userRepository.CountThreadsByUsername(u.Username)),
-                _ => query.OrderBy(u => u.Username)
-            };
+            var filteredUsers = filtered.ToList();
 
-            var totalMembers = query.Count();
+            // "posts"/"threads" sorting needs each user's count, which the
+            // repository can only give per-username - fetch all of them in
+            // one batched call each, rather than one count call per user.
+            IEnumerable<User> ordered;
+            var sortBy = request.SortBy?.ToLower();
+            if (sortBy is "posts" or "threads")
+            {
+                var usernames = filteredUsers.Select(u => u.Username).ToList();
+                var counts = sortBy == "posts"
+                    ? _userRepository.GetPostCountsByUsernames(usernames)
+                    : _userRepository.GetThreadCountsByUsernames(usernames);
+
+                ordered = request.SortDirection == SortDirection.Descending
+                    ? filteredUsers.OrderByDescending(u => counts.TryGetValue(u.Username, out var c) ? c : 0)
+                    : filteredUsers.OrderBy(u => counts.TryGetValue(u.Username, out var c) ? c : 0);
+            }
+            else
+            {
+                ordered = sortBy switch
+                {
+                    "username" => request.SortDirection == SortDirection.Descending
+                        ? filteredUsers.OrderByDescending(u => u.Username)
+                        : filteredUsers.OrderBy(u => u.Username),
+                    "joined" => request.SortDirection == SortDirection.Descending
+                        ? filteredUsers.OrderByDescending(u => u.CreatedAt)
+                        : filteredUsers.OrderBy(u => u.CreatedAt),
+                    _ => filteredUsers.OrderBy(u => u.Username)
+                };
+            }
+
+            var totalMembers = filteredUsers.Count;
             var pageSize = Math.Max(1, request.PageSize);
             var page = Math.Max(1, request.Page);
             var totalPages = (int)Math.Ceiling(totalMembers / (double)pageSize);
             var skip = (page - 1) * pageSize;
 
-            var memberUsers = query.Skip(skip).Take(pageSize).ToList();
-            var members = memberUsers.Select(u => MapToUserResponse(u, false)).ToList();
+            var memberUsers = ordered.Skip(skip).Take(pageSize).ToList();
+            var members = MapToUserResponses(memberUsers);
 
             return Ok(new MemberResponse
             {
@@ -685,35 +698,57 @@ namespace MvcBB.API.Controllers
             return Ok(new { message = "User anonymized successfully" });
         }
 
-        private UserResponse MapToUserResponse(User u, bool includeEmail = false)
-        {
-            var postCount = _userRepository.CountPostsByUsername(u.Username);
-            var hasCustomTitle = !string.IsNullOrEmpty(u.CustomTitle);
-            var rank = hasCustomTitle ? null : RankCalculator.GetRank(_rankRepository.GetAll(), postCount);
+        private UserResponse MapToUserResponse(User u, bool includeEmail = false) =>
+            MapToUserResponses(new[] { u }, includeEmail).Single();
 
-            return new UserResponse
+        /// <summary>
+        /// Maps a page's worth of users to responses with a fixed, small
+        /// number of batched queries total (post/thread counts, and the rank
+        /// ladder fetched once) instead of two count queries plus a full
+        /// ranks-table fetch per user.
+        /// </summary>
+        private List<UserResponse> MapToUserResponses(IReadOnlyList<User> users, bool includeEmail = false)
+        {
+            if (users.Count == 0)
             {
-                Id = u.Id,
-                Username = u.Username,
-                Email = includeEmail ? u.Email : string.Empty,
-                CreatedAt = u.CreatedAt,
-                LastLoginAt = u.LastLoginAt,
-                ThreadCount = _userRepository.CountThreadsByUsername(u.Username),
-                PostCount = postCount,
-                Role = u.Role,
-                Signature = u.Signature,
-                Bio = u.Bio,
-                AvatarUrl = u.AvatarUrl,
-                ShowEmail = u.ShowEmail,
-                RankTitle = hasCustomTitle ? u.CustomTitle : rank?.Title,
-                RankImagePath = rank?.ImagePath,
-                CustomTitle = u.CustomTitle,
-                MustChangePassword = u.MustChangePassword,
-                // Lock status/IP are only ever shown alongside email, i.e. only on
-                // the admin-only GetUsersForAdmin listing - not the public ones.
-                LockedUntil = includeEmail ? u.LockedUntil : null,
-                LastLoginIp = includeEmail ? u.LastLoginIp : null
-            };
+                return new List<UserResponse>();
+            }
+
+            var usernames = users.Select(u => u.Username).ToList();
+            var postCounts = _userRepository.GetPostCountsByUsernames(usernames);
+            var threadCounts = _userRepository.GetThreadCountsByUsernames(usernames);
+            var ranks = _rankRepository.GetAll();
+
+            return users.Select(u =>
+            {
+                var postCount = postCounts.TryGetValue(u.Username, out var pc) ? pc : 0;
+                var hasCustomTitle = !string.IsNullOrEmpty(u.CustomTitle);
+                var rank = hasCustomTitle ? null : RankCalculator.GetRank(ranks, postCount);
+
+                return new UserResponse
+                {
+                    Id = u.Id,
+                    Username = u.Username,
+                    Email = includeEmail ? u.Email : string.Empty,
+                    CreatedAt = u.CreatedAt,
+                    LastLoginAt = u.LastLoginAt,
+                    ThreadCount = threadCounts.TryGetValue(u.Username, out var tc) ? tc : 0,
+                    PostCount = postCount,
+                    Role = u.Role,
+                    Signature = u.Signature,
+                    Bio = u.Bio,
+                    AvatarUrl = u.AvatarUrl,
+                    ShowEmail = u.ShowEmail,
+                    RankTitle = hasCustomTitle ? u.CustomTitle : rank?.Title,
+                    RankImagePath = rank?.ImagePath,
+                    CustomTitle = u.CustomTitle,
+                    MustChangePassword = u.MustChangePassword,
+                    // Lock status/IP are only ever shown alongside email, i.e. only on
+                    // the admin-only GetUsersForAdmin listing - not the public ones.
+                    LockedUntil = includeEmail ? u.LockedUntil : null,
+                    LastLoginIp = includeEmail ? u.LastLoginIp : null
+                };
+            }).ToList();
         }
     }
 }

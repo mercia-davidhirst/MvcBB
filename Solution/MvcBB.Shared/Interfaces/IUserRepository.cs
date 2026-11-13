@@ -14,5 +14,17 @@ namespace MvcBB.Shared.Interfaces
         bool ExistsWithEmail(string email, int? excludeUserId = null);
         int CountPostsByUsername(string username);
         int CountThreadsByUsername(string username);
+
+        /// <summary>Multiple users by id in one query - e.g. batch-resolving avatar/rank/custom title for a page of posts.</summary>
+        IReadOnlyDictionary<int, User> GetByIds(IEnumerable<int> ids);
+
+        /// <summary>Username for each of the given ids, in one query - for when only the name is needed.</summary>
+        IReadOnlyDictionary<int, string> GetUsernamesByIds(IEnumerable<int> ids);
+
+        /// <summary>Post counts for several usernames at once, in one query.</summary>
+        IReadOnlyDictionary<string, int> GetPostCountsByUsernames(IEnumerable<string> usernames);
+
+        /// <summary>Thread counts for several usernames at once, in one query.</summary>
+        IReadOnlyDictionary<string, int> GetThreadCountsByUsernames(IEnumerable<string> usernames);
     }
 }

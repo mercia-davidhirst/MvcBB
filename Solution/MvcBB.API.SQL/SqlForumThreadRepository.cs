@@ -6,8 +6,12 @@ using MvcBB.Shared.Models.ForumThread;
 namespace MvcBB.API.SQL
 {
     /// <summary>
-    /// SQL Server-backed thread repository, calling the usp_Thread_* stored
-    /// procedures in Database/SQL/Stored Procedures.
+    /// SQL Server-backed thread repository. Reads go through usp_Thread_Get*
+    /// (which query dbo.vw_ThreadDetails, so the denormalized presentation
+    /// fields - BoardName, BoardIsPrivate, CreatedByUsername,
+    /// LastPostByUsername - come back populated, matching how SqlPostRepository
+    /// already works). usp_Thread_Insert only returns the new row's Id, so
+    /// Add() re-fetches the full joined row afterwards via GetById.
     /// </summary>
     public class SqlForumThreadRepository : IForumThreadRepository
     {
@@ -42,7 +46,7 @@ namespace MvcBB.API.SQL
         public ForumThread Add(ForumThread thread)
         {
             using var connection = _connectionFactory.CreateConnection();
-            var row = connection.QuerySingle<ThreadRow>("dbo.usp_Thread_Insert", new
+            var newId = connection.QuerySingle<int>("dbo.usp_Thread_Insert", new
             {
                 thread.Title,
                 thread.BoardId,
@@ -55,6 +59,8 @@ namespace MvcBB.API.SQL
                 thread.LastPostAt,
                 LastPostByUserId = ParseUserId(thread.LastPostByUserId)
             }, commandType: CommandType.StoredProcedure);
+
+            var row = connection.QuerySingle<ThreadRow>("dbo.usp_Thread_GetById", new { Id = newId }, commandType: CommandType.StoredProcedure);
             return MapToThread(row);
         }
 
@@ -82,6 +88,46 @@ namespace MvcBB.API.SQL
             connection.Execute("dbo.usp_Thread_Delete", new { thread.Id }, commandType: CommandType.StoredProcedure);
         }
 
+        public (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var totalCount = connection.ExecuteScalar<int>(
+                "dbo.usp_Thread_GetPageCount",
+                new { IncludePrivateBoards = includePrivateBoards },
+                commandType: CommandType.StoredProcedure);
+            var rows = connection.Query<ThreadRow>(
+                "dbo.usp_Thread_GetPage",
+                new { Skip = skip, Take = take, IncludePrivateBoards = includePrivateBoards },
+                commandType: CommandType.StoredProcedure);
+            return (rows.Select(MapToThread).ToList(), totalCount);
+        }
+
+        public IReadOnlyDictionary<int, ForumThread> GetLastActiveThreadsByBoardIds(IEnumerable<int> boardIds)
+        {
+            var ids = boardIds.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return new Dictionary<int, ForumThread>();
+            }
+
+            // A variable-length IN-list doesn't fit a stored procedure's fixed
+            // parameters - this batch method goes straight against the view.
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<ThreadRow>(
+                @"SELECT Id, Title, BoardId, BoardName, BoardIsPrivate, CreatedByUserId, CreatedByUsername,
+                         CreatedAt, UpdatedAt, IsSticky, IsLocked, ViewCount, PostCount, LastPostAt,
+                         LastPostByUserId, LastPostByUsername
+                  FROM (
+                      SELECT *, ROW_NUMBER() OVER (PARTITION BY BoardId ORDER BY COALESCE(LastPostAt, CreatedAt) DESC) AS Rn
+                      FROM dbo.vw_ThreadDetails
+                      WHERE BoardId IN @BoardIds
+                  ) AS ranked
+                  WHERE Rn = 1",
+                new { BoardIds = ids });
+
+            return rows.Select(MapToThread).ToDictionary(t => t.BoardId);
+        }
+
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private static ForumThread MapToThread(ThreadRow row) => new()
@@ -89,7 +135,10 @@ namespace MvcBB.API.SQL
             Id = row.Id,
             Title = row.Title,
             BoardId = row.BoardId,
+            BoardName = row.BoardName,
+            BoardIsPrivate = row.BoardIsPrivate,
             CreatedByUserId = row.CreatedByUserId.ToString(),
+            CreatedByUsername = row.CreatedByUsername,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt,
             IsSticky = row.IsSticky,
@@ -97,20 +146,24 @@ namespace MvcBB.API.SQL
             ViewCount = row.ViewCount,
             PostCount = row.PostCount,
             LastPostAt = row.LastPostAt,
-            LastPostByUserId = row.LastPostByUserId?.ToString()
+            LastPostByUserId = row.LastPostByUserId?.ToString(),
+            LastPostByUsername = row.LastPostByUsername
         };
 
         /// <summary>
-        /// Matches dbo.Threads' actual column types (CreatedByUserId/
-        /// LastPostByUserId are INT foreign keys to Users.Id there, not
-        /// strings as on the ForumThread model).
+        /// Matches dbo.vw_ThreadDetails' actual column types (CreatedByUserId/
+        /// LastPostByUserId are INT foreign keys to Users.Id there, not strings
+        /// as on the ForumThread model).
         /// </summary>
         private class ThreadRow
         {
             public int Id { get; set; }
             public string Title { get; set; } = string.Empty;
             public int BoardId { get; set; }
+            public string BoardName { get; set; } = string.Empty;
+            public bool BoardIsPrivate { get; set; }
             public int CreatedByUserId { get; set; }
+            public string CreatedByUsername { get; set; } = string.Empty;
             public DateTime CreatedAt { get; set; }
             public DateTime? UpdatedAt { get; set; }
             public bool IsSticky { get; set; }
@@ -119,6 +172,7 @@ namespace MvcBB.API.SQL
             public int PostCount { get; set; }
             public DateTime? LastPostAt { get; set; }
             public int? LastPostByUserId { get; set; }
+            public string? LastPostByUsername { get; set; }
         }
     }
 }

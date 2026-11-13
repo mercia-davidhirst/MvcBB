@@ -56,22 +56,13 @@ namespace MvcBB.API.Controllers
             page = Math.Max(1, page);
 
             var isAuthenticated = User.Identity?.IsAuthenticated == true;
-            var ordered = _threadRepository.GetAll()
-                .Where(t => IsThreadVisible(t, isAuthenticated))
-                .OrderByDescending(t => t.IsSticky)
-                .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
-                .ToList();
-
-            var totalThreads = ordered.Count;
-            var totalPages = totalThreads == 0 ? 1 : (int)Math.Ceiling(totalThreads / (double)effectivePageSize);
             var skip = (page - 1) * effectivePageSize;
-            var pageOfThreads = ordered.Skip(skip).Take(effectivePageSize).ToList();
-
-            var threadResponses = pageOfThreads.Select(t => MapToThreadResponse(t)).ToList();
+            var (pageOfThreads, totalThreads) = _threadRepository.GetPage(skip, effectivePageSize, isAuthenticated);
+            var totalPages = totalThreads == 0 ? 1 : (int)Math.Ceiling(totalThreads / (double)effectivePageSize);
 
             return Ok(new ThreadListResponse
             {
-                Threads = threadResponses,
+                Threads = MapToThreadResponses(pageOfThreads),
                 TotalThreads = totalThreads,
                 Page = page,
                 PageSize = effectivePageSize,
@@ -89,7 +80,7 @@ namespace MvcBB.API.Controllers
             }
 
             var threads = _threadRepository.GetByBoardId(boardId);
-            return Ok(threads.Select(MapToThreadResponse));
+            return Ok(MapToThreadResponses(threads));
         }
 
         [HttpGet("{id}")]
@@ -104,14 +95,11 @@ namespace MvcBB.API.Controllers
             thread.ViewCount++;
             _threadRepository.Update(thread);
 
-            return Ok(MapToThreadResponse(thread));
+            return Ok(MapToThreadResponses(new[] { thread }).Single());
         }
 
-        private bool IsThreadVisible(ForumThread thread, bool isAuthenticated)
-        {
-            var board = _boardRepository.GetById(thread.BoardId);
-            return board == null || board.IsVisibleTo(isAuthenticated);
-        }
+        private static bool IsThreadVisible(ForumThread thread, bool isAuthenticated) =>
+            isAuthenticated || !thread.BoardIsPrivate;
 
         [HttpPost]
         [Authorize]
@@ -178,7 +166,7 @@ namespace MvcBB.API.Controllers
                 });
             }
 
-            return CreatedAtAction(nameof(GetThread), new { id = thread.Id }, MapToThreadResponse(thread));
+            return CreatedAtAction(nameof(GetThread), new { id = thread.Id }, MapToThreadResponses(new[] { thread }).Single());
         }
 
         [HttpPost("{id}/poll/vote")]
@@ -220,7 +208,27 @@ namespace MvcBB.API.Controllers
 
             _pollRepository.AddVote(poll.Id, request.PollOptionId, userId);
 
-            return Ok(MapToPollResponse(_pollRepository.GetByThreadId(id)));
+            var updatedPoll = _pollRepository.GetByThreadId(id)!;
+            var voteCounts = _pollRepository.GetVoteCounts(updatedPoll.Id);
+            var votedOptionId = _pollRepository.GetVotedOptionId(updatedPoll.Id, userId);
+
+            return Ok(new PollResponse
+            {
+                Id = updatedPoll.Id,
+                ThreadId = updatedPoll.ThreadId,
+                Question = updatedPoll.Question,
+                Options = updatedPoll.Options
+                    .Select(o => new PollOptionResponse
+                    {
+                        Id = o.Id,
+                        Text = o.Text,
+                        VoteCount = voteCounts.TryGetValue(o.Id, out var count) ? count : 0
+                    })
+                    .ToList(),
+                TotalVotes = voteCounts.Values.Sum(),
+                HasVoted = votedOptionId != null,
+                VotedOptionId = votedOptionId
+            });
         }
 
         [HttpPut("{id}/subscription")]
@@ -308,7 +316,7 @@ namespace MvcBB.API.Controllers
             thread.UpdatedAt = DateTime.UtcNow;
             _threadRepository.Update(thread);
 
-            return Ok(MapToThreadResponse(thread));
+            return Ok(MapToThreadResponses(new[] { thread }).Single());
         }
 
         [HttpDelete("{id}")]
@@ -332,78 +340,96 @@ namespace MvcBB.API.Controllers
             return Ok(new { message = "Thread deleted successfully" });
         }
 
-        private ThreadResponse MapToThreadResponse(ForumThread t)
+        /// <summary>
+        /// Maps a page's worth of threads to responses with a fixed, small
+        /// number of batched queries total (board/username are already on
+        /// ForumThread via vw_ThreadDetails) - instead of participant count,
+        /// like totals, poll, and subscription each costing a separate
+        /// round trip per thread.
+        /// </summary>
+        private List<ThreadResponse> MapToThreadResponses(IReadOnlyList<ForumThread> threads)
         {
-            var board = _boardRepository.GetById(t.BoardId);
-            var posts = _postRepository.GetByThreadId(t.Id);
-            var postIds = posts.Select(p => p.Id).ToList();
-            var likeCounts = _postLikeRepository.GetLikeCounts(postIds);
-            var subscription = CurrentUserId != null ? _subscriptionRepository.GetByThreadAndUser(t.Id, CurrentUserId) : null;
-
-            return new ThreadResponse
+            if (threads.Count == 0)
             {
-                Id = t.Id,
-                Title = t.Title,
-                BoardId = t.BoardId,
-                BoardName = board?.Name ?? string.Empty,
-                CreatedByUserId = t.CreatedByUserId,
-                CreatedByUsername = GetUsername(t.CreatedByUserId),
-                CreatedAt = t.CreatedAt,
-                UpdatedAt = t.UpdatedAt,
-                IsSticky = t.IsSticky,
-                IsLocked = t.IsLocked,
-                ViewCount = t.ViewCount,
-                ReplyCount = t.PostCount,
-                LastPostAt = t.LastPostAt,
-                LastPostByUserId = t.LastPostByUserId,
-                LastPostByUsername = GetUsername(t.LastPostByUserId),
-                TotalLikes = likeCounts.Values.Sum(),
-                ParticipantCount = posts.Select(p => p.CreatedByUserId).Distinct().Count(),
-                Poll = MapToPollResponse(_pollRepository.GetByThreadId(t.Id)),
-                IsSubscribed = subscription != null,
-                NotifyViaMessage = subscription?.NotifyViaMessage ?? false,
-                NotifyViaEmail = subscription?.NotifyViaEmail ?? false
-            };
-        }
-
-        private PollResponse? MapToPollResponse(Poll? poll)
-        {
-            if (poll == null)
-            {
-                return null;
+                return new List<ThreadResponse>();
             }
 
-            var voteCounts = _pollRepository.GetVoteCounts(poll.Id);
-            var votedOptionId = CurrentUserId != null ? _pollRepository.GetVotedOptionId(poll.Id, CurrentUserId) : null;
+            var threadIds = threads.Select(t => t.Id).ToList();
+            var currentUserId = CurrentUserId;
 
-            return new PollResponse
+            var summaries = _postRepository.GetThreadSummaries(threadIds);
+            var allPostIds = summaries.Values.SelectMany(s => s.PostIds).ToList();
+            var likeCounts = _postLikeRepository.GetLikeCounts(allPostIds);
+
+            var pollsByThreadId = _pollRepository.GetByThreadIds(threadIds);
+            var pollIds = pollsByThreadId.Values.Select(p => p.Id).ToList();
+            var voteCountsByPollId = _pollRepository.GetVoteCountsByPollIds(pollIds);
+            var votedOptionsByPollId = currentUserId != null
+                ? _pollRepository.GetVotedOptionIdsByPollIds(pollIds, currentUserId)
+                : new Dictionary<int, int>();
+
+            var subscriptionsByThreadId = currentUserId != null
+                ? _subscriptionRepository.GetByThreadIdsAndUser(threadIds, currentUserId)
+                : new Dictionary<int, MvcBB.Shared.Models.ThreadSubscription.ThreadSubscriptionModel>();
+
+            return threads.Select(t =>
             {
-                Id = poll.Id,
-                ThreadId = poll.ThreadId,
-                Question = poll.Question,
-                Options = poll.Options
-                    .Select(o => new PollOptionResponse
+                summaries.TryGetValue(t.Id, out var summary);
+                var postIds = summary?.PostIds ?? Array.Empty<int>();
+
+                PollResponse? pollResponse = null;
+                if (pollsByThreadId.TryGetValue(t.Id, out var poll))
+                {
+                    var voteCounts = voteCountsByPollId.TryGetValue(poll.Id, out var counts) ? counts : new Dictionary<int, int>();
+                    var votedOptionId = votedOptionsByPollId.TryGetValue(poll.Id, out var voted) ? (int?)voted : null;
+                    pollResponse = new PollResponse
                     {
-                        Id = o.Id,
-                        Text = o.Text,
-                        VoteCount = voteCounts.TryGetValue(o.Id, out var count) ? count : 0
-                    })
-                    .ToList(),
-                TotalVotes = voteCounts.Values.Sum(),
-                HasVoted = votedOptionId != null,
-                VotedOptionId = votedOptionId
-            };
+                        Id = poll.Id,
+                        ThreadId = poll.ThreadId,
+                        Question = poll.Question,
+                        Options = poll.Options
+                            .Select(o => new PollOptionResponse
+                            {
+                                Id = o.Id,
+                                Text = o.Text,
+                                VoteCount = voteCounts.TryGetValue(o.Id, out var count) ? count : 0
+                            })
+                            .ToList(),
+                        TotalVotes = voteCounts.Values.Sum(),
+                        HasVoted = votedOptionId != null,
+                        VotedOptionId = votedOptionId
+                    };
+                }
+
+                subscriptionsByThreadId.TryGetValue(t.Id, out var subscription);
+
+                return new ThreadResponse
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    BoardId = t.BoardId,
+                    BoardName = t.BoardName,
+                    CreatedByUserId = t.CreatedByUserId,
+                    CreatedByUsername = t.CreatedByUsername,
+                    CreatedAt = t.CreatedAt,
+                    UpdatedAt = t.UpdatedAt,
+                    IsSticky = t.IsSticky,
+                    IsLocked = t.IsLocked,
+                    ViewCount = t.ViewCount,
+                    ReplyCount = t.PostCount,
+                    LastPostAt = t.LastPostAt,
+                    LastPostByUserId = t.LastPostByUserId,
+                    LastPostByUsername = t.LastPostByUsername,
+                    TotalLikes = postIds.Sum(id => likeCounts.TryGetValue(id, out var c) ? c : 0),
+                    ParticipantCount = summary?.ParticipantCount ?? 0,
+                    Poll = pollResponse,
+                    IsSubscribed = subscription != null,
+                    NotifyViaMessage = subscription?.NotifyViaMessage ?? false,
+                    NotifyViaEmail = subscription?.NotifyViaEmail ?? false
+                };
+            }).ToList();
         }
 
         private string? CurrentUserId => User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        private string GetUsername(string? userId)
-        {
-            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
-            {
-                return _userRepository.GetById(id)?.Username ?? string.Empty;
-            }
-            return string.Empty;
-        }
     }
 }

@@ -40,7 +40,7 @@ namespace MvcBB.API.Controllers
                 reports = reports.Where(r => r.Status == status.Value);
             }
 
-            return Ok(reports.Select(MapToReportResponse));
+            return Ok(MapToReportResponses(reports.ToList()));
         }
 
         [HttpGet("{id}")]
@@ -138,82 +138,119 @@ namespace MvcBB.API.Controllers
             return Ok(stats);
         }
 
-        private ReportResponse MapToReportResponse(Report r)
+        private ReportResponse MapToReportResponse(Report r) => MapToReportResponses(new[] { r }).Single();
+
+        /// <summary>
+        /// Maps a page's worth of reports. The referenced content (thread/
+        /// post/message/user) still costs one lookup per report by type -
+        /// reports are low-volume and admin/moderator-only, unlike threads/
+        /// posts/users elsewhere in this API, so that isn't the same class of
+        /// problem - but every reporter/resolver/content-author username
+        /// (up to three per report) is resolved via a single batched call for
+        /// the whole page instead of up to three GetUsername calls per report.
+        /// </summary>
+        private List<ReportResponse> MapToReportResponses(IReadOnlyList<Report> reports)
         {
-            var response = new ReportResponse
+            if (reports.Count == 0)
             {
-                Id = r.Id,
-                Reason = r.Reason,
-                ReporterUserId = r.ReporterUserId,
-                ReporterUsername = GetUsername(r.ReporterUserId),
-                CreatedAt = r.CreatedAt,
-                Type = r.Type,
-                ContentId = r.ContentId,
-                Status = r.Status,
-                ModeratorNotes = r.ModeratorNotes,
-                ResolvedAt = r.ResolvedAt,
-                ResolvedByUserId = r.ResolvedByUserId,
-                ResolvedByUsername = GetUsername(r.ResolvedByUserId)
-            };
-
-            switch (r.Type)
-            {
-                case ReportType.Thread:
-                    var thread = _threadRepository.GetById(r.ContentId);
-                    if (thread != null)
-                    {
-                        response.ContentTitle = thread.Title;
-                        response.ContentAuthorId = thread.CreatedByUserId;
-                        response.ContentAuthorUsername = GetUsername(thread.CreatedByUserId);
-                        response.ContentCreatedAt = thread.CreatedAt;
-                    }
-                    break;
-
-                case ReportType.Post:
-                    var post = _postRepository.GetById(r.ContentId);
-                    if (post != null)
-                    {
-                        var postThread = _threadRepository.GetById(post.ThreadId);
-                        response.ContentTitle = postThread?.Title ?? $"Post #{post.Id}";
-                        response.ContentAuthorId = post.CreatedByUserId;
-                        response.ContentAuthorUsername = GetUsername(post.CreatedByUserId);
-                        response.ContentCreatedAt = post.CreatedAt;
-                    }
-                    break;
-
-                case ReportType.Message:
-                    var message = _messageRepository.GetById(r.ContentId);
-                    if (message != null)
-                    {
-                        response.ContentTitle = message.Subject;
-                        response.ContentAuthorId = message.SenderUserId;
-                        response.ContentAuthorUsername = GetUsername(message.SenderUserId);
-                        response.ContentCreatedAt = message.CreatedAt;
-                    }
-                    break;
-
-                case ReportType.User:
-                    var user = _userRepository.GetById(r.ContentId);
-                    if (user != null)
-                    {
-                        response.ContentTitle = user.Username;
-                        response.ContentAuthorId = r.ContentId.ToString();
-                        response.ContentAuthorUsername = user.Username;
-                        response.ContentCreatedAt = user.CreatedAt;
-                    }
-                    break;
+                return new List<ReportResponse>();
             }
 
-            return response;
-        }
+            var responses = new List<ReportResponse>(reports.Count);
+            var userIdsNeeded = new HashSet<int>();
 
-        private string GetUsername(string? userId)
-        {
-            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
+            void Track(string? userId)
             {
-                return _userRepository.GetById(id)?.Username ?? string.Empty;
+                if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
+                {
+                    userIdsNeeded.Add(id);
+                }
             }
-            return string.Empty;
+
+            foreach (var r in reports)
+            {
+                Track(r.ReporterUserId);
+                Track(r.ResolvedByUserId);
+
+                var response = new ReportResponse
+                {
+                    Id = r.Id,
+                    Reason = r.Reason,
+                    ReporterUserId = r.ReporterUserId,
+                    CreatedAt = r.CreatedAt,
+                    Type = r.Type,
+                    ContentId = r.ContentId,
+                    Status = r.Status,
+                    ModeratorNotes = r.ModeratorNotes,
+                    ResolvedAt = r.ResolvedAt,
+                    ResolvedByUserId = r.ResolvedByUserId
+                };
+
+                switch (r.Type)
+                {
+                    case ReportType.Thread:
+                        var thread = _threadRepository.GetById(r.ContentId);
+                        if (thread != null)
+                        {
+                            response.ContentTitle = thread.Title;
+                            response.ContentAuthorId = thread.CreatedByUserId;
+                            response.ContentCreatedAt = thread.CreatedAt;
+                            Track(thread.CreatedByUserId);
+                        }
+                        break;
+
+                    case ReportType.Post:
+                        var post = _postRepository.GetById(r.ContentId);
+                        if (post != null)
+                        {
+                            var postThread = _threadRepository.GetById(post.ThreadId);
+                            response.ContentTitle = postThread?.Title ?? $"Post #{post.Id}";
+                            response.ContentAuthorId = post.CreatedByUserId;
+                            response.ContentCreatedAt = post.CreatedAt;
+                            Track(post.CreatedByUserId);
+                        }
+                        break;
+
+                    case ReportType.Message:
+                        var message = _messageRepository.GetById(r.ContentId);
+                        if (message != null)
+                        {
+                            response.ContentTitle = message.Subject;
+                            response.ContentAuthorId = message.SenderUserId;
+                            response.ContentCreatedAt = message.CreatedAt;
+                            Track(message.SenderUserId);
+                        }
+                        break;
+
+                    case ReportType.User:
+                        var user = _userRepository.GetById(r.ContentId);
+                        if (user != null)
+                        {
+                            response.ContentTitle = user.Username;
+                            response.ContentAuthorId = r.ContentId.ToString();
+                            response.ContentCreatedAt = user.CreatedAt;
+                            Track(response.ContentAuthorId);
+                        }
+                        break;
+                }
+
+                responses.Add(response);
+            }
+
+            var usernames = _userRepository.GetUsernamesByIds(userIdsNeeded);
+            string Resolve(string? userId) =>
+                !string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id) && usernames.TryGetValue(id, out var name)
+                    ? name
+                    : string.Empty;
+
+            foreach (var response in responses)
+            {
+                response.ReporterUsername = Resolve(response.ReporterUserId);
+                response.ResolvedByUsername = Resolve(response.ResolvedByUserId);
+                response.ContentAuthorUsername = Resolve(response.ContentAuthorId);
+            }
+
+            return responses;
         }
     }
 }

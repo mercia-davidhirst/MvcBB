@@ -39,5 +39,13 @@ namespace MvcBB.API.InMemory
             if (existing != null)
                 _store.ThreadSubscriptions.Remove(existing);
         }
+
+        public IReadOnlyDictionary<int, ThreadSubscriptionModel> GetByThreadIdsAndUser(IEnumerable<int> threadIds, string userId)
+        {
+            var idSet = threadIds.ToHashSet();
+            return _store.ThreadSubscriptions
+                .Where(s => idSet.Contains(s.ThreadId) && s.UserId == userId)
+                .ToDictionary(s => s.ThreadId);
+        }
     }
 }

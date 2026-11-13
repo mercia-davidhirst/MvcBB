@@ -27,6 +27,15 @@ namespace MvcBB.API.InMemory
                 .ToDictionary(g => g.Key, g => g.Count());
         }
 
+        public ISet<int> GetLikedPostIds(IEnumerable<int> postIds, string userId)
+        {
+            var idSet = postIds.ToHashSet();
+            return _store.PostLikes
+                .Where(l => idSet.Contains(l.PostId) && l.UserId == userId)
+                .Select(l => l.PostId)
+                .ToHashSet();
+        }
+
         public void AddLike(int postId, string userId)
         {
             if (HasLiked(postId, userId))

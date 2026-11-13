@@ -12,5 +12,8 @@ namespace MvcBB.Shared.Interfaces
         ThreadSubscriptionModel Add(ThreadSubscriptionModel subscription);
         void Update(ThreadSubscriptionModel subscription);
         void Remove(int threadId, string userId);
+
+        /// <summary>This user's subscription (if any) for each of the given threads, in one query.</summary>
+        IReadOnlyDictionary<int, ThreadSubscriptionModel> GetByThreadIdsAndUser(IEnumerable<int> threadIds, string userId);
     }
 }

@@ -26,5 +26,14 @@ namespace MvcBB.Shared.Interfaces
 
         /// <summary>Which option (if any) this user voted for.</summary>
         int? GetVotedOptionId(int pollId, string userId);
+
+        /// <summary>The poll for each of the given threads, in one query - absent if a thread has no poll.</summary>
+        IReadOnlyDictionary<int, Poll> GetByThreadIds(IEnumerable<int> threadIds);
+
+        /// <summary>Vote counts (keyed by PollOptionId) for several polls at once, keyed by PollId.</summary>
+        IReadOnlyDictionary<int, IReadOnlyDictionary<int, int>> GetVoteCountsByPollIds(IEnumerable<int> pollIds);
+
+        /// <summary>Which option (if any) this user voted for, for several polls at once, keyed by PollId.</summary>
+        IReadOnlyDictionary<int, int> GetVotedOptionIdsByPollIds(IEnumerable<int> pollIds, string userId);
     }
 }

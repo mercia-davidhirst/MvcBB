@@ -115,6 +115,86 @@ namespace MvcBB.API.SQL
                 commandType: CommandType.StoredProcedure);
         }
 
+        public IReadOnlyDictionary<int, Poll> GetByThreadIds(IEnumerable<int> threadIds)
+        {
+            var ids = threadIds.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return new Dictionary<int, Poll>();
+            }
+
+            // Variable-length IN-lists don't fit a stored procedure's fixed
+            // parameters - Dapper expands @ThreadIds/@PollIds into IN (...)
+            // itself, so these batch methods go straight against the tables.
+            using var connection = _connectionFactory.CreateConnection();
+            var polls = connection.Query<Poll>(
+                "SELECT Id, ThreadId, Question, CreatedAt FROM dbo.Polls WHERE ThreadId IN @ThreadIds",
+                new { ThreadIds = ids }).ToList();
+
+            if (polls.Count == 0)
+            {
+                return new Dictionary<int, Poll>();
+            }
+
+            var options = connection.Query<PollOption>(
+                "SELECT Id, PollId, Text, SortOrder FROM dbo.PollOptions WHERE PollId IN @PollIds",
+                new { PollIds = polls.Select(p => p.Id).ToList() }).ToList();
+            var optionsByPoll = options.GroupBy(o => o.PollId).ToDictionary(g => g.Key, g => g.OrderBy(o => o.SortOrder).ToList());
+
+            foreach (var poll in polls)
+            {
+                poll.Options = optionsByPoll.TryGetValue(poll.Id, out var opts) ? opts : new List<PollOption>();
+            }
+
+            return polls.ToDictionary(p => p.ThreadId);
+        }
+
+        public IReadOnlyDictionary<int, IReadOnlyDictionary<int, int>> GetVoteCountsByPollIds(IEnumerable<int> pollIds)
+        {
+            var ids = pollIds.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return new Dictionary<int, IReadOnlyDictionary<int, int>>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<PollOptionVoteCountRow>(
+                "SELECT PollId, PollOptionId, COUNT(*) AS VoteCount FROM dbo.PollVotes WHERE PollId IN @PollIds GROUP BY PollId, PollOptionId",
+                new { PollIds = ids });
+
+            return rows
+                .GroupBy(r => r.PollId)
+                .ToDictionary(g => g.Key, g => (IReadOnlyDictionary<int, int>)g.ToDictionary(r => r.PollOptionId, r => r.VoteCount));
+        }
+
+        private class PollOptionVoteCountRow
+        {
+            public int PollId { get; set; }
+            public int PollOptionId { get; set; }
+            public int VoteCount { get; set; }
+        }
+
+        public IReadOnlyDictionary<int, int> GetVotedOptionIdsByPollIds(IEnumerable<int> pollIds, string userId)
+        {
+            var ids = pollIds.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return new Dictionary<int, int>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<PollVoteOptionRow>(
+                "SELECT PollId, PollOptionId FROM dbo.PollVotes WHERE PollId IN @PollIds AND UserId = @UserId",
+                new { PollIds = ids, UserId = ParseUserId(userId) });
+            return rows.ToDictionary(r => r.PollId, r => r.PollOptionId);
+        }
+
+        private class PollVoteOptionRow
+        {
+            public int PollId { get; set; }
+            public int PollOptionId { get; set; }
+        }
+
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
     }
 }

@@ -92,6 +92,52 @@ namespace MvcBB.API.PostgreSql
         }
 
 
+        public IReadOnlyDictionary<int, ThreadPostSummary> GetThreadSummaries(IEnumerable<int> threadIds)
+        {
+            var ids = threadIds.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return new Dictionary<int, ThreadPostSummary>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            // A variable-length IN-list doesn't fit a stored function's fixed
+            // parameters - Dapper expands @ThreadIds into IN (@ThreadIds1, ...)
+            // itself, so this one goes straight against the table rather than
+            // through an fn_*/sp_* function.
+            var rows = connection.Query<ThreadPostRow>(
+                "SELECT id AS post_id, thread_id, created_by_user_id FROM public.posts WHERE thread_id = ANY(@ThreadIds)",
+                new { ThreadIds = ids.ToArray() });
+
+            return rows
+                .GroupBy(r => r.ThreadId)
+                .ToDictionary(g => g.Key, g => new ThreadPostSummary
+                {
+                    ParticipantCount = g.Select(r => r.CreatedByUserId).Distinct().Count(),
+                    PostIds = g.Select(r => r.PostId).ToList()
+                });
+        }
+
+        public IReadOnlyDictionary<int, Post> GetByIds(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToArray();
+            if (idList.Length == 0)
+            {
+                return new Dictionary<int, Post>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<PostRow>($"SELECT {SelectColumns} FROM public.vw_post_details WHERE id = ANY(@Ids)", new { Ids = idList });
+            return rows.Select(MapToPost).ToDictionary(p => p.Id);
+        }
+
+        private class ThreadPostRow
+        {
+            public int PostId { get; set; }
+            public int ThreadId { get; set; }
+            public int CreatedByUserId { get; set; }
+        }
+
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private static Post MapToPost(PostRow row) => new()

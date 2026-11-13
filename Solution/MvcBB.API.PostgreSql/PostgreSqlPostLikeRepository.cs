@@ -37,8 +37,41 @@ namespace MvcBB.API.PostgreSql
 
         public IReadOnlyDictionary<int, int> GetLikeCounts(IEnumerable<int> postIds)
         {
-            // No batch function for this yet - fall back to one call per post.
-            return postIds.Distinct().ToDictionary(id => id, GetLikeCount);
+            var ids = postIds.Distinct().ToArray();
+            if (ids.Length == 0)
+            {
+                return new Dictionary<int, int>();
+            }
+
+            // A variable-length IN-list doesn't fit a stored function's fixed
+            // parameters - this batch method goes straight against the table
+            // instead of through an fn_post_like_*/sp_post_like_* function.
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<LikeCountRow>(
+                "SELECT post_id, COUNT(*) AS like_count FROM public.post_likes WHERE post_id = ANY(@PostIds) GROUP BY post_id",
+                new { PostIds = ids });
+            return rows.ToDictionary(r => r.PostId, r => r.LikeCount);
+        }
+
+        private class LikeCountRow
+        {
+            public int PostId { get; set; }
+            public int LikeCount { get; set; }
+        }
+
+        public ISet<int> GetLikedPostIds(IEnumerable<int> postIds, string userId)
+        {
+            var ids = postIds.Distinct().ToArray();
+            if (ids.Length == 0)
+            {
+                return new HashSet<int>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var likedPostIds = connection.Query<int>(
+                "SELECT post_id FROM public.post_likes WHERE post_id = ANY(@PostIds) AND user_id = @UserId",
+                new { PostIds = ids, UserId = ParseUserId(userId) });
+            return likedPostIds.ToHashSet();
         }
 
         public void AddLike(int postId, string userId)

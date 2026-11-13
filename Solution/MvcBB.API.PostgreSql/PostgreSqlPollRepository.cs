@@ -99,6 +99,86 @@ namespace MvcBB.API.PostgreSql
                 new { PollId = pollId, UserId = ParseUserId(userId) });
         }
 
+        public IReadOnlyDictionary<int, Poll> GetByThreadIds(IEnumerable<int> threadIds)
+        {
+            var ids = threadIds.Distinct().ToArray();
+            if (ids.Length == 0)
+            {
+                return new Dictionary<int, Poll>();
+            }
+
+            // Variable-length IN-lists don't fit a stored function's fixed
+            // parameters - these batch methods go straight against the tables
+            // using = ANY(@array) instead of an fn_*/sp_* function.
+            using var connection = _connectionFactory.CreateConnection();
+            var polls = connection.Query<Poll>(
+                "SELECT id, thread_id, question, created_at FROM public.polls WHERE thread_id = ANY(@ThreadIds)",
+                new { ThreadIds = ids }).ToList();
+
+            if (polls.Count == 0)
+            {
+                return new Dictionary<int, Poll>();
+            }
+
+            var options = connection.Query<PollOption>(
+                "SELECT id, poll_id, text, sort_order FROM public.poll_options WHERE poll_id = ANY(@PollIds)",
+                new { PollIds = polls.Select(p => p.Id).ToArray() }).ToList();
+            var optionsByPoll = options.GroupBy(o => o.PollId).ToDictionary(g => g.Key, g => g.OrderBy(o => o.SortOrder).ToList());
+
+            foreach (var poll in polls)
+            {
+                poll.Options = optionsByPoll.TryGetValue(poll.Id, out var opts) ? opts : new List<PollOption>();
+            }
+
+            return polls.ToDictionary(p => p.ThreadId);
+        }
+
+        public IReadOnlyDictionary<int, IReadOnlyDictionary<int, int>> GetVoteCountsByPollIds(IEnumerable<int> pollIds)
+        {
+            var ids = pollIds.Distinct().ToArray();
+            if (ids.Length == 0)
+            {
+                return new Dictionary<int, IReadOnlyDictionary<int, int>>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<PollOptionVoteCountRow>(
+                "SELECT poll_id, poll_option_id, COUNT(*) AS vote_count FROM public.poll_votes WHERE poll_id = ANY(@PollIds) GROUP BY poll_id, poll_option_id",
+                new { PollIds = ids });
+
+            return rows
+                .GroupBy(r => r.PollId)
+                .ToDictionary(g => g.Key, g => (IReadOnlyDictionary<int, int>)g.ToDictionary(r => r.PollOptionId, r => r.VoteCount));
+        }
+
+        private class PollOptionVoteCountRow
+        {
+            public int PollId { get; set; }
+            public int PollOptionId { get; set; }
+            public int VoteCount { get; set; }
+        }
+
+        public IReadOnlyDictionary<int, int> GetVotedOptionIdsByPollIds(IEnumerable<int> pollIds, string userId)
+        {
+            var ids = pollIds.Distinct().ToArray();
+            if (ids.Length == 0)
+            {
+                return new Dictionary<int, int>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<PollVoteOptionRow>(
+                "SELECT poll_id, poll_option_id FROM public.poll_votes WHERE poll_id = ANY(@PollIds) AND user_id = @UserId",
+                new { PollIds = ids, UserId = ParseUserId(userId) });
+            return rows.ToDictionary(r => r.PollId, r => r.PollOptionId);
+        }
+
+        private class PollVoteOptionRow
+        {
+            public int PollId { get; set; }
+            public int PollOptionId { get; set; }
+        }
+
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private class VoteCountRow

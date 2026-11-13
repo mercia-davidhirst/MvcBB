@@ -69,6 +69,23 @@ namespace MvcBB.API.SQL
                 commandType: CommandType.StoredProcedure);
         }
 
+        public IReadOnlyDictionary<int, ThreadSubscriptionModel> GetByThreadIdsAndUser(IEnumerable<int> threadIds, string userId)
+        {
+            var ids = threadIds.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return new Dictionary<int, ThreadSubscriptionModel>();
+            }
+
+            // A variable-length IN-list doesn't fit a stored procedure's fixed
+            // parameters - this batch method goes straight against the table.
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<SubscriptionRow>(
+                "SELECT * FROM dbo.ThreadSubscriptions WHERE ThreadId IN @ThreadIds AND UserId = @UserId",
+                new { ThreadIds = ids, UserId = ParseUserId(userId) });
+            return rows.Select(MapToModel).ToDictionary(s => s.ThreadId);
+        }
+
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private static ThreadSubscriptionModel MapToModel(SubscriptionRow row) => new()

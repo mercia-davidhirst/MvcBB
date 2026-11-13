@@ -23,5 +23,14 @@ namespace MvcBB.Shared.Models.ForumThread
         
         public DateTime? LastPostAt { get; set; }
         public string? LastPostByUserId { get; set; }
+
+        // Denormalized via a join at the data layer (see dbo.vw_ThreadDetails /
+        // public.vw_thread_details), matching the same pattern Post already uses
+        // for ThreadTitle/CreatedByUsername - so listing threads never needs a
+        // separate board or username lookup per thread.
+        public string BoardName { get; set; } = string.Empty;
+        public bool BoardIsPrivate { get; set; }
+        public string CreatedByUsername { get; set; } = string.Empty;
+        public string? LastPostByUsername { get; set; }
     }
 } 

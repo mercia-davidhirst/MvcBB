@@ -60,7 +60,7 @@ namespace MvcBB.API.Controllers
             }
 
             var posts = _postRepository.GetByThreadId(threadId);
-            return Ok(posts.Select(p => MapToPostResponse(p)));
+            return Ok(MapToPostResponses(posts));
         }
 
         // Used by a member's profile page to show their most recent activity.
@@ -71,9 +71,10 @@ namespace MvcBB.API.Controllers
             var posts = _postRepository.GetAll()
                 .Where(p => !p.IsDeleted && p.CreatedByUserId == userId.ToString())
                 .OrderByDescending(p => p.CreatedAt)
-                .Take(take);
+                .Take(take)
+                .ToList();
 
-            return Ok(posts.Select(p => MapToPostResponse(p)));
+            return Ok(MapToPostResponses(posts));
         }
 
         [HttpGet("{id}")]
@@ -310,54 +311,97 @@ namespace MvcBB.API.Controllers
             return Ok(new { message = "Post deleted successfully" });
         }
 
-        private PostResponse MapToPostResponse(Post p)
+        private PostResponse MapToPostResponse(Post p) => MapToPostResponses(new[] { p }).Single();
+
+        /// <summary>
+        /// Maps a page's worth of posts to responses with a fixed, small
+        /// number of batched queries total. Username/avatar/post-count/role
+        /// are already on Post via vw_PostDetails/vw_post_details (no query
+        /// needed at all for those); like counts, "liked by me", quoted posts
+        /// and the CustomTitle-vs-rank decision are batched across the whole
+        /// page instead of costing several round trips per post.
+        /// </summary>
+        private List<PostResponse> MapToPostResponses(IReadOnlyList<Post> posts)
         {
-            var (rankTitle, rankImagePath) = GetDisplayRank(p.CreatedByUserId);
-            return new PostResponse
+            if (posts.Count == 0)
             {
-                Id = p.Id,
-                Content = p.Content,
-                ThreadId = p.ThreadId,
-                CreatedByUserId = p.CreatedByUserId,
-                CreatedByUsername = GetUsername(p.CreatedByUserId),
-                CreatedByAvatarUrl = GetAvatarUrl(p.CreatedByUserId),
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt,
-                UpdatedByUserId = p.UpdatedByUserId,
-                UpdatedByUsername = GetUsername(p.UpdatedByUserId),
-                IsDeleted = p.IsDeleted,
-                DeletedByUserId = p.DeletedByUserId,
-                DeletedByUsername = GetUsername(p.DeletedByUserId),
-                DeletedAt = p.DeletedAt,
-                DeleteReason = p.DeleteReason,
-                IsEdited = p.IsEdited,
-                EditReason = p.EditReason ?? string.Empty,
-                ImageUrl = p.ImageUrl,
-                QuotedPostId = p.QuotedPostId,
-                // QuotedPost is a plain property, never populated by the repository
-                // layer - resolve it from QuotedPostId instead.
-                QuotedPost = p.QuotedPostId.HasValue
-                    ? MapQuotedPost(_postRepository.GetById(p.QuotedPostId.Value))
-                    : null,
-                LikeCount = _postLikeRepository.GetLikeCount(p.Id),
-                IsLikedByCurrentUser = CurrentUserId != null && _postLikeRepository.HasLiked(p.Id, CurrentUserId),
-                CreatedByRankTitle = rankTitle,
-                CreatedByRankImagePath = rankImagePath
-            };
+                return new List<PostResponse>();
+            }
+
+            var postIds = posts.Select(p => p.Id).ToList();
+            var likeCounts = _postLikeRepository.GetLikeCounts(postIds);
+            var likedPostIds = CurrentUserId != null
+                ? _postLikeRepository.GetLikedPostIds(postIds, CurrentUserId)
+                : new HashSet<int>();
+
+            var quotedIds = posts.Where(p => p.QuotedPostId.HasValue).Select(p => p.QuotedPostId!.Value).Distinct().ToList();
+            var quotedPosts = _postRepository.GetByIds(quotedIds);
+
+            // CustomTitle isn't part of vw_PostDetails (it's an admin-only
+            // override the rest of the app rarely needs alongside a post) -
+            // batch-fetch just the distinct authors on this page for it.
+            var creatorIds = posts
+                .Select(p => p.CreatedByUserId)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Select(id => int.TryParse(id, out var cid) ? cid : (int?)null)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
+            var creators = _userRepository.GetByIds(creatorIds);
+            var ranks = _rankRepository.GetAll();
+
+            return posts.Select(p =>
+            {
+                var (rankTitle, rankImagePath) = GetDisplayRank(p.CreatedByUserId, p.UserPostCount, creators, ranks);
+
+                PostResponse? quotedResponse = null;
+                if (p.QuotedPostId.HasValue && quotedPosts.TryGetValue(p.QuotedPostId.Value, out var quoted))
+                {
+                    quotedResponse = MapQuotedPost(quoted);
+                }
+
+                return new PostResponse
+                {
+                    Id = p.Id,
+                    Content = p.Content,
+                    ThreadId = p.ThreadId,
+                    CreatedByUserId = p.CreatedByUserId,
+                    CreatedByUsername = p.CreatedByUsername,
+                    CreatedByAvatarUrl = p.UserAvatar,
+                    CreatedAt = p.CreatedAt,
+                    UpdatedAt = p.UpdatedAt,
+                    UpdatedByUserId = p.UpdatedByUserId,
+                    UpdatedByUsername = p.UpdatedByUsername,
+                    IsDeleted = p.IsDeleted,
+                    DeletedByUserId = p.DeletedByUserId,
+                    DeletedByUsername = p.DeletedByUsername,
+                    DeletedAt = p.DeletedAt,
+                    DeleteReason = p.DeleteReason,
+                    IsEdited = p.IsEdited,
+                    EditReason = p.EditReason ?? string.Empty,
+                    ImageUrl = p.ImageUrl,
+                    QuotedPostId = p.QuotedPostId,
+                    QuotedPost = quotedResponse,
+                    LikeCount = likeCounts.TryGetValue(p.Id, out var lc) ? lc : 0,
+                    IsLikedByCurrentUser = likedPostIds.Contains(p.Id),
+                    CreatedByRankTitle = rankTitle,
+                    CreatedByRankImagePath = rankImagePath
+                };
+            }).ToList();
         }
 
         // An admin-set CustomTitle replaces the computed rank entirely (no
         // badge image for a custom title - that's only ever a rank's own
-        // image).
-        private (string? Title, string? ImagePath) GetDisplayRank(string? userId)
+        // image). postCount comes from Post.UserPostCount (already computed
+        // by the view/hydration) rather than another per-user count query.
+        private static (string? Title, string? ImagePath) GetDisplayRank(
+            string? userId,
+            int postCount,
+            IReadOnlyDictionary<int, MvcBB.Shared.Models.User.User> creators,
+            IReadOnlyList<MvcBB.Shared.Models.Rank.RankModel> ranks)
         {
-            if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out var id))
-            {
-                return (null, null);
-            }
-
-            var user = _userRepository.GetById(id);
-            if (user == null)
+            if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out var id) || !creators.TryGetValue(id, out var user))
             {
                 return (null, null);
             }
@@ -367,7 +411,7 @@ namespace MvcBB.API.Controllers
                 return (user.CustomTitle, null);
             }
 
-            var rank = RankCalculator.GetRank(_rankRepository.GetAll(), _userRepository.CountPostsByUsername(user.Username));
+            var rank = RankCalculator.GetRank(ranks, postCount);
             return (rank?.Title, rank?.ImagePath);
         }
 
@@ -375,7 +419,7 @@ namespace MvcBB.API.Controllers
 
         // One level deep only - avoids re-resolving the quoted post's own quote
         // chain and the infinite recursion that would invite.
-        private PostResponse? MapQuotedPost(Post? p)
+        private static PostResponse? MapQuotedPost(Post? p)
         {
             if (p == null)
             {
@@ -388,21 +432,12 @@ namespace MvcBB.API.Controllers
                 Content = p.Content,
                 ThreadId = p.ThreadId,
                 CreatedByUserId = p.CreatedByUserId,
-                CreatedByUsername = GetUsername(p.CreatedByUserId),
+                CreatedByUsername = p.CreatedByUsername,
                 CreatedAt = p.CreatedAt,
                 IsDeleted = p.IsDeleted,
                 IsEdited = p.IsEdited,
                 EditReason = p.EditReason ?? string.Empty
             };
-        }
-
-        private string? GetAvatarUrl(string? userId)
-        {
-            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
-            {
-                return _userRepository.GetById(id)?.AvatarUrl;
-            }
-            return null;
         }
 
         private string GetUsername(string? userId)

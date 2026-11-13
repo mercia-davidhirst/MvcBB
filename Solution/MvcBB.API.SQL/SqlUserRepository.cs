@@ -109,5 +109,83 @@ namespace MvcBB.API.SQL
             using var connection = _connectionFactory.CreateConnection();
             return connection.QuerySingle<int>("dbo.usp_User_CountThreadsByUsername", new { Username = username }, commandType: CommandType.StoredProcedure);
         }
+
+        public IReadOnlyDictionary<int, User> GetByIds(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToList();
+            if (idList.Count == 0)
+            {
+                return new Dictionary<int, User>();
+            }
+
+            // A variable-length IN-list doesn't fit a stored procedure's fixed
+            // parameters - this batch method goes straight against the table.
+            using var connection = _connectionFactory.CreateConnection();
+            var users = connection.Query<User>("SELECT * FROM dbo.Users WHERE Id IN @Ids", new { Ids = idList });
+            return users.ToDictionary(u => u.Id);
+        }
+
+        public IReadOnlyDictionary<int, string> GetUsernamesByIds(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToList();
+            if (idList.Count == 0)
+            {
+                return new Dictionary<int, string>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<UsernameRow>("SELECT Id, Username FROM dbo.Users WHERE Id IN @Ids", new { Ids = idList });
+            return rows.ToDictionary(r => r.Id, r => r.Username);
+        }
+
+        private class UsernameRow
+        {
+            public int Id { get; set; }
+            public string Username { get; set; } = string.Empty;
+        }
+
+        public IReadOnlyDictionary<string, int> GetPostCountsByUsernames(IEnumerable<string> usernames)
+        {
+            var nameList = usernames.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (nameList.Count == 0)
+            {
+                return new Dictionary<string, int>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<UsernameCountRow>(
+                @"SELECT u.Username, COUNT(p.Id) AS Count
+                  FROM dbo.Users u
+                  LEFT JOIN dbo.Posts p ON p.CreatedByUserId = u.Id AND p.IsDeleted = 0
+                  WHERE u.Username IN @Usernames
+                  GROUP BY u.Username",
+                new { Usernames = nameList });
+            return rows.ToDictionary(r => r.Username, r => r.Count, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public IReadOnlyDictionary<string, int> GetThreadCountsByUsernames(IEnumerable<string> usernames)
+        {
+            var nameList = usernames.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (nameList.Count == 0)
+            {
+                return new Dictionary<string, int>();
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<UsernameCountRow>(
+                @"SELECT u.Username, COUNT(t.Id) AS Count
+                  FROM dbo.Users u
+                  LEFT JOIN dbo.Threads t ON t.CreatedByUserId = u.Id
+                  WHERE u.Username IN @Usernames
+                  GROUP BY u.Username",
+                new { Usernames = nameList });
+            return rows.ToDictionary(r => r.Username, r => r.Count, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private class UsernameCountRow
+        {
+            public string Username { get; set; } = string.Empty;
+            public int Count { get; set; }
+        }
     }
 }

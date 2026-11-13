@@ -62,5 +62,39 @@ namespace MvcBB.API.InMemory
             var userId = user.Id.ToString();
             return _store.Threads.Count(t => t.CreatedByUserId == userId);
         }
+
+        public IReadOnlyDictionary<int, User> GetByIds(IEnumerable<int> ids)
+        {
+            var idSet = ids.ToHashSet();
+            return _store.Users.Where(u => idSet.Contains(u.Id)).ToDictionary(u => u.Id);
+        }
+
+        public IReadOnlyDictionary<int, string> GetUsernamesByIds(IEnumerable<int> ids)
+        {
+            var idSet = ids.ToHashSet();
+            return _store.Users.Where(u => idSet.Contains(u.Id)).ToDictionary(u => u.Id, u => u.Username);
+        }
+
+        public IReadOnlyDictionary<string, int> GetPostCountsByUsernames(IEnumerable<string> usernames)
+        {
+            var nameSet = usernames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return _store.Users
+                .Where(u => nameSet.Contains(u.Username))
+                .ToDictionary(
+                    u => u.Username,
+                    u => _store.Posts.Count(p => p.CreatedByUserId == u.Id.ToString() && !p.IsDeleted),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        public IReadOnlyDictionary<string, int> GetThreadCountsByUsernames(IEnumerable<string> usernames)
+        {
+            var nameSet = usernames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return _store.Users
+                .Where(u => nameSet.Contains(u.Username))
+                .ToDictionary(
+                    u => u.Username,
+                    u => _store.Threads.Count(t => t.CreatedByUserId == u.Id.ToString()),
+                    StringComparer.OrdinalIgnoreCase);
+        }
     }
 }

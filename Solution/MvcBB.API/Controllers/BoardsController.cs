@@ -27,9 +27,8 @@ namespace MvcBB.API.Controllers
         public ActionResult<IEnumerable<BoardResponse>> GetBoards()
         {
             var isAuthenticated = User.Identity?.IsAuthenticated == true;
-            return Ok(_boardRepository.GetAll()
-                .Where(b => b.IsVisibleTo(isAuthenticated))
-                .Select(MapToBoardResponse));
+            var boards = _boardRepository.GetAll().Where(b => b.IsVisibleTo(isAuthenticated)).ToList();
+            return Ok(MapToBoardResponses(boards));
         }
 
         [HttpGet("{id}")]
@@ -41,7 +40,7 @@ namespace MvcBB.API.Controllers
                 return NotFound(new { message = "Board not found" });
             }
 
-            return Ok(MapToBoardResponse(board));
+            return Ok(MapToBoardResponses(new[] { board }).Single());
         }
 
         [HttpPost]
@@ -67,7 +66,7 @@ namespace MvcBB.API.Controllers
 
             board = _boardRepository.Add(board);
 
-            return CreatedAtAction(nameof(GetBoard), new { id = board.Id }, MapToBoardResponse(board));
+            return CreatedAtAction(nameof(GetBoard), new { id = board.Id }, MapToBoardResponses(new[] { board }).Single());
         }
 
         [HttpPut("{id}")]
@@ -95,7 +94,7 @@ namespace MvcBB.API.Controllers
             board.UpdatedAt = DateTime.UtcNow;
             _boardRepository.Update(board);
 
-            return Ok(MapToBoardResponse(board));
+            return Ok(MapToBoardResponses(new[] { board }).Single());
         }
 
         [HttpDelete("{id}")]
@@ -112,46 +111,52 @@ namespace MvcBB.API.Controllers
             return NoContent();
         }
 
-        private BoardResponse MapToBoardResponse(Board board)
+        /// <summary>
+        /// Maps a page's worth of boards to responses with one batched query
+        /// for "most recently active thread" across every board, instead of
+        /// fetching every thread in a board (plus a username lookup) once per
+        /// board. Derived from the boards' threads rather than board.LastPostAt/
+        /// LastPostByUserId - those are only ever set when a thread is first
+        /// created and go stale the moment someone replies to an existing one.
+        /// </summary>
+        private List<BoardResponse> MapToBoardResponses(IReadOnlyList<Board> boards)
         {
-            var response = new BoardResponse
+            if (boards.Count == 0)
             {
-                Id = board.Id,
-                Name = board.Name,
-                Description = board.Description,
-                SortOrder = board.SortOrder,
-                IsActive = board.IsActive,
-                ParentId = board.ParentId,
-                IsCategory = board.IsCategory,
-                IsPrivate = board.IsPrivate,
-                CreatedAt = board.CreatedAt,
-                UpdatedAt = board.UpdatedAt,
-                ThreadCount = board.ThreadCount,
-                PostCount = board.PostCount
-            };
-
-            // Derived from the board's own threads rather than board.LastPostAt/
-            // LastPostByUserId - those are only ever set when a thread is first
-            // created and go stale the moment someone replies to an existing one.
-            var lastThread = _threadRepository.GetByBoardId(board.Id)
-                .OrderByDescending(t => t.LastPostAt ?? t.CreatedAt)
-                .FirstOrDefault();
-
-            if (lastThread != null)
-            {
-                response.LastThreadId = lastThread.Id;
-                response.LastThreadTitle = lastThread.Title;
-                response.LastPostByUserId = lastThread.LastPostByUserId ?? string.Empty;
-                response.LastPostAt = lastThread.LastPostAt ?? lastThread.CreatedAt;
-
-                if (!string.IsNullOrEmpty(lastThread.LastPostByUserId) &&
-                    int.TryParse(lastThread.LastPostByUserId, out var lastPostUserId))
-                {
-                    response.LastPostByUsername = _userRepository.GetById(lastPostUserId)?.Username ?? string.Empty;
-                }
+                return new List<BoardResponse>();
             }
 
-            return response;
+            var lastActiveThreads = _threadRepository.GetLastActiveThreadsByBoardIds(boards.Select(b => b.Id));
+
+            return boards.Select(board =>
+            {
+                var response = new BoardResponse
+                {
+                    Id = board.Id,
+                    Name = board.Name,
+                    Description = board.Description,
+                    SortOrder = board.SortOrder,
+                    IsActive = board.IsActive,
+                    ParentId = board.ParentId,
+                    IsCategory = board.IsCategory,
+                    IsPrivate = board.IsPrivate,
+                    CreatedAt = board.CreatedAt,
+                    UpdatedAt = board.UpdatedAt,
+                    ThreadCount = board.ThreadCount,
+                    PostCount = board.PostCount
+                };
+
+                if (lastActiveThreads.TryGetValue(board.Id, out var lastThread))
+                {
+                    response.LastThreadId = lastThread.Id;
+                    response.LastThreadTitle = lastThread.Title;
+                    response.LastPostByUserId = lastThread.LastPostByUserId ?? string.Empty;
+                    response.LastPostAt = lastThread.LastPostAt ?? lastThread.CreatedAt;
+                    response.LastPostByUsername = lastThread.LastPostByUsername ?? string.Empty;
+                }
+
+                return response;
+            }).ToList();
         }
     }
 }

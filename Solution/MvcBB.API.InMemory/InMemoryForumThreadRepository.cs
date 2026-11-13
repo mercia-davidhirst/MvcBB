@@ -12,23 +12,28 @@ namespace MvcBB.API.InMemory
             _store = store;
         }
 
-        public IReadOnlyList<ForumThread> GetAll() => _store.Threads.ToList();
+        public IReadOnlyList<ForumThread> GetAll() => _store.Threads.Select(Hydrate).ToList();
 
         public IReadOnlyList<ForumThread> GetByBoardId(int boardId) =>
             _store.Threads
                 .Where(t => t.BoardId == boardId)
                 .OrderByDescending(t => t.IsSticky)
                 .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
+                .Select(Hydrate)
                 .ToList();
 
-        public ForumThread? GetById(int id) => _store.Threads.FirstOrDefault(t => t.Id == id);
+        public ForumThread? GetById(int id)
+        {
+            var thread = _store.Threads.FirstOrDefault(t => t.Id == id);
+            return thread == null ? null : Hydrate(thread);
+        }
 
         public ForumThread Add(ForumThread thread)
         {
             if (thread.Id == 0)
                 thread.Id = _store.Threads.Count == 0 ? 1 : _store.Threads.Max(t => t.Id) + 1;
             _store.Threads.Add(thread);
-            return thread;
+            return Hydrate(thread);
         }
 
         public void Update(ForumThread thread)
@@ -39,5 +44,60 @@ namespace MvcBB.API.InMemory
         }
 
         public void Remove(ForumThread thread) => _store.Threads.Remove(thread);
+
+        public (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards)
+        {
+            var visibleBoardIds = _store.Boards
+                .Where(b => includePrivateBoards || !b.IsPrivate)
+                .Select(b => b.Id)
+                .ToHashSet();
+
+            var filtered = _store.Threads
+                .Where(t => visibleBoardIds.Contains(t.BoardId))
+                .OrderByDescending(t => t.IsSticky)
+                .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
+                .ToList();
+
+            var page = filtered.Skip(skip).Take(take).Select(Hydrate).ToList();
+            return (page, filtered.Count);
+        }
+
+        public IReadOnlyDictionary<int, ForumThread> GetLastActiveThreadsByBoardIds(IEnumerable<int> boardIds)
+        {
+            var idSet = boardIds.ToHashSet();
+            return _store.Threads
+                .Where(t => idSet.Contains(t.BoardId))
+                .GroupBy(t => t.BoardId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => Hydrate(g.OrderByDescending(t => t.LastPostAt ?? t.CreatedAt).First()));
+        }
+
+        // Populates the denormalized presentation fields (BoardName,
+        // BoardIsPrivate, CreatedByUsername, LastPostByUsername) from the
+        // current Board/User records, matching what the SQL/PostgreSQL
+        // repositories get for free from vw_ThreadDetails/vw_thread_details.
+        private ForumThread Hydrate(ForumThread thread)
+        {
+            var board = _store.Boards.FirstOrDefault(b => b.Id == thread.BoardId);
+            thread.BoardName = board?.Name ?? string.Empty;
+            thread.BoardIsPrivate = board?.IsPrivate ?? false;
+
+            if (int.TryParse(thread.CreatedByUserId, out var creatorId))
+            {
+                thread.CreatedByUsername = _store.Users.FirstOrDefault(u => u.Id == creatorId)?.Username ?? string.Empty;
+            }
+
+            if (int.TryParse(thread.LastPostByUserId, out var lastPosterId))
+            {
+                thread.LastPostByUsername = _store.Users.FirstOrDefault(u => u.Id == lastPosterId)?.Username;
+            }
+            else
+            {
+                thread.LastPostByUsername = null;
+            }
+
+            return thread;
+        }
     }
 }

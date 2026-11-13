@@ -18,10 +18,12 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    -- OUTPUT can only reference inserted./deleted. columns, not a join to
+    -- Boards/Users for BoardName/CreatedByUsername/etc. - return just the new
+    -- Id and let the repository re-fetch the full view-backed row via
+    -- usp_Thread_GetById (same two-step pattern usp_Post_Insert already uses).
     INSERT INTO dbo.Threads (Title, BoardId, CreatedByUserId, CreatedAt, IsSticky, IsLocked, ViewCount, PostCount, LastPostAt, LastPostByUserId)
-    OUTPUT inserted.Id, inserted.Title, inserted.BoardId, inserted.CreatedByUserId, inserted.CreatedAt,
-           inserted.UpdatedAt, inserted.IsSticky, inserted.IsLocked, inserted.ViewCount, inserted.PostCount,
-           inserted.LastPostAt, inserted.LastPostByUserId
+    OUTPUT inserted.Id
     VALUES (@Title, @BoardId, @CreatedByUserId, ISNULL(@CreatedAt, SYSUTCDATETIME()), @IsSticky, @IsLocked, @ViewCount, @PostCount, @LastPostAt, @LastPostByUserId);
 END;
 GO
