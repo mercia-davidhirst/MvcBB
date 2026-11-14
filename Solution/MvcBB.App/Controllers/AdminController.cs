@@ -667,7 +667,7 @@ namespace MvcBB.App.Controllers
                 }
 
                 await _settingsService.UpdateDisplaySettingsAsync(model);
-                TempData["Success"] = "Display settings saved successfully.";
+                TempData["Success"] = "Settings saved successfully.";
             }
             catch (ServiceException ex)
             {
@@ -735,6 +735,8 @@ namespace MvcBB.App.Controllers
             LogoPath = settings.LogoPath,
             FooterDisclaimer = settings.FooterDisclaimer,
             RegistrationEnabled = settings.RegistrationEnabled,
+            DateFormat = settings.DateFormat,
+            TimeFormat = settings.TimeFormat,
             PasswordPolicy = passwordPolicy
         };
     }

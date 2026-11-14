@@ -10,9 +10,7 @@
         which orders by is_sticky desc, then (last_post_at ?? created_at) desc.
 */
 
-DROP TABLE IF EXISTS public.threads CASCADE;
-
-CREATE TABLE public.threads
+CREATE TABLE IF NOT EXISTS public.threads
 (
     id                      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     title                   VARCHAR(200)    NOT NULL,
@@ -28,5 +26,11 @@ CREATE TABLE public.threads
     last_post_by_user_id    INTEGER         NULL REFERENCES public.users (id)
 );
 
-CREATE INDEX ix_threads_board_listing ON public.threads (board_id, is_sticky DESC, last_post_at DESC, created_at DESC);
-CREATE INDEX ix_threads_created_by_user_id ON public.threads (created_by_user_id);
+CREATE INDEX IF NOT EXISTS ix_threads_board_listing ON public.threads (board_id, is_sticky DESC, last_post_at DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_threads_created_by_user_id ON public.threads (created_by_user_id);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.threads ADD COLUMN IF NOT EXISTS new_column ...;

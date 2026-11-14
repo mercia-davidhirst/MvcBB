@@ -79,10 +79,14 @@ namespace MvcBB.API.SQL
 
             // A variable-length IN-list doesn't fit a stored procedure's fixed
             // parameters - this batch method goes straight against the table.
+            // The id list is passed as a single JSON array parameter (see
+            // SqlListParameter) instead of Dapper's "IN @Ids" expansion (one
+            // SQL parameter per id), which risks SQL Server's
+            // 2100-parameter-per-query ceiling for a board with a lot of threads.
             using var connection = _connectionFactory.CreateConnection();
             var rows = connection.Query<SubscriptionRow>(
-                "SELECT * FROM dbo.ThreadSubscriptions WHERE ThreadId IN @ThreadIds AND UserId = @UserId",
-                new { ThreadIds = ids, UserId = ParseUserId(userId) });
+                "SELECT * FROM dbo.ThreadSubscriptions WHERE ThreadId IN (SELECT CAST(value AS INT) FROM OPENJSON(@ThreadIds)) AND UserId = @UserId",
+                new { ThreadIds = SqlListParameter.ToJson(ids), UserId = ParseUserId(userId) });
             return rows.Select(MapToModel).ToDictionary(s => s.ThreadId);
         }
 

@@ -1,6 +1,9 @@
+@using MvcBB.Shared.Interfaces
 @model MessageResponse
+@inject IBBCodeService BBCodeService
 @{
     ViewData["Title"] = Model.Subject;
+    var smilies = ViewData["Smilies"] as Dictionary<string, string>;
 }
 
 <div class="container mt-4">
@@ -43,16 +46,16 @@
                         <strong>To:</strong> @Model.RecipientUsername
                     </div>
                     <div class="col-md-6 text-md-end">
-                        <strong>Sent:</strong> @Model.CreatedAt.ToLocalTime().ToString("g")<br />
+                        <strong>Sent:</strong> @(await Html.FormatDateTimeAsync(Model.CreatedAt))<br />
                         @if (Model.ReadAt.HasValue)
                         {
-                            <strong>Read:</strong> @Model.ReadAt.Value.ToLocalTime().ToString("g")
+                            <strong>Read:</strong> @(await Html.FormatDateTimeAsync(Model.ReadAt.Value))
                         }
                     </div>
                 </div>
             </div>
             <div class="message-content">
-                @Model.Content
+                @Html.Raw(BBCodeService.ParseBBCode(Model.Content, smilies))
             </div>
         </div>
     </div>

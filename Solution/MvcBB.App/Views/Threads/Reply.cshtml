@@ -31,7 +31,7 @@
                                 @quotedPost.CreatedByUsername wrote <i class="bi bi-arrow-up-short"></i>
                             </a>
                         </small>
-                        <small class="text-muted">@quotedPost.CreatedAt.ToLocalTime().ToString("g")</small>
+                        <small class="text-muted">@(await Html.FormatDateTimeAsync(quotedPost.CreatedAt))</small>
                     </div>
                     <div class="quoted-content">@Html.Raw(BBCodeService.ParseBBCode(quotedPost.Content, smilies))</div>
                 </div>

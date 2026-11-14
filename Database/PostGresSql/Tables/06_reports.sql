@@ -11,9 +11,7 @@
         by sp_report_insert to validate it against the right table instead.
 */
 
-DROP TABLE IF EXISTS public.reports CASCADE;
-
-CREATE TABLE public.reports
+CREATE TABLE IF NOT EXISTS public.reports
 (
     id                      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     reason                  VARCHAR(500)    NOT NULL,
@@ -29,6 +27,12 @@ CREATE TABLE public.reports
     CONSTRAINT ck_reports_status CHECK (status IN (0, 1, 2, 3))
 );
 
-CREATE INDEX ix_reports_created_at ON public.reports (created_at DESC);
-CREATE INDEX ix_reports_status ON public.reports (status);
-CREATE INDEX ix_reports_type ON public.reports (type);
+CREATE INDEX IF NOT EXISTS ix_reports_created_at ON public.reports (created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_reports_status ON public.reports (status);
+CREATE INDEX IF NOT EXISTS ix_reports_type ON public.reports (type);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.reports ADD COLUMN IF NOT EXISTS new_column ...;

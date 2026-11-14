@@ -48,11 +48,15 @@ namespace MvcBB.API.SQL
 
             // A variable-length IN-list doesn't fit a stored procedure's fixed
             // parameters - this batch method goes straight against the table
-            // instead of through a usp_PostLike_* procedure.
+            // instead of through a usp_PostLike_* procedure. The id list is
+            // passed as a single JSON array parameter (see SqlListParameter)
+            // rather than Dapper's "IN @Ids" expansion - a busy board/thread
+            // can easily have more posts than SQL Server's 2100-parameter-
+            // per-query ceiling allows once each id becomes its own parameter.
             using var connection = _connectionFactory.CreateConnection();
             var rows = connection.Query<LikeCountRow>(
-                "SELECT PostId, COUNT(*) AS LikeCount FROM dbo.PostLikes WHERE PostId IN @PostIds GROUP BY PostId",
-                new { PostIds = ids });
+                "SELECT PostId, COUNT(*) AS LikeCount FROM dbo.PostLikes WHERE PostId IN (SELECT CAST(value AS INT) FROM OPENJSON(@PostIds)) GROUP BY PostId",
+                new { PostIds = SqlListParameter.ToJson(ids) });
             return rows.ToDictionary(r => r.PostId, r => r.LikeCount);
         }
 
@@ -72,8 +76,8 @@ namespace MvcBB.API.SQL
 
             using var connection = _connectionFactory.CreateConnection();
             var likedPostIds = connection.Query<int>(
-                "SELECT PostId FROM dbo.PostLikes WHERE PostId IN @PostIds AND UserId = @UserId",
-                new { PostIds = ids, UserId = ParseUserId(userId) });
+                "SELECT PostId FROM dbo.PostLikes WHERE PostId IN (SELECT CAST(value AS INT) FROM OPENJSON(@PostIds)) AND UserId = @UserId",
+                new { PostIds = SqlListParameter.ToJson(ids), UserId = ParseUserId(userId) });
             return likedPostIds.ToHashSet();
         }
 

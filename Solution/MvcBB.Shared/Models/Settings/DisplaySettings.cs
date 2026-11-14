@@ -44,5 +44,23 @@ namespace MvcBB.Shared.Models.Settings
         /// </summary>
         [Display(Name = "Allow New Registrations")]
         public bool RegistrationEnabled { get; set; } = true;
+
+        /// <summary>
+        /// A .NET custom date format string, restricted to
+        /// DateFormatOptions.DateFormats - governs every date-only display
+        /// (e.g. "Joined") site-wide.
+        /// </summary>
+        [Required(ErrorMessage = "Date format is required")]
+        [Display(Name = "Date Format")]
+        public string DateFormat { get; set; } = "dd/MM/yyyy";
+
+        /// <summary>
+        /// A .NET custom time format string, restricted to
+        /// DateFormatOptions.TimeFormats - combined with DateFormat for
+        /// every date+time display (e.g. post/thread timestamps) site-wide.
+        /// </summary>
+        [Required(ErrorMessage = "Time format is required")]
+        [Display(Name = "Time Format")]
+        public string TimeFormat { get; set; } = "HH:mm";
     }
 }

@@ -1,3 +1,4 @@
+@using MvcBB.Shared.Models.Settings
 @model DisplaySettingsViewModel
 @{
     ViewData["Title"] = "Display Settings";
@@ -11,6 +12,7 @@
     <div class="card-body">
         <form asp-action="Settings" method="post" enctype="multipart/form-data">
             @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="LogoPath" />
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
             <div class="mb-3">
@@ -71,6 +73,32 @@
                     <label asp-for="RegistrationEnabled" class="form-check-label"></label>
                 </div>
                 <small class="form-text text-muted">When off, the public registration page is disabled - new accounts can only be created by an admin (Users &gt; Create User).</small>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="DateFormat" class="form-label"></label>
+                    <select asp-for="DateFormat" class="form-select">
+                        @foreach (var (value, label) in DateFormatOptions.DateFormats)
+                        {
+                            <option value="@value" selected="@(Model.DateFormat == value)">@label (@DateTime.Now.ToString(value))</option>
+                        }
+                    </select>
+                    <span asp-validation-for="DateFormat" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="TimeFormat" class="form-label"></label>
+                    <select asp-for="TimeFormat" class="form-select">
+                        @foreach (var (value, label) in DateFormatOptions.TimeFormats)
+                        {
+                            <option value="@value" selected="@(Model.TimeFormat == value)">@label (@DateTime.Now.ToString(value))</option>
+                        }
+                    </select>
+                    <span asp-validation-for="TimeFormat" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <small class="form-text text-muted">Controls how dates and times are displayed everywhere on the site (e.g. post times, "joined" dates). Example: @DateTime.Now.ToString($"{Model.DateFormat} {Model.TimeFormat}")</small>
+                </div>
             </div>
 
             <div class="mb-3">

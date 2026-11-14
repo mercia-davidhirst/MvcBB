@@ -12,9 +12,7 @@
         ambiguous for GetAvailableSmilies' dictionary lookup).
 */
 
-DROP TABLE IF EXISTS public.smilies CASCADE;
-
-CREATE TABLE public.smilies
+CREATE TABLE IF NOT EXISTS public.smilies
 (
     id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     code            VARCHAR(20)     NOT NULL,
@@ -25,4 +23,10 @@ CREATE TABLE public.smilies
     CONSTRAINT uq_smilies_code UNIQUE (code)
 );
 
-CREATE INDEX ix_smilies_sort_order ON public.smilies (sort_order);
+CREATE INDEX IF NOT EXISTS ix_smilies_sort_order ON public.smilies (sort_order);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.smilies ADD COLUMN IF NOT EXISTS new_column ...;

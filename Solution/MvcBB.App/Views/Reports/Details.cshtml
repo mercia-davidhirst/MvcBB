@@ -56,7 +56,7 @@
                             <dd class="col-sm-9">@Model.ContentAuthorUsername</dd>
 
                             <dt class="col-sm-3">Content Created</dt>
-                            <dd class="col-sm-9">@Model.ContentCreatedAt.ToLocalTime().ToString("g")</dd>
+                            <dd class="col-sm-9">@(await Html.FormatDateTimeAsync(Model.ContentCreatedAt))</dd>
                         </dl>
                     </div>
 
@@ -67,7 +67,7 @@
                             <dd class="col-sm-9">@Model.ReporterUsername</dd>
 
                             <dt class="col-sm-3">Reported At</dt>
-                            <dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
+                            <dd class="col-sm-9">@(await Html.FormatDateTimeAsync(Model.CreatedAt))</dd>
 
                             <dt class="col-sm-3">Status</dt>
                             <dd class="col-sm-9">
@@ -83,7 +83,7 @@
                                 <dd class="col-sm-9">@Model.ResolvedByUsername</dd>
 
                                 <dt class="col-sm-3">Resolved At</dt>
-                                <dd class="col-sm-9">@Model.ResolvedAt.Value.ToLocalTime().ToString("g")</dd>
+                                <dd class="col-sm-9">@(await Html.FormatDateTimeAsync(Model.ResolvedAt.Value))</dd>
                             }
                         </dl>
                     </div>

@@ -13,9 +13,7 @@
         two ambiguous entries sharing a display name.
 */
 
-DROP TABLE IF EXISTS public.bb_code_tags CASCADE;
-
-CREATE TABLE public.bb_code_tags
+CREATE TABLE IF NOT EXISTS public.bb_code_tags
 (
     id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name            VARCHAR(100)    NOT NULL,
@@ -28,4 +26,10 @@ CREATE TABLE public.bb_code_tags
     CONSTRAINT uq_bb_code_tags_name UNIQUE (name)
 );
 
-CREATE INDEX ix_bb_code_tags_sort_order ON public.bb_code_tags (sort_order);
+CREATE INDEX IF NOT EXISTS ix_bb_code_tags_sort_order ON public.bb_code_tags (sort_order);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.bb_code_tags ADD COLUMN IF NOT EXISTS new_column ...;

@@ -8,9 +8,7 @@
              inserted or deleted at runtime.
 */
 
-DROP TABLE IF EXISTS public.display_settings CASCADE;
-
-CREATE TABLE public.display_settings
+CREATE TABLE IF NOT EXISTS public.display_settings
 (
     id                   INTEGER         NOT NULL CHECK (id = 1),
     threads_per_page     INTEGER         NOT NULL,
@@ -20,5 +18,13 @@ CREATE TABLE public.display_settings
     logo_path            VARCHAR(500)    NULL,
     footer_disclaimer    VARCHAR(500)    NULL,
     registration_enabled BOOLEAN         NOT NULL,
+    date_format          VARCHAR(20)     NOT NULL DEFAULT 'dd/MM/yyyy',
+    time_format          VARCHAR(20)     NOT NULL DEFAULT 'HH:mm',
     PRIMARY KEY (id)
 );
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+ALTER TABLE public.display_settings ADD COLUMN IF NOT EXISTS date_format VARCHAR(20) NOT NULL DEFAULT 'dd/MM/yyyy';
+ALTER TABLE public.display_settings ADD COLUMN IF NOT EXISTS time_format VARCHAR(20) NOT NULL DEFAULT 'HH:mm';

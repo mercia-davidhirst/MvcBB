@@ -1,6 +1,7 @@
 -- Matches IDisplaySettingsRepository.Update(DisplaySettings settings)
 
 DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean);
+DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean, varchar, varchar);
 
 CREATE PROCEDURE public.sp_display_settings_update(
     p_threads_per_page INTEGER,
@@ -9,7 +10,9 @@ CREATE PROCEDURE public.sp_display_settings_update(
     p_site_name VARCHAR(50),
     p_logo_path VARCHAR(500),
     p_footer_disclaimer VARCHAR(500),
-    p_registration_enabled BOOLEAN
+    p_registration_enabled BOOLEAN,
+    p_date_format VARCHAR(20),
+    p_time_format VARCHAR(20)
 )
 LANGUAGE plpgsql
 AS $$
@@ -21,7 +24,9 @@ BEGIN
         site_name = p_site_name,
         logo_path = p_logo_path,
         footer_disclaimer = p_footer_disclaimer,
-        registration_enabled = p_registration_enabled
+        registration_enabled = p_registration_enabled,
+        date_format = p_date_format,
+        time_format = p_time_format
     WHERE id = 1;
 END;
 $$;

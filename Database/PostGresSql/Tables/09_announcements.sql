@@ -10,9 +10,7 @@
         is_active plus the start_date/end_date window.
 */
 
-DROP TABLE IF EXISTS public.announcements CASCADE;
-
-CREATE TABLE public.announcements
+CREATE TABLE IF NOT EXISTS public.announcements
 (
     id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     title           VARCHAR(200)    NOT NULL,
@@ -24,4 +22,10 @@ CREATE TABLE public.announcements
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT now()
 );
 
-CREATE INDEX ix_announcements_sort_order ON public.announcements (sort_order);
+CREATE INDEX IF NOT EXISTS ix_announcements_sort_order ON public.announcements (sort_order);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.announcements ADD COLUMN IF NOT EXISTS new_column ...;

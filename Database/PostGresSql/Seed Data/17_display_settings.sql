@@ -10,9 +10,9 @@
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM public.display_settings) THEN
-        INSERT INTO public.display_settings (id, threads_per_page, site_title, welcome_message, site_name, logo_path, footer_disclaimer, registration_enabled)
+        INSERT INTO public.display_settings (id, threads_per_page, site_title, welcome_message, site_name, logo_path, footer_disclaimer, registration_enabled, date_format, time_format)
         VALUES
-            (1, 20, 'Welcome to MvcBB', 'A modern bulletin board system for engaging discussions and community building.', 'MvcBB', NULL, NULL, TRUE);
+            (1, 20, 'Welcome to MvcBB', 'A modern bulletin board system for engaging discussions and community building.', 'MvcBB', NULL, NULL, TRUE, 'dd/MM/yyyy', 'HH:mm');
     END IF;
 END;
 $$;

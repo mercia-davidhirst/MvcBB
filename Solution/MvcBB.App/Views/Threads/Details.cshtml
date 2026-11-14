@@ -107,7 +107,7 @@
         <span><i class="bi bi-people"></i> @Model.ParticipantCount @(Model.ParticipantCount == 1 ? "Participant" : "Participants")</span>
         @if (!string.IsNullOrEmpty(Model.LastPostByUsername))
         {
-            <span><i class="bi bi-clock-history"></i> Last post by <strong>@Model.LastPostByUsername</strong> @Model.LastPostAt?.ToLocalTime().ToString("g")</span>
+            <span><i class="bi bi-clock-history"></i> Last post by <strong>@Model.LastPostByUsername</strong> @(Model.LastPostAt.HasValue ? await Html.FormatDateTimeAsync(Model.LastPostAt.Value) : "")</span>
         }
     </div>
 
@@ -193,10 +193,10 @@
                                     </small>
                                 }
                                 <small class="text-muted d-block">
-                                    posted @post.CreatedAt.ToString("g")
+                                    posted @(await Html.FormatDateTimeAsync(post.CreatedAt))
                                     @if (post.IsEdited)
                                     {
-                                        <span>(edited @post.UpdatedAt?.ToString("g"))</span>
+                                        <span>(edited @(post.UpdatedAt.HasValue ? await Html.FormatDateTimeAsync(post.UpdatedAt.Value) : ""))</span>
                                     }
                                 </small>
                             </div>

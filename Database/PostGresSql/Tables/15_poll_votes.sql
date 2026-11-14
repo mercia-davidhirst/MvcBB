@@ -7,9 +7,7 @@
         level too, matching IPollRepository.AddVote's HasVoted guard.
 */
 
-DROP TABLE IF EXISTS public.poll_votes CASCADE;
-
-CREATE TABLE public.poll_votes
+CREATE TABLE IF NOT EXISTS public.poll_votes
 (
     id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     poll_id         INTEGER         NOT NULL REFERENCES public.polls (id),
@@ -19,4 +17,10 @@ CREATE TABLE public.poll_votes
     CONSTRAINT uq_poll_votes_poll_user UNIQUE (poll_id, user_id)
 );
 
-CREATE INDEX ix_poll_votes_poll_id ON public.poll_votes (poll_id);
+CREATE INDEX IF NOT EXISTS ix_poll_votes_poll_id ON public.poll_votes (poll_id);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.poll_votes ADD COLUMN IF NOT EXISTS new_column ...;

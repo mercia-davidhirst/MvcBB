@@ -8,9 +8,7 @@
         read state + recency.
 */
 
-DROP TABLE IF EXISTS public.messages CASCADE;
-
-CREATE TABLE public.messages
+CREATE TABLE IF NOT EXISTS public.messages
 (
     id                      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     subject                 VARCHAR(200)    NOT NULL DEFAULT '',
@@ -21,5 +19,11 @@ CREATE TABLE public.messages
     read_at                 TIMESTAMPTZ     NULL
 );
 
-CREATE INDEX ix_messages_recipient ON public.messages (recipient_user_id, created_at DESC) INCLUDE (read_at);
-CREATE INDEX ix_messages_sender ON public.messages (sender_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_messages_recipient ON public.messages (recipient_user_id, created_at DESC) INCLUDE (read_at);
+CREATE INDEX IF NOT EXISTS ix_messages_sender ON public.messages (sender_user_id, created_at DESC);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS new_column ...;

@@ -21,8 +21,21 @@
       6. Seed Data - only inserts when its target table is empty, so
          re-running won't resurrect rows an admin has since edited or
          deleted.
-    Each script already contains its own "DROP ... IF EXISTS" header, so this
-    is safe to re-run.
+
+    WARNING - this is NOT safe to re-run against a database that already
+    holds real data. Every script under Tables/ does "DROP TABLE IF EXISTS
+    ... CASCADE" then "CREATE TABLE" UNCONDITIONALLY, every single run -
+    that deletes every row in that table, every time this script runs, with
+    no prompt and no way back. Functions/, Views/ and Stored Procedures/ are
+    genuinely safe to re-run any time (they're just code, not data), and
+    Seed Data/ scripts only insert when their target table is empty - but
+    Tables/ is not, despite that having been claimed here previously. To add
+    new schema (new tables/functions/procedures/views) to a database that
+    already has data in it, do NOT run this whole script - run only the
+    specific new files you need (psql against each one directly), or
+    everything under the Functions/Views/Stored Procedures/Seed Data steps
+    plus just the brand new Tables/*.sql files that don't exist in that
+    database yet.
 
 .PARAMETER HostName
     PostgreSQL server host, e.g. "localhost".

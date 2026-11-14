@@ -12,32 +12,30 @@
         ambiguous for GetAvailableSmilies' dictionary lookup).
 */
 
-DECLARE @sql NVARCHAR(MAX) = N'';
-SELECT @sql += N'ALTER TABLE ' + QUOTENAME(SCHEMA_NAME(t.schema_id)) + N'.' + QUOTENAME(t.name)
-             + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';' + CHAR(10)
-FROM sys.foreign_keys AS fk
-INNER JOIN sys.tables AS t ON t.object_id = fk.parent_object_id
-WHERE fk.referenced_object_id = OBJECT_ID('dbo.Smilies');
+IF OBJECT_ID('dbo.Smilies') IS NULL
+BEGIN
+    CREATE TABLE dbo.Smilies
+    (
+        Id              INT IDENTITY(1,1)  NOT NULL,
+        Code            NVARCHAR(20)       NOT NULL,
+        Description     NVARCHAR(200)      NOT NULL CONSTRAINT DF_Smilies_Description DEFAULT (N''),
+        ImagePath       NVARCHAR(500)      NOT NULL CONSTRAINT DF_Smilies_ImagePath DEFAULT (N''),
+        IsActive        BIT                NOT NULL CONSTRAINT DF_Smilies_IsActive DEFAULT (1),
+        SortOrder       INT                NOT NULL CONSTRAINT DF_Smilies_SortOrder DEFAULT (0),
+        CONSTRAINT PK_Smilies PRIMARY KEY CLUSTERED (Id),
+        CONSTRAINT UQ_Smilies_Code UNIQUE (Code)
+    );
 
-IF LEN(@sql) > 0
-    EXEC sp_executesql @sql;
+    CREATE NONCLUSTERED INDEX IX_Smilies_SortOrder ON dbo.Smilies (SortOrder);
+END
 GO
 
-DROP TABLE IF EXISTS dbo.Smilies;
-GO
-
-CREATE TABLE dbo.Smilies
-(
-    Id              INT IDENTITY(1,1)  NOT NULL,
-    Code            NVARCHAR(20)       NOT NULL,
-    Description     NVARCHAR(200)      NOT NULL CONSTRAINT DF_Smilies_Description DEFAULT (N''),
-    ImagePath       NVARCHAR(500)      NOT NULL CONSTRAINT DF_Smilies_ImagePath DEFAULT (N''),
-    IsActive        BIT                NOT NULL CONSTRAINT DF_Smilies_IsActive DEFAULT (1),
-    SortOrder       INT                NOT NULL CONSTRAINT DF_Smilies_SortOrder DEFAULT (0),
-    CONSTRAINT PK_Smilies PRIMARY KEY CLUSTERED (Id),
-    CONSTRAINT UQ_Smilies_Code UNIQUE (Code)
-);
-GO
-
-CREATE NONCLUSTERED INDEX IX_Smilies_SortOrder ON dbo.Smilies (SortOrder);
-GO
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Smilies') AND name = 'NewColumn')
+--   BEGIN
+--       ALTER TABLE dbo.Smilies ADD NewColumn ...;
+--   END
+--   GO

@@ -32,14 +32,16 @@ namespace MvcBB.App.Controllers
             }
         }
 
-        public async Task<IActionResult> Details(int id)
+        public async Task<IActionResult> Details(int id, int page = 1)
         {
             try
             {
                 var board = await _boardService.GetBoardAsync(id);
-                var threadResult = await _threadService.GetThreadsAsync(id);
-                
+                var threadResult = await _threadService.GetThreadsAsync(id, page);
+
                 ViewData["Threads"] = threadResult.Threads;
+                ViewData["Page"] = threadResult.Page;
+                ViewData["TotalPages"] = threadResult.TotalPages;
                 return View(board);
             }
             catch (Exception)

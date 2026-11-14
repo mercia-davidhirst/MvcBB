@@ -120,8 +120,14 @@ namespace MvcBB.API.SQL
 
             // A variable-length IN-list doesn't fit a stored procedure's fixed
             // parameters - this batch method goes straight against the table.
+            // The id list is passed as a single JSON array parameter (see
+            // SqlListParameter) instead of Dapper's "IN @Ids" expansion (one
+            // SQL parameter per id), which risks SQL Server's
+            // 2100-parameter-per-query ceiling once a list gets large enough.
             using var connection = _connectionFactory.CreateConnection();
-            var users = connection.Query<User>("SELECT * FROM dbo.Users WHERE Id IN @Ids", new { Ids = idList });
+            var users = connection.Query<User>(
+                "SELECT * FROM dbo.Users WHERE Id IN (SELECT CAST(value AS INT) FROM OPENJSON(@Ids))",
+                new { Ids = SqlListParameter.ToJson(idList) });
             return users.ToDictionary(u => u.Id);
         }
 
@@ -134,7 +140,9 @@ namespace MvcBB.API.SQL
             }
 
             using var connection = _connectionFactory.CreateConnection();
-            var rows = connection.Query<UsernameRow>("SELECT Id, Username FROM dbo.Users WHERE Id IN @Ids", new { Ids = idList });
+            var rows = connection.Query<UsernameRow>(
+                "SELECT Id, Username FROM dbo.Users WHERE Id IN (SELECT CAST(value AS INT) FROM OPENJSON(@Ids))",
+                new { Ids = SqlListParameter.ToJson(idList) });
             return rows.ToDictionary(r => r.Id, r => r.Username);
         }
 
@@ -157,9 +165,9 @@ namespace MvcBB.API.SQL
                 @"SELECT u.Username, COUNT(p.Id) AS Count
                   FROM dbo.Users u
                   LEFT JOIN dbo.Posts p ON p.CreatedByUserId = u.Id AND p.IsDeleted = 0
-                  WHERE u.Username IN @Usernames
+                  WHERE u.Username IN (SELECT value FROM OPENJSON(@Usernames))
                   GROUP BY u.Username",
-                new { Usernames = nameList });
+                new { Usernames = SqlListParameter.ToJson(nameList) });
             return rows.ToDictionary(r => r.Username, r => r.Count, StringComparer.OrdinalIgnoreCase);
         }
 
@@ -176,9 +184,9 @@ namespace MvcBB.API.SQL
                 @"SELECT u.Username, COUNT(t.Id) AS Count
                   FROM dbo.Users u
                   LEFT JOIN dbo.Threads t ON t.CreatedByUserId = u.Id
-                  WHERE u.Username IN @Usernames
+                  WHERE u.Username IN (SELECT value FROM OPENJSON(@Usernames))
                   GROUP BY u.Username",
-                new { Usernames = nameList });
+                new { Usernames = SqlListParameter.ToJson(nameList) });
             return rows.ToDictionary(r => r.Username, r => r.Count, StringComparer.OrdinalIgnoreCase);
         }
 

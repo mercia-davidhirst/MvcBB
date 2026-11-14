@@ -34,7 +34,7 @@ namespace MvcBB.App.Services
         }
 
         /// <summary>
-        /// Gets threads, optionally filtered by board ID. When boardId is null, returns a paginated result from api/threads.
+        /// Gets a paginated page of threads, optionally restricted to one board.
         /// </summary>
         public async Task<ThreadListResponse> GetThreadsAsync(int? boardId = null, int page = 1, int? pageSize = null)
         {
@@ -42,26 +42,12 @@ namespace MvcBB.App.Services
             {
                 AttachCurrentUserTokenIfPresent();
 
-                if (boardId.HasValue)
-                {
-                    var response = await _httpClient.GetAsync($"api/threads/board/{boardId}");
-                    response.EnsureSuccessOrSessionExpired();
-                    var content = await response.Content.ReadAsStringAsync();
-                    var threads = JsonSerializer.Deserialize<List<ThreadResponse>>(content, _jsonOptions) ?? new List<ThreadResponse>();
-                    return new ThreadListResponse
-                    {
-                        Threads = threads,
-                        TotalThreads = threads.Count,
-                        Page = 1,
-                        PageSize = threads.Count,
-                        TotalPages = threads.Count == 0 ? 1 : 1
-                    };
-                }
-
                 var query = new List<string> { $"page={page}" };
                 if (pageSize.HasValue)
                     query.Add($"pageSize={pageSize.Value}");
-                var url = "api/threads?" + string.Join("&", query);
+                var url = boardId.HasValue
+                    ? $"api/threads/board/{boardId}?" + string.Join("&", query)
+                    : "api/threads?" + string.Join("&", query);
                 var listResponse = await _httpClient.GetAsync(url);
                 listResponse.EnsureSuccessOrSessionExpired();
                 var listContent = await listResponse.Content.ReadAsStringAsync();

@@ -13,9 +13,7 @@
         isn't signed in - see Board.IsPrivate / Board.IsVisibleTo.
 */
 
-DROP TABLE IF EXISTS public.boards CASCADE;
-
-CREATE TABLE public.boards
+CREATE TABLE IF NOT EXISTS public.boards
 (
     id                      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name                    VARCHAR(100)    NOT NULL,
@@ -33,6 +31,12 @@ CREATE TABLE public.boards
     last_post_at            TIMESTAMPTZ     NULL
 );
 
-CREATE INDEX ix_boards_sort_order ON public.boards (sort_order);
+CREATE INDEX IF NOT EXISTS ix_boards_sort_order ON public.boards (sort_order);
 
-CREATE INDEX ix_boards_parent_id ON public.boards (parent_id);
+CREATE INDEX IF NOT EXISTS ix_boards_parent_id ON public.boards (parent_id);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.boards ADD COLUMN IF NOT EXISTS new_column ...;

@@ -6,13 +6,15 @@ DROP PROCEDURE IF EXISTS dbo.usp_Thread_GetPageCount;
 GO
 
 CREATE PROCEDURE dbo.usp_Thread_GetPageCount
-    @IncludePrivateBoards BIT
+    @IncludePrivateBoards BIT,
+    @BoardId INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
 
     SELECT COUNT(*)
     FROM dbo.vw_ThreadDetails
-    WHERE @IncludePrivateBoards = 1 OR BoardIsPrivate = 0;
+    WHERE (@IncludePrivateBoards = 1 OR BoardIsPrivate = 0)
+      AND (@BoardId IS NULL OR BoardId = @BoardId);
 END;
 GO

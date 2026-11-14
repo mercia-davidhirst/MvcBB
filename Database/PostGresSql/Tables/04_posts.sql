@@ -17,9 +17,7 @@
         to an attached image, matching users.avatar_url's sizing convention.
 */
 
-DROP TABLE IF EXISTS public.posts CASCADE;
-
-CREATE TABLE public.posts
+CREATE TABLE IF NOT EXISTS public.posts
 (
     id                      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     content                 TEXT            NOT NULL,
@@ -39,5 +37,11 @@ CREATE TABLE public.posts
     CONSTRAINT ck_posts_content_length CHECK (char_length(content) <= 10000)
 );
 
-CREATE INDEX ix_posts_thread_id_created_at ON public.posts (thread_id, created_at);
-CREATE INDEX ix_posts_created_by_user_id ON public.posts (created_by_user_id) INCLUDE (is_deleted);
+CREATE INDEX IF NOT EXISTS ix_posts_thread_id_created_at ON public.posts (thread_id, created_at);
+CREATE INDEX IF NOT EXISTS ix_posts_created_by_user_id ON public.posts (created_by_user_id) INCLUDE (is_deleted);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS new_column ...;

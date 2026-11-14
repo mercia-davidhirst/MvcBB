@@ -90,12 +90,15 @@ namespace MvcBB.API.SQL
 
             using var connection = _connectionFactory.CreateConnection();
             // A variable-length IN-list doesn't fit a stored procedure's fixed
-            // parameters - Dapper expands @ThreadIds into IN (@ThreadIds1, ...)
-            // itself, so this one goes straight against the table rather than
-            // through a usp_* procedure.
+            // parameters, so this one goes straight against the table rather
+            // than through a usp_* procedure. The id list is passed as a
+            // single JSON array parameter (see SqlListParameter) instead of
+            // Dapper's own "IN @Ids" expansion (one SQL parameter per id),
+            // which risks SQL Server's 2100-parameter-per-query ceiling for
+            // a board with a lot of threads.
             var rows = connection.Query<ThreadPostRow>(
-                "SELECT Id AS PostId, ThreadId, CreatedByUserId FROM dbo.Posts WHERE ThreadId IN @ThreadIds",
-                new { ThreadIds = ids });
+                "SELECT Id AS PostId, ThreadId, CreatedByUserId FROM dbo.Posts WHERE ThreadId IN (SELECT CAST(value AS INT) FROM OPENJSON(@ThreadIds))",
+                new { ThreadIds = SqlListParameter.ToJson(ids) });
 
             return rows
                 .GroupBy(r => r.ThreadId)
@@ -115,7 +118,9 @@ namespace MvcBB.API.SQL
             }
 
             using var connection = _connectionFactory.CreateConnection();
-            var rows = connection.Query<PostRow>("SELECT * FROM dbo.vw_PostDetails WHERE Id IN @Ids", new { Ids = idList });
+            var rows = connection.Query<PostRow>(
+                "SELECT * FROM dbo.vw_PostDetails WHERE Id IN (SELECT CAST(value AS INT) FROM OPENJSON(@Ids))",
+                new { Ids = SqlListParameter.ToJson(idList) });
             return rows.Select(MapToPost).ToDictionary(p => p.Id);
         }
 

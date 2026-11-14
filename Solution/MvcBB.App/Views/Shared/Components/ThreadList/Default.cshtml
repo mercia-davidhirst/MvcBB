@@ -27,7 +27,7 @@
                                class="text-decoration-none">
                                 @thread.CreatedByUsername
                             </a>
-                            on @thread.CreatedAt.ToLocalTime().ToString("g")
+                            on @(await Html.FormatDateTimeAsync(thread.CreatedAt))
                         </small>
                     </p>
                 </div>
@@ -48,7 +48,7 @@
                            class="text-decoration-none">
                             @thread.LastPostByUsername
                         </a>
-                        on @thread.LastPostAt.Value.ToLocalTime().ToString("g")
+                        on @(await Html.FormatDateTimeAsync(thread.LastPostAt.Value))
                     </small>
                 </div>
             }

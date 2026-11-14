@@ -123,13 +123,15 @@ namespace MvcBB.API.SQL
                 return new Dictionary<int, Poll>();
             }
 
-            // Variable-length IN-lists don't fit a stored procedure's fixed
-            // parameters - Dapper expands @ThreadIds/@PollIds into IN (...)
-            // itself, so these batch methods go straight against the tables.
+            // Variable-length id lists are passed as a single JSON array
+            // parameter (see SqlListParameter) instead of Dapper's own
+            // "IN @Ids" expansion, which uses one SQL parameter per id and
+            // risks SQL Server's 2100-parameter-per-query ceiling once a
+            // list gets large enough.
             using var connection = _connectionFactory.CreateConnection();
             var polls = connection.Query<Poll>(
-                "SELECT Id, ThreadId, Question, CreatedAt FROM dbo.Polls WHERE ThreadId IN @ThreadIds",
-                new { ThreadIds = ids }).ToList();
+                "SELECT Id, ThreadId, Question, CreatedAt FROM dbo.Polls WHERE ThreadId IN (SELECT CAST(value AS INT) FROM OPENJSON(@ThreadIds))",
+                new { ThreadIds = SqlListParameter.ToJson(ids) }).ToList();
 
             if (polls.Count == 0)
             {
@@ -137,8 +139,8 @@ namespace MvcBB.API.SQL
             }
 
             var options = connection.Query<PollOption>(
-                "SELECT Id, PollId, Text, SortOrder FROM dbo.PollOptions WHERE PollId IN @PollIds",
-                new { PollIds = polls.Select(p => p.Id).ToList() }).ToList();
+                "SELECT Id, PollId, Text, SortOrder FROM dbo.PollOptions WHERE PollId IN (SELECT CAST(value AS INT) FROM OPENJSON(@PollIds))",
+                new { PollIds = SqlListParameter.ToJson(polls.Select(p => p.Id).ToList()) }).ToList();
             var optionsByPoll = options.GroupBy(o => o.PollId).ToDictionary(g => g.Key, g => g.OrderBy(o => o.SortOrder).ToList());
 
             foreach (var poll in polls)
@@ -159,8 +161,8 @@ namespace MvcBB.API.SQL
 
             using var connection = _connectionFactory.CreateConnection();
             var rows = connection.Query<PollOptionVoteCountRow>(
-                "SELECT PollId, PollOptionId, COUNT(*) AS VoteCount FROM dbo.PollVotes WHERE PollId IN @PollIds GROUP BY PollId, PollOptionId",
-                new { PollIds = ids });
+                "SELECT PollId, PollOptionId, COUNT(*) AS VoteCount FROM dbo.PollVotes WHERE PollId IN (SELECT CAST(value AS INT) FROM OPENJSON(@PollIds)) GROUP BY PollId, PollOptionId",
+                new { PollIds = SqlListParameter.ToJson(ids) });
 
             return rows
                 .GroupBy(r => r.PollId)
@@ -184,8 +186,8 @@ namespace MvcBB.API.SQL
 
             using var connection = _connectionFactory.CreateConnection();
             var rows = connection.Query<PollVoteOptionRow>(
-                "SELECT PollId, PollOptionId FROM dbo.PollVotes WHERE PollId IN @PollIds AND UserId = @UserId",
-                new { PollIds = ids, UserId = ParseUserId(userId) });
+                "SELECT PollId, PollOptionId FROM dbo.PollVotes WHERE PollId IN (SELECT CAST(value AS INT) FROM OPENJSON(@PollIds)) AND UserId = @UserId",
+                new { PollIds = SqlListParameter.ToJson(ids), UserId = ParseUserId(userId) });
             return rows.ToDictionary(r => r.PollId, r => r.PollOptionId);
         }
 

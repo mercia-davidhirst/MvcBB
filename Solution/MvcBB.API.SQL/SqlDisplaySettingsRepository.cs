@@ -36,7 +36,9 @@ namespace MvcBB.API.SQL
                 settings.SiteName,
                 settings.LogoPath,
                 settings.FooterDisclaimer,
-                settings.RegistrationEnabled
+                settings.RegistrationEnabled,
+                settings.DateFormat,
+                settings.TimeFormat
             }, commandType: CommandType.StoredProcedure);
         }
     }

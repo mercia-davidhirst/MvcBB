@@ -29,13 +29,6 @@ namespace MvcBB.API.PostgreSql
             return rows.Select(MapToThread).ToList();
         }
 
-        public IReadOnlyList<ForumThread> GetByBoardId(int boardId)
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            var rows = connection.Query<ThreadRow>("SELECT * FROM public.fn_thread_get_by_board_id(@BoardId)", new { BoardId = boardId });
-            return rows.Select(MapToThread).ToList();
-        }
-
         public ForumThread? GetById(int id)
         {
             using var connection = _connectionFactory.CreateConnection();
@@ -90,15 +83,15 @@ namespace MvcBB.API.PostgreSql
             connection.Execute("CALL public.sp_thread_delete(@Id)", new { thread.Id });
         }
 
-        public (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards)
+        public (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards, int? boardId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
             var totalCount = connection.ExecuteScalar<long>(
-                "SELECT public.fn_thread_get_page_count(@IncludePrivateBoards)",
-                new { IncludePrivateBoards = includePrivateBoards });
+                "SELECT public.fn_thread_get_page_count(@IncludePrivateBoards, @BoardId)",
+                new { IncludePrivateBoards = includePrivateBoards, BoardId = boardId });
             var rows = connection.Query<ThreadRow>(
-                "SELECT * FROM public.fn_thread_get_page(@Skip, @Take, @IncludePrivateBoards)",
-                new { Skip = skip, Take = take, IncludePrivateBoards = includePrivateBoards });
+                "SELECT * FROM public.fn_thread_get_page(@Skip, @Take, @IncludePrivateBoards, @BoardId)",
+                new { Skip = skip, Take = take, IncludePrivateBoards = includePrivateBoards, BoardId = boardId });
             return (rows.Select(MapToThread).ToList(), (int)totalCount);
         }
 

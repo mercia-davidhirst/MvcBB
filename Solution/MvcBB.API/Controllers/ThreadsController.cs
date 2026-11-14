@@ -71,16 +71,32 @@ namespace MvcBB.API.Controllers
         }
 
         [HttpGet("board/{boardId}")]
-        public ActionResult<IEnumerable<ThreadResponse>> GetBoardThreads(int boardId)
+        public ActionResult<ThreadListResponse> GetBoardThreads(int boardId, [FromQuery] int page = 1, [FromQuery] int? pageSize = null)
         {
             var board = _boardRepository.GetById(boardId);
-            if (board == null || !board.IsVisibleTo(User.Identity?.IsAuthenticated == true))
+            var isAuthenticated = User.Identity?.IsAuthenticated == true;
+            if (board == null || !board.IsVisibleTo(isAuthenticated))
             {
                 return NotFound(new { message = "Board not found" });
             }
 
-            var threads = _threadRepository.GetByBoardId(boardId);
-            return Ok(MapToThreadResponses(threads));
+            var displaySettings = _displaySettingsService.GetDisplaySettings();
+            var effectivePageSize = pageSize ?? displaySettings.ThreadsPerPage;
+            effectivePageSize = Math.Clamp(effectivePageSize, 1, 100);
+            page = Math.Max(1, page);
+
+            var skip = (page - 1) * effectivePageSize;
+            var (pageOfThreads, totalThreads) = _threadRepository.GetPage(skip, effectivePageSize, isAuthenticated, boardId);
+            var totalPages = totalThreads == 0 ? 1 : (int)Math.Ceiling(totalThreads / (double)effectivePageSize);
+
+            return Ok(new ThreadListResponse
+            {
+                Threads = MapToThreadResponses(pageOfThreads),
+                TotalThreads = totalThreads,
+                Page = page,
+                PageSize = effectivePageSize,
+                TotalPages = totalPages
+            });
         }
 
         [HttpGet("{id}")]

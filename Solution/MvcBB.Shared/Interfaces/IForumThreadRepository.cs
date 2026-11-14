@@ -5,7 +5,6 @@ namespace MvcBB.Shared.Interfaces
     public interface IForumThreadRepository
     {
         IReadOnlyList<ForumThread> GetAll();
-        IReadOnlyList<ForumThread> GetByBoardId(int boardId);
         ForumThread? GetById(int id);
         ForumThread Add(ForumThread thread);
         void Update(ForumThread thread);
@@ -13,12 +12,13 @@ namespace MvcBB.Shared.Interfaces
 
         /// <summary>
         /// A single page of threads, already filtered to boards visible to the
-        /// caller and ordered (sticky first, then most recently active) at the
-        /// data layer - so listing threads doesn't mean loading every thread in
-        /// the table into memory first. TotalCount is the full filtered count,
-        /// for paging UI (not just the page returned).
+        /// caller (and, when boardId is given, to just that one board - e.g. a
+        /// board's own thread listing) and ordered (sticky first, then most
+        /// recently active) at the data layer - so listing threads doesn't mean
+        /// loading every thread in the table into memory first. TotalCount is
+        /// the full filtered count, for paging UI (not just the page returned).
         /// </summary>
-        (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards);
+        (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards, int? boardId = null);
 
         /// <summary>
         /// For each of the given board ids: the thread most recently active in

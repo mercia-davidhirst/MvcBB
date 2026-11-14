@@ -54,7 +54,7 @@
                                                 <span class="badge bg-warning">New</span>
                                             }
                                         </h6>
-                                        <small class="text-muted">@report.CreatedAt.ToLocalTime().ToString("g")</small>
+                                        <small class="text-muted">@(await Html.FormatDateTimeAsync(report.CreatedAt))</small>
                                     </div>
                                     <p class="mb-1">
                                         <small>

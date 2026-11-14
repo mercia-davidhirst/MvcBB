@@ -96,11 +96,11 @@
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             Created
-                            <span>@ViewBag.CreatedAt?.ToLocalTime().ToString("g")</span>
+                            <span>@(ViewBag.CreatedAt == null ? "" : await Html.FormatDateTimeAsync((DateTime)ViewBag.CreatedAt))</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             Last Post
-                            <span>@ViewBag.LastPostAt?.ToLocalTime().ToString("g")</span>
+                            <span>@(ViewBag.LastPostAt == null ? "" : await Html.FormatDateTimeAsync((DateTime)ViewBag.LastPostAt))</span>
                         </li>
                     </ul>
                 </div>

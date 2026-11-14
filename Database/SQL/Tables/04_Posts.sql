@@ -15,49 +15,45 @@
         to an attached image, matching Users.AvatarUrl's sizing convention.
 */
 
-DECLARE @sql NVARCHAR(MAX) = N'';
-SELECT @sql += N'ALTER TABLE ' + QUOTENAME(SCHEMA_NAME(t.schema_id)) + N'.' + QUOTENAME(t.name)
-             + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';' + CHAR(10)
-FROM sys.foreign_keys AS fk
-INNER JOIN sys.tables AS t ON t.object_id = fk.parent_object_id
-WHERE fk.referenced_object_id = OBJECT_ID('dbo.Posts');
+IF OBJECT_ID('dbo.Posts') IS NULL
+BEGIN
+    CREATE TABLE dbo.Posts
+    (
+        Id                  INT IDENTITY(1,1)  NOT NULL,
+        Content             NVARCHAR(MAX)      NOT NULL,
+        ThreadId            INT                NOT NULL,
+        CreatedByUserId     INT                NOT NULL,
+        CreatedAt           DATETIME2(3)       NOT NULL CONSTRAINT DF_Posts_CreatedAt DEFAULT (SYSUTCDATETIME()),
+        IsEdited             BIT               NOT NULL CONSTRAINT DF_Posts_IsEdited DEFAULT (0),
+        EditReason          NVARCHAR(500)      NULL,
+        UpdatedAt           DATETIME2(3)       NULL,
+        UpdatedByUserId     INT                NULL,
+        IsDeleted           BIT                NOT NULL CONSTRAINT DF_Posts_IsDeleted DEFAULT (0),
+        DeletedByUserId     INT                NULL,
+        DeletedAt           DATETIME2(3)       NULL,
+        DeleteReason        NVARCHAR(500)      NULL,
+        QuotedPostId        INT                NULL,
+        ImageUrl            NVARCHAR(500)      NULL,
+        CONSTRAINT PK_Posts PRIMARY KEY CLUSTERED (Id),
+        CONSTRAINT FK_Posts_Thread FOREIGN KEY (ThreadId) REFERENCES dbo.Threads (Id),
+        CONSTRAINT FK_Posts_CreatedByUser FOREIGN KEY (CreatedByUserId) REFERENCES dbo.Users (Id),
+        CONSTRAINT FK_Posts_UpdatedByUser FOREIGN KEY (UpdatedByUserId) REFERENCES dbo.Users (Id),
+        CONSTRAINT FK_Posts_DeletedByUser FOREIGN KEY (DeletedByUserId) REFERENCES dbo.Users (Id),
+        CONSTRAINT FK_Posts_QuotedPost FOREIGN KEY (QuotedPostId) REFERENCES dbo.Posts (Id),
+        CONSTRAINT CK_Posts_ContentLength CHECK (LEN(Content) <= 10000)
+    );
 
-IF LEN(@sql) > 0
-    EXEC sp_executesql @sql;
+    CREATE NONCLUSTERED INDEX IX_Posts_ThreadId_CreatedAt ON dbo.Posts (ThreadId, CreatedAt);
+    CREATE NONCLUSTERED INDEX IX_Posts_CreatedByUserId ON dbo.Posts (CreatedByUserId) INCLUDE (IsDeleted);
+END
 GO
 
-DROP TABLE IF EXISTS dbo.Posts;
-GO
-
-CREATE TABLE dbo.Posts
-(
-    Id                  INT IDENTITY(1,1)  NOT NULL,
-    Content             NVARCHAR(MAX)      NOT NULL,
-    ThreadId            INT                NOT NULL,
-    CreatedByUserId     INT                NOT NULL,
-    CreatedAt           DATETIME2(3)       NOT NULL CONSTRAINT DF_Posts_CreatedAt DEFAULT (SYSUTCDATETIME()),
-    IsEdited             BIT               NOT NULL CONSTRAINT DF_Posts_IsEdited DEFAULT (0),
-    EditReason          NVARCHAR(500)      NULL,
-    UpdatedAt           DATETIME2(3)       NULL,
-    UpdatedByUserId     INT                NULL,
-    IsDeleted           BIT                NOT NULL CONSTRAINT DF_Posts_IsDeleted DEFAULT (0),
-    DeletedByUserId     INT                NULL,
-    DeletedAt           DATETIME2(3)       NULL,
-    DeleteReason        NVARCHAR(500)      NULL,
-    QuotedPostId        INT                NULL,
-    ImageUrl            NVARCHAR(500)      NULL,
-    CONSTRAINT PK_Posts PRIMARY KEY CLUSTERED (Id),
-    CONSTRAINT FK_Posts_Thread FOREIGN KEY (ThreadId) REFERENCES dbo.Threads (Id),
-    CONSTRAINT FK_Posts_CreatedByUser FOREIGN KEY (CreatedByUserId) REFERENCES dbo.Users (Id),
-    CONSTRAINT FK_Posts_UpdatedByUser FOREIGN KEY (UpdatedByUserId) REFERENCES dbo.Users (Id),
-    CONSTRAINT FK_Posts_DeletedByUser FOREIGN KEY (DeletedByUserId) REFERENCES dbo.Users (Id),
-    CONSTRAINT FK_Posts_QuotedPost FOREIGN KEY (QuotedPostId) REFERENCES dbo.Posts (Id),
-    CONSTRAINT CK_Posts_ContentLength CHECK (LEN(Content) <= 10000)
-);
-GO
-
-CREATE NONCLUSTERED INDEX IX_Posts_ThreadId_CreatedAt ON dbo.Posts (ThreadId, CreatedAt);
-GO
-
-CREATE NONCLUSTERED INDEX IX_Posts_CreatedByUserId ON dbo.Posts (CreatedByUserId) INCLUDE (IsDeleted);
-GO
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'NewColumn')
+--   BEGIN
+--       ALTER TABLE dbo.Posts ADD NewColumn ...;
+--   END
+--   GO

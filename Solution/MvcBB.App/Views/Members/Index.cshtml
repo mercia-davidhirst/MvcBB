@@ -103,7 +103,7 @@
                                             @member.Role.ToString()
                                         </span>
                                     </td>
-                                    <td>@member.CreatedAt.ToLocalTime().ToString("g")</td>
+                                    <td>@(await Html.FormatDateTimeAsync(member.CreatedAt))</td>
                                     <td>@member.PostCount</td>
                                     <td>@member.ThreadCount</td>
                                     <td>

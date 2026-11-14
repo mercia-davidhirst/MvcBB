@@ -69,13 +69,13 @@
                         </li>
                         <li class="list-group-item">
                             <small class="d-block text-muted">Joined</small>
-                            @Model.CreatedAt.ToLocalTime().ToString("d")
+                            @(await Html.FormatDateAsync(Model.CreatedAt))
                         </li>
                         @if (Model.LastLoginAt.HasValue)
                         {
                             <li class="list-group-item">
                                 <small class="d-block text-muted">Last login</small>
-                                @Model.LastLoginAt.Value.ToLocalTime().ToString("g")
+                                @(await Html.FormatDateTimeAsync(Model.LastLoginAt.Value))
                             </li>
                         }
                         @if (!string.IsNullOrEmpty(Model.Signature))
@@ -113,7 +113,7 @@
                                 <a asp-controller="Threads" asp-action="Details" asp-route-id="@post.ThreadId" asp-fragment="post-@post.Id"
                                    class="list-group-item list-group-item-action">
                                     <p class="mb-1 text-truncate">@post.Content</p>
-                                    <small class="text-muted">@post.CreatedAt.ToLocalTime().ToString("g")</small>
+                                    <small class="text-muted">@(await Html.FormatDateTimeAsync(post.CreatedAt))</small>
                                 </a>
                             }
                         </div>

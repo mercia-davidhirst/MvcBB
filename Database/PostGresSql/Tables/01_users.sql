@@ -15,17 +15,13 @@
         username/email/password_hash/signature/bio/avatar_url overwritten with
         generic placeholders by UsersController's Anonymize action (via the
         ordinary sp_user_update), not by a dedicated procedure.
-      - CASCADE on the drop removes any dependent foreign keys/views so this
-        script can be re-run standalone regardless of deployment order.
       - custom_title is an admin-only override shown instead of the user's
         computed rank (RankCalculator.GetRank) - NULL means "use the computed
         rank", which is the default for everyone. Set via
         UsersController.SetCustomTitle, never by the user themselves.
 */
 
-DROP TABLE IF EXISTS public.users CASCADE;
-
-CREATE TABLE public.users
+CREATE TABLE IF NOT EXISTS public.users
 (
     id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     username        CITEXT          NOT NULL,
@@ -46,3 +42,9 @@ CREATE TABLE public.users
     CONSTRAINT uq_users_email UNIQUE (email),
     CONSTRAINT ck_users_role CHECK (role IN (0, 1, 2, 3))
 );
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.users ADD COLUMN IF NOT EXISTS new_column ...;

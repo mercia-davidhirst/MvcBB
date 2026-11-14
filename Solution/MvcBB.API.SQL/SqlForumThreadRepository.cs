@@ -29,13 +29,6 @@ namespace MvcBB.API.SQL
             return rows.Select(MapToThread).ToList();
         }
 
-        public IReadOnlyList<ForumThread> GetByBoardId(int boardId)
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            var rows = connection.Query<ThreadRow>("dbo.usp_Thread_GetByBoardId", new { BoardId = boardId }, commandType: CommandType.StoredProcedure);
-            return rows.Select(MapToThread).ToList();
-        }
-
         public ForumThread? GetById(int id)
         {
             using var connection = _connectionFactory.CreateConnection();
@@ -88,16 +81,16 @@ namespace MvcBB.API.SQL
             connection.Execute("dbo.usp_Thread_Delete", new { thread.Id }, commandType: CommandType.StoredProcedure);
         }
 
-        public (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards)
+        public (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards, int? boardId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
             var totalCount = connection.ExecuteScalar<int>(
                 "dbo.usp_Thread_GetPageCount",
-                new { IncludePrivateBoards = includePrivateBoards },
+                new { IncludePrivateBoards = includePrivateBoards, BoardId = boardId },
                 commandType: CommandType.StoredProcedure);
             var rows = connection.Query<ThreadRow>(
                 "dbo.usp_Thread_GetPage",
-                new { Skip = skip, Take = take, IncludePrivateBoards = includePrivateBoards },
+                new { Skip = skip, Take = take, IncludePrivateBoards = includePrivateBoards, BoardId = boardId },
                 commandType: CommandType.StoredProcedure);
             return (rows.Select(MapToThread).ToList(), totalCount);
         }
@@ -112,6 +105,11 @@ namespace MvcBB.API.SQL
 
             // A variable-length IN-list doesn't fit a stored procedure's fixed
             // parameters - this batch method goes straight against the view.
+            // The id list is passed as a single JSON array parameter (see
+            // SqlListParameter) rather than Dapper's "IN @Ids" expansion,
+            // which would otherwise use one SQL parameter per id and risk
+            // SQL Server's 2100-parameter-per-query ceiling for a board with
+            // a lot of threads.
             using var connection = _connectionFactory.CreateConnection();
             var rows = connection.Query<ThreadRow>(
                 @"SELECT Id, Title, BoardId, BoardName, BoardIsPrivate, CreatedByUserId, CreatedByUsername,
@@ -120,10 +118,10 @@ namespace MvcBB.API.SQL
                   FROM (
                       SELECT *, ROW_NUMBER() OVER (PARTITION BY BoardId ORDER BY COALESCE(LastPostAt, CreatedAt) DESC) AS Rn
                       FROM dbo.vw_ThreadDetails
-                      WHERE BoardId IN @BoardIds
+                      WHERE BoardId IN (SELECT CAST(value AS INT) FROM OPENJSON(@BoardIds))
                   ) AS ranked
                   WHERE Rn = 1",
-                new { BoardIds = ids });
+                new { BoardIds = SqlListParameter.ToJson(ids) });
 
             return rows.Select(MapToThread).ToDictionary(t => t.BoardId);
         }
@@ -137,7 +135,9 @@ namespace MvcBB.API.SQL
             }
 
             using var connection = _connectionFactory.CreateConnection();
-            var rows = connection.Query<ThreadRow>("SELECT * FROM dbo.vw_ThreadDetails WHERE Id IN @Ids", new { Ids = idList });
+            var rows = connection.Query<ThreadRow>(
+                "SELECT * FROM dbo.vw_ThreadDetails WHERE Id IN (SELECT CAST(value AS INT) FROM OPENJSON(@Ids))",
+                new { Ids = SqlListParameter.ToJson(idList) });
             return rows.Select(MapToThread).ToDictionary(t => t.Id);
         }
 

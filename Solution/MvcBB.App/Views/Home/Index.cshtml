@@ -68,7 +68,7 @@
                                             <a asp-controller="Threads" asp-action="Details" asp-route-id="@thread.Id" 
                                                class="text-decoration-none">@thread.Title</a>
                                         </h6>
-                                        <small class="text-muted">@thread.CreatedAt.ToLocalTime().ToString("g")</small>
+                                        <small class="text-muted">@(await Html.FormatDateTimeAsync(thread.CreatedAt))</small>
                                     </div>
                                     <p class="mb-1">
                                         <small>

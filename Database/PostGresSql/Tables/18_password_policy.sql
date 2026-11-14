@@ -8,9 +8,7 @@
              inserted or deleted at runtime.
 */
 
-DROP TABLE IF EXISTS public.password_policy CASCADE;
-
-CREATE TABLE public.password_policy
+CREATE TABLE IF NOT EXISTS public.password_policy
 (
     id                        INTEGER NOT NULL CHECK (id = 1),
     minimum_length            INTEGER NOT NULL,
@@ -20,3 +18,9 @@ CREATE TABLE public.password_policy
     require_special_character BOOLEAN NOT NULL,
     PRIMARY KEY (id)
 );
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.password_policy ADD COLUMN IF NOT EXISTS new_column ...;

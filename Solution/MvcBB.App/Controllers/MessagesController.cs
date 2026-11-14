@@ -13,11 +13,13 @@ namespace MvcBB.App.Controllers
     {
         private readonly IMessageService _messageService;
         private readonly IUserService _userService;
+        private readonly IMvcBBCodeService _bbCodeService;
 
-        public MessagesController(IMessageService messageService, IUserService userService)
+        public MessagesController(IMessageService messageService, IUserService userService, IMvcBBCodeService bbCodeService)
         {
             _messageService = messageService;
             _userService = userService;
+            _bbCodeService = bbCodeService;
         }
 
         // Polled client-side (site.js) to drive the on-screen "new PM" alert -
@@ -60,6 +62,7 @@ namespace MvcBB.App.Controllers
             try
             {
                 var message = await _messageService.GetMessageAsync(id);
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
                 return View(message);
             }
             catch (SessionExpiredException)

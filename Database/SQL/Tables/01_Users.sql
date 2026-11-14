@@ -27,42 +27,39 @@
         persisted.
 */
 
--- Drop any foreign keys pointing at this table first so the table can be
--- dropped/recreated regardless of what else has already been deployed.
-DECLARE @sql NVARCHAR(MAX) = N'';
-SELECT @sql += N'ALTER TABLE ' + QUOTENAME(SCHEMA_NAME(t.schema_id)) + N'.' + QUOTENAME(t.name)
-             + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';' + CHAR(10)
-FROM sys.foreign_keys AS fk
-INNER JOIN sys.tables AS t ON t.object_id = fk.parent_object_id
-WHERE fk.referenced_object_id = OBJECT_ID('dbo.Users');
-
-IF LEN(@sql) > 0
-    EXEC sp_executesql @sql;
+IF OBJECT_ID('dbo.Users') IS NULL
+BEGIN
+    CREATE TABLE dbo.Users
+    (
+        Id              INT IDENTITY(1,1)  NOT NULL,
+        Username        NVARCHAR(50)       NOT NULL,
+        PasswordHash    NVARCHAR(256)      NOT NULL,
+        Email           NVARCHAR(256)      NOT NULL,
+        CreatedAt       DATETIME2(3)       NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT (SYSUTCDATETIME()),
+        LastLoginAt     DATETIME2(3)       NULL,
+        Role            TINYINT            NOT NULL CONSTRAINT DF_Users_Role DEFAULT (0),
+        Signature       NVARCHAR(1000)     NULL,
+        Bio             NVARCHAR(2000)     NULL,
+        AvatarUrl       NVARCHAR(500)      NULL,
+        ShowEmail       BIT                NOT NULL CONSTRAINT DF_Users_ShowEmail DEFAULT (0),
+        CustomTitle     NVARCHAR(70)       NULL,
+        MustChangePassword BIT             NOT NULL CONSTRAINT DF_Users_MustChangePassword DEFAULT (0),
+        LockedUntil     DATETIME2(3)       NULL,
+        LastLoginIp     NVARCHAR(45)       NULL,
+        CONSTRAINT PK_Users PRIMARY KEY CLUSTERED (Id),
+        CONSTRAINT UQ_Users_Username UNIQUE (Username),
+        CONSTRAINT UQ_Users_Email UNIQUE (Email),
+        CONSTRAINT CK_Users_Role CHECK (Role IN (0, 1, 2, 3))
+    );
+END
 GO
 
-DROP TABLE IF EXISTS dbo.Users;
-GO
-
-CREATE TABLE dbo.Users
-(
-    Id              INT IDENTITY(1,1)  NOT NULL,
-    Username        NVARCHAR(50)       NOT NULL,
-    PasswordHash    NVARCHAR(256)      NOT NULL,
-    Email           NVARCHAR(256)      NOT NULL,
-    CreatedAt       DATETIME2(3)       NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT (SYSUTCDATETIME()),
-    LastLoginAt     DATETIME2(3)       NULL,
-    Role            TINYINT            NOT NULL CONSTRAINT DF_Users_Role DEFAULT (0),
-    Signature       NVARCHAR(1000)     NULL,
-    Bio             NVARCHAR(2000)     NULL,
-    AvatarUrl       NVARCHAR(500)      NULL,
-    ShowEmail       BIT                NOT NULL CONSTRAINT DF_Users_ShowEmail DEFAULT (0),
-    CustomTitle     NVARCHAR(70)       NULL,
-    MustChangePassword BIT             NOT NULL CONSTRAINT DF_Users_MustChangePassword DEFAULT (0),
-    LockedUntil     DATETIME2(3)       NULL,
-    LastLoginIp     NVARCHAR(45)       NULL,
-    CONSTRAINT PK_Users PRIMARY KEY CLUSTERED (Id),
-    CONSTRAINT UQ_Users_Username UNIQUE (Username),
-    CONSTRAINT UQ_Users_Email UNIQUE (Email),
-    CONSTRAINT CK_Users_Role CHECK (Role IN (0, 1, 2, 3))
-);
-GO
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'NewColumn')
+--   BEGIN
+--       ALTER TABLE dbo.Users ADD NewColumn ...;
+--   END
+--   GO

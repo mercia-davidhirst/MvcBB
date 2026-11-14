@@ -12,33 +12,31 @@
         ExpiresAt.
 */
 
-DECLARE @sql NVARCHAR(MAX) = N'';
-SELECT @sql += N'ALTER TABLE ' + QUOTENAME(SCHEMA_NAME(t.schema_id)) + N'.' + QUOTENAME(t.name)
-             + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';' + CHAR(10)
-FROM sys.foreign_keys AS fk
-INNER JOIN sys.tables AS t ON t.object_id = fk.parent_object_id
-WHERE fk.referenced_object_id = OBJECT_ID('dbo.PasswordResetTokens');
+IF OBJECT_ID('dbo.PasswordResetTokens') IS NULL
+BEGIN
+    CREATE TABLE dbo.PasswordResetTokens
+    (
+        Id          INT IDENTITY(1,1)  NOT NULL,
+        UserId      INT                NOT NULL,
+        TokenHash   CHAR(64)           NOT NULL,
+        CreatedAt   DATETIME2(3)       NOT NULL CONSTRAINT DF_PasswordResetTokens_CreatedAt DEFAULT (SYSUTCDATETIME()),
+        ExpiresAt   DATETIME2(3)       NOT NULL,
+        UsedAt      DATETIME2(3)       NULL,
+        CONSTRAINT PK_PasswordResetTokens PRIMARY KEY CLUSTERED (Id),
+        CONSTRAINT FK_PasswordResetTokens_User FOREIGN KEY (UserId) REFERENCES dbo.Users (Id),
+        CONSTRAINT UQ_PasswordResetTokens_TokenHash UNIQUE (TokenHash)
+    );
 
-IF LEN(@sql) > 0
-    EXEC sp_executesql @sql;
+    CREATE NONCLUSTERED INDEX IX_PasswordResetTokens_UserId ON dbo.PasswordResetTokens (UserId);
+END
 GO
 
-DROP TABLE IF EXISTS dbo.PasswordResetTokens;
-GO
-
-CREATE TABLE dbo.PasswordResetTokens
-(
-    Id          INT IDENTITY(1,1)  NOT NULL,
-    UserId      INT                NOT NULL,
-    TokenHash   CHAR(64)           NOT NULL,
-    CreatedAt   DATETIME2(3)       NOT NULL CONSTRAINT DF_PasswordResetTokens_CreatedAt DEFAULT (SYSUTCDATETIME()),
-    ExpiresAt   DATETIME2(3)       NOT NULL,
-    UsedAt      DATETIME2(3)       NULL,
-    CONSTRAINT PK_PasswordResetTokens PRIMARY KEY CLUSTERED (Id),
-    CONSTRAINT FK_PasswordResetTokens_User FOREIGN KEY (UserId) REFERENCES dbo.Users (Id),
-    CONSTRAINT UQ_PasswordResetTokens_TokenHash UNIQUE (TokenHash)
-);
-GO
-
-CREATE NONCLUSTERED INDEX IX_PasswordResetTokens_UserId ON dbo.PasswordResetTokens (UserId);
-GO
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.PasswordResetTokens') AND name = 'NewColumn')
+--   BEGIN
+--       ALTER TABLE dbo.PasswordResetTokens ADD NewColumn ...;
+--   END
+--   GO

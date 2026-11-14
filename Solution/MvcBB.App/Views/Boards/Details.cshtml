@@ -1,7 +1,11 @@
+@using MvcBB.Shared.Models.ForumThread
 @model BoardResponse
 
 @{
     ViewData["Title"] = Model.Name;
+    var threads = ViewData["Threads"] as IEnumerable<ThreadResponse> ?? Enumerable.Empty<ThreadResponse>();
+    var page = ViewData["Page"] as int? ?? 1;
+    var totalPages = ViewData["TotalPages"] as int? ?? 1;
 }
 
 <div class="container">
@@ -66,8 +70,21 @@
             }
             else
             {
-                <!-- Thread list will be rendered here by a partial view -->
-                @await Component.InvokeAsync("ThreadList", new { boardId = Model.Id })
+                <partial name="Components/ThreadList/Default" model="threads" />
+
+                @if (totalPages > 1)
+                {
+                    <nav aria-label="Thread pages" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            @for (var i = 1; i <= totalPages; i++)
+                            {
+                                <li class="page-item @(i == page ? "active" : "")">
+                                    <a class="page-link" href="@Url.Action("Details", new { id = Model.Id, page = i })">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                }
             }
         </div>
 
@@ -110,7 +127,7 @@
                                 @Model.LastPostByUsername
                             </a>
                             <br />
-                            @Model.LastPostAt.Value.ToLocalTime().ToString("g")
+                            @(await Html.FormatDateTimeAsync(Model.LastPostAt.Value))
                         </small>
                     </div>
                 </div>

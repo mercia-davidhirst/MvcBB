@@ -10,33 +10,31 @@
         the StartDate/EndDate window.
 */
 
-DECLARE @sql NVARCHAR(MAX) = N'';
-SELECT @sql += N'ALTER TABLE ' + QUOTENAME(SCHEMA_NAME(t.schema_id)) + N'.' + QUOTENAME(t.name)
-             + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';' + CHAR(10)
-FROM sys.foreign_keys AS fk
-INNER JOIN sys.tables AS t ON t.object_id = fk.parent_object_id
-WHERE fk.referenced_object_id = OBJECT_ID('dbo.Announcements');
+IF OBJECT_ID('dbo.Announcements') IS NULL
+BEGIN
+    CREATE TABLE dbo.Announcements
+    (
+        Id              INT IDENTITY(1,1)  NOT NULL,
+        Title           NVARCHAR(200)      NOT NULL,
+        Content         NVARCHAR(MAX)      NOT NULL,
+        IsActive        BIT                NOT NULL CONSTRAINT DF_Announcements_IsActive DEFAULT (1),
+        SortOrder       INT                NOT NULL CONSTRAINT DF_Announcements_SortOrder DEFAULT (0),
+        StartDate       DATETIME2          NULL,
+        EndDate         DATETIME2          NULL,
+        CreatedAt       DATETIME2          NOT NULL CONSTRAINT DF_Announcements_CreatedAt DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT PK_Announcements PRIMARY KEY CLUSTERED (Id)
+    );
 
-IF LEN(@sql) > 0
-    EXEC sp_executesql @sql;
+    CREATE NONCLUSTERED INDEX IX_Announcements_SortOrder ON dbo.Announcements (SortOrder);
+END
 GO
 
-DROP TABLE IF EXISTS dbo.Announcements;
-GO
-
-CREATE TABLE dbo.Announcements
-(
-    Id              INT IDENTITY(1,1)  NOT NULL,
-    Title           NVARCHAR(200)      NOT NULL,
-    Content         NVARCHAR(MAX)      NOT NULL,
-    IsActive        BIT                NOT NULL CONSTRAINT DF_Announcements_IsActive DEFAULT (1),
-    SortOrder       INT                NOT NULL CONSTRAINT DF_Announcements_SortOrder DEFAULT (0),
-    StartDate       DATETIME2          NULL,
-    EndDate         DATETIME2          NULL,
-    CreatedAt       DATETIME2          NOT NULL CONSTRAINT DF_Announcements_CreatedAt DEFAULT (SYSUTCDATETIME()),
-    CONSTRAINT PK_Announcements PRIMARY KEY CLUSTERED (Id)
-);
-GO
-
-CREATE NONCLUSTERED INDEX IX_Announcements_SortOrder ON dbo.Announcements (SortOrder);
-GO
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Announcements') AND name = 'NewColumn')
+--   BEGIN
+--       ALTER TABLE dbo.Announcements ADD NewColumn ...;
+--   END
+--   GO

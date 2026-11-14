@@ -14,9 +14,7 @@
         the existing row's notify flags instead of creating a duplicate.
 */
 
-DROP TABLE IF EXISTS public.thread_subscriptions CASCADE;
-
-CREATE TABLE public.thread_subscriptions
+CREATE TABLE IF NOT EXISTS public.thread_subscriptions
 (
     id                      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     thread_id               INTEGER         NOT NULL REFERENCES public.threads (id),
@@ -27,4 +25,10 @@ CREATE TABLE public.thread_subscriptions
     CONSTRAINT uq_thread_subscriptions_thread_user UNIQUE (thread_id, user_id)
 );
 
-CREATE INDEX ix_thread_subscriptions_thread_id ON public.thread_subscriptions (thread_id);
+CREATE INDEX IF NOT EXISTS ix_thread_subscriptions_thread_id ON public.thread_subscriptions (thread_id);
+
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   ALTER TABLE public.thread_subscriptions ADD COLUMN IF NOT EXISTS new_column ...;

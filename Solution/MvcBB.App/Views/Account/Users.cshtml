@@ -48,7 +48,7 @@
                             }
                             @if (user.IsLocked)
                             {
-                                <span class="badge bg-dark" title="Locked until @user.LockedUntil?.ToLocalTime().ToString("g")">
+                                <span class="badge bg-dark" title="Locked until @(user.LockedUntil.HasValue ? await Html.FormatDateTimeAsync(user.LockedUntil.Value) : "")">
                                     <i class="bi bi-lock"></i> Locked
                                 </span>
                             }
@@ -71,8 +71,8 @@
                                 <span class="text-muted">&mdash;</span>
                             }
                         </td>
-                        <td>@user.CreatedAt.ToLocalTime().ToString("g")</td>
-                        <td>@(user.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</td>
+                        <td>@(await Html.FormatDateTimeAsync(user.CreatedAt))</td>
+                        <td>@(user.LastLoginAt.HasValue ? await Html.FormatDateTimeAsync(user.LastLoginAt.Value) : "Never")</td>
                         <td>@(string.IsNullOrEmpty(user.LastLoginIp) ? "—" : user.LastLoginIp)</td>
                         <td>
                             <small>

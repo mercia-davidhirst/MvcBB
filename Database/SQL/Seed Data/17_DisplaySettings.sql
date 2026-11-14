@@ -9,8 +9,8 @@
 
 IF NOT EXISTS (SELECT 1 FROM dbo.DisplaySettings)
 BEGIN
-    INSERT INTO dbo.DisplaySettings (Id, ThreadsPerPage, SiteTitle, WelcomeMessage, SiteName, LogoPath, FooterDisclaimer, RegistrationEnabled)
+    INSERT INTO dbo.DisplaySettings (Id, ThreadsPerPage, SiteTitle, WelcomeMessage, SiteName, LogoPath, FooterDisclaimer, RegistrationEnabled, DateFormat, TimeFormat)
     VALUES
-        (1, 20, N'Welcome to MvcBB', N'A modern bulletin board system for engaging discussions and community building.', N'MvcBB', NULL, NULL, 1);
+        (1, 20, N'Welcome to MvcBB', N'A modern bulletin board system for engaging discussions and community building.', N'MvcBB', NULL, NULL, 1, N'dd/MM/yyyy', N'HH:mm');
 END;
 GO

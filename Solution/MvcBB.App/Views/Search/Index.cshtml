@@ -75,7 +75,7 @@
                                 <p class="mb-1">
                                     <small class="text-muted">
                                         Posted by @result.Author in @result.BoardName
-                                        on @result.CreatedAt.ToLocalTime().ToString("g")
+                                        on @(await Html.FormatDateTimeAsync(result.CreatedAt))
                                     </small>
                                 </p>
                                 break;
@@ -91,7 +91,7 @@
                                 <p class="mb-1">
                                     <small class="text-muted">
                                         Posted by @result.Author in @result.BoardName
-                                        on @result.CreatedAt.ToLocalTime().ToString("g")
+                                        on @(await Html.FormatDateTimeAsync(result.CreatedAt))
                                     </small>
                                 </p>
                                 break;
@@ -104,7 +104,7 @@
                                 </h5>
                                 <p class="mb-1">
                                     <small class="text-muted">
-                                        Joined @result.CreatedAt.ToLocalTime().ToString("g")
+                                        Joined @(await Html.FormatDateTimeAsync(result.CreatedAt))
                                     </small>
                                 </p>
                                 break;

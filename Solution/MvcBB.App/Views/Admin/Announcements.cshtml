@@ -36,8 +36,8 @@
                                 </span>
                             </td>
                             <td>@announcement.SortOrder</td>
-                            <td>@(announcement.StartDate?.ToLocalTime().ToString("g") ?? "-")</td>
-                            <td>@(announcement.EndDate?.ToLocalTime().ToString("g") ?? "-")</td>
+                            <td>@(announcement.StartDate.HasValue ? await Html.FormatDateTimeAsync(announcement.StartDate.Value) : "-")</td>
+                            <td>@(announcement.EndDate.HasValue ? await Html.FormatDateTimeAsync(announcement.EndDate.Value) : "-")</td>
                             <td>
                                 <div class="btn-group">
                                     <a asp-action="EditAnnouncement" asp-route-id="@announcement.Id"

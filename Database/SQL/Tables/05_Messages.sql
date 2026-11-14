@@ -8,37 +8,33 @@
         read state + recency.
 */
 
-DECLARE @sql NVARCHAR(MAX) = N'';
-SELECT @sql += N'ALTER TABLE ' + QUOTENAME(SCHEMA_NAME(t.schema_id)) + N'.' + QUOTENAME(t.name)
-             + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';' + CHAR(10)
-FROM sys.foreign_keys AS fk
-INNER JOIN sys.tables AS t ON t.object_id = fk.parent_object_id
-WHERE fk.referenced_object_id = OBJECT_ID('dbo.Messages');
+IF OBJECT_ID('dbo.Messages') IS NULL
+BEGIN
+    CREATE TABLE dbo.Messages
+    (
+        Id                  INT IDENTITY(1,1)  NOT NULL,
+        Subject             NVARCHAR(200)      NOT NULL CONSTRAINT DF_Messages_Subject DEFAULT (N''),
+        Content             NVARCHAR(MAX)      NOT NULL,
+        SenderUserId        INT                NOT NULL,
+        RecipientUserId     INT                NOT NULL,
+        CreatedAt           DATETIME2(3)       NOT NULL CONSTRAINT DF_Messages_CreatedAt DEFAULT (SYSUTCDATETIME()),
+        ReadAt               DATETIME2(3)      NULL,
+        CONSTRAINT PK_Messages PRIMARY KEY CLUSTERED (Id),
+        CONSTRAINT FK_Messages_Sender FOREIGN KEY (SenderUserId) REFERENCES dbo.Users (Id),
+        CONSTRAINT FK_Messages_Recipient FOREIGN KEY (RecipientUserId) REFERENCES dbo.Users (Id)
+    );
 
-IF LEN(@sql) > 0
-    EXEC sp_executesql @sql;
+    CREATE NONCLUSTERED INDEX IX_Messages_Recipient ON dbo.Messages (RecipientUserId, CreatedAt DESC) INCLUDE (ReadAt);
+    CREATE NONCLUSTERED INDEX IX_Messages_Sender ON dbo.Messages (SenderUserId, CreatedAt DESC);
+END
 GO
 
-DROP TABLE IF EXISTS dbo.Messages;
-GO
-
-CREATE TABLE dbo.Messages
-(
-    Id                  INT IDENTITY(1,1)  NOT NULL,
-    Subject             NVARCHAR(200)      NOT NULL CONSTRAINT DF_Messages_Subject DEFAULT (N''),
-    Content             NVARCHAR(MAX)      NOT NULL,
-    SenderUserId        INT                NOT NULL,
-    RecipientUserId     INT                NOT NULL,
-    CreatedAt           DATETIME2(3)       NOT NULL CONSTRAINT DF_Messages_CreatedAt DEFAULT (SYSUTCDATETIME()),
-    ReadAt               DATETIME2(3)      NULL,
-    CONSTRAINT PK_Messages PRIMARY KEY CLUSTERED (Id),
-    CONSTRAINT FK_Messages_Sender FOREIGN KEY (SenderUserId) REFERENCES dbo.Users (Id),
-    CONSTRAINT FK_Messages_Recipient FOREIGN KEY (RecipientUserId) REFERENCES dbo.Users (Id)
-);
-GO
-
-CREATE NONCLUSTERED INDEX IX_Messages_Recipient ON dbo.Messages (RecipientUserId, CreatedAt DESC) INCLUDE (ReadAt);
-GO
-
-CREATE NONCLUSTERED INDEX IX_Messages_Sender ON dbo.Messages (SenderUserId, CreatedAt DESC);
-GO
+-- Schema changes for a database that already has an older version of this
+-- table (a fresh install gets the up-to-date shape directly from
+-- CREATE TABLE above, so these only ever run against an existing table):
+-- none pending yet - add guarded ALTER TABLE statements here, e.g.:
+--   IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Messages') AND name = 'NewColumn')
+--   BEGIN
+--       ALTER TABLE dbo.Messages ADD NewColumn ...;
+--   END
+--   GO

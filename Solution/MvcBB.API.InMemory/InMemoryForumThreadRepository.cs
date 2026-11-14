@@ -14,14 +14,6 @@ namespace MvcBB.API.InMemory
 
         public IReadOnlyList<ForumThread> GetAll() => _store.Threads.Select(Hydrate).ToList();
 
-        public IReadOnlyList<ForumThread> GetByBoardId(int boardId) =>
-            _store.Threads
-                .Where(t => t.BoardId == boardId)
-                .OrderByDescending(t => t.IsSticky)
-                .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
-                .Select(Hydrate)
-                .ToList();
-
         public ForumThread? GetById(int id)
         {
             var thread = _store.Threads.FirstOrDefault(t => t.Id == id);
@@ -45,7 +37,7 @@ namespace MvcBB.API.InMemory
 
         public void Remove(ForumThread thread) => _store.Threads.Remove(thread);
 
-        public (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards)
+        public (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards, int? boardId = null)
         {
             var visibleBoardIds = _store.Boards
                 .Where(b => includePrivateBoards || !b.IsPrivate)
@@ -54,6 +46,7 @@ namespace MvcBB.API.InMemory
 
             var filtered = _store.Threads
                 .Where(t => visibleBoardIds.Contains(t.BoardId))
+                .Where(t => !boardId.HasValue || t.BoardId == boardId.Value)
                 .OrderByDescending(t => t.IsSticky)
                 .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
                 .ToList();
