@@ -25,7 +25,7 @@ BEGIN
     SELECT pd.Id, pd.Content, pd.ThreadId, pd.ThreadTitle, pd.CreatedByUserId, pd.CreatedByUsername,
            pd.CreatedAt, pd.IsEdited, pd.EditReason, pd.UpdatedAt, pd.UpdatedByUserId, pd.UpdatedByUsername,
            pd.IsDeleted, pd.DeletedByUserId, pd.DeletedByUsername, pd.DeletedAt, pd.DeleteReason,
-           pd.QuotedPostId, pd.ImageUrl, pd.UserAvatar, pd.UserSignature, pd.UserPostCount, pd.UserJoinedAt, pd.UserRole
+           pd.QuotedPostId, pd.ImageUrl, pd.IsImportedData, pd.UserAvatar, pd.UserSignature, pd.UserPostCount, pd.UserJoinedAt, pd.UserRole
     FROM dbo.vw_PostDetails AS pd
     INNER JOIN dbo.Threads AS th ON th.Id = pd.ThreadId
     INNER JOIN dbo.Boards AS b ON b.Id = th.BoardId

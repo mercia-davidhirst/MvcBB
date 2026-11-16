@@ -45,6 +45,16 @@ namespace MvcBB.API.InMemory
 
             var newId = _store.PostLikes.Count == 0 ? 1 : _store.PostLikes.Max(l => l.Id) + 1;
             _store.PostLikes.Add(new PostLike { Id = newId, PostId = postId, UserId = userId, CreatedAt = DateTime.UtcNow });
+
+            // Threads.TotalLikes is a stored, incrementally-maintained count
+            // (matching the SQL/PostgreSQL repositories, where
+            // usp_PostLike_Add/sp_post_like_add do the same) rather than
+            // something ThreadsController recomputes on every request.
+            var thread = _store.Threads.FirstOrDefault(t => t.Id == _store.Posts.FirstOrDefault(p => p.Id == postId)?.ThreadId);
+            if (thread != null)
+            {
+                thread.TotalLikes++;
+            }
         }
 
         public void RemoveLike(int postId, string userId)
@@ -53,6 +63,12 @@ namespace MvcBB.API.InMemory
             if (existing != null)
             {
                 _store.PostLikes.Remove(existing);
+
+                var thread = _store.Threads.FirstOrDefault(t => t.Id == _store.Posts.FirstOrDefault(p => p.Id == postId)?.ThreadId);
+                if (thread != null)
+                {
+                    thread.TotalLikes--;
+                }
             }
         }
     }

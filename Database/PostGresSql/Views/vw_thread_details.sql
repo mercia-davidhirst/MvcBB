@@ -27,9 +27,12 @@ SELECT
     t.is_locked,
     t.view_count,
     t.post_count,
+    t.total_likes,
+    t.participant_count,
     t.last_post_at,
     t.last_post_by_user_id,
-    lastPoster.username::text      AS last_post_by_username
+    lastPoster.username::text      AS last_post_by_username,
+    t.is_imported_data
 FROM public.threads AS t
 INNER JOIN public.boards AS b ON b.id = t.board_id
 INNER JOIN public.users AS creator ON creator.id = t.created_by_user_id

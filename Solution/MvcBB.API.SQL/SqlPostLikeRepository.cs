@@ -46,16 +46,16 @@ namespace MvcBB.API.SQL
                 return new Dictionary<int, int>();
             }
 
-            // A variable-length IN-list doesn't fit a stored procedure's fixed
-            // parameters - this batch method goes straight against the table
-            // instead of through a usp_PostLike_* procedure. The id list is
+            // LikeCount is a stored column on Posts (maintained by
+            // usp_PostLike_Add/Remove), not a live COUNT(*) aggregate - this
+            // just reads it back for the requested ids. The id list is still
             // passed as a single JSON array parameter (see SqlListParameter)
             // rather than Dapper's "IN @Ids" expansion - a busy board/thread
             // can easily have more posts than SQL Server's 2100-parameter-
             // per-query ceiling allows once each id becomes its own parameter.
             using var connection = _connectionFactory.CreateConnection();
             var rows = connection.Query<LikeCountRow>(
-                "SELECT PostId, COUNT(*) AS LikeCount FROM dbo.PostLikes WHERE PostId IN (SELECT CAST(value AS INT) FROM OPENJSON(@PostIds)) GROUP BY PostId",
+                "SELECT Id AS PostId, LikeCount FROM dbo.Posts WHERE Id IN (SELECT CAST(value AS INT) FROM OPENJSON(@PostIds))",
                 new { PostIds = SqlListParameter.ToJson(ids) });
             return rows.ToDictionary(r => r.PostId, r => r.LikeCount);
         }

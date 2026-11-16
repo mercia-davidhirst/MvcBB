@@ -9,6 +9,6 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT COUNT(*) FROM dbo.PostLikes WHERE PostId = @PostId;
+    SELECT LikeCount FROM dbo.Posts WHERE Id = @PostId;
 END;
 GO

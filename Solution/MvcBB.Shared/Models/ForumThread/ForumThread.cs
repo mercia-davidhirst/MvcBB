@@ -17,10 +17,19 @@ namespace MvcBB.Shared.Models.ForumThread
 
         public bool IsSticky { get; set; }
         public bool IsLocked { get; set; }
+        public bool IsImportedData { get; set; }
 
         public int ViewCount { get; set; }
         public int PostCount { get; set; }
-        
+
+        // Stored instead of computed on the fly per request - TotalLikes is
+        // maintained exclusively by the usp_PostLike_*/sp_post_like_* procs
+        // (never by the generic Update path, to avoid a concurrent like/unlike
+        // being clobbered by a stale snapshot); ParticipantCount is maintained
+        // by ThreadsController/PostsController, matching ViewCount/PostCount.
+        public int TotalLikes { get; set; }
+        public int ParticipantCount { get; set; }
+
         public DateTime? LastPostAt { get; set; }
         public string? LastPostByUserId { get; set; }
 

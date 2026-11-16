@@ -80,33 +80,13 @@ namespace MvcBB.API.SQL
         }
 
 
-        public IReadOnlyDictionary<int, ThreadPostSummary> GetThreadSummaries(IEnumerable<int> threadIds)
+        public bool HasPostInThread(int threadId, string userId)
         {
-            var ids = threadIds.Distinct().ToList();
-            if (ids.Count == 0)
-            {
-                return new Dictionary<int, ThreadPostSummary>();
-            }
-
             using var connection = _connectionFactory.CreateConnection();
-            // A variable-length IN-list doesn't fit a stored procedure's fixed
-            // parameters, so this one goes straight against the table rather
-            // than through a usp_* procedure. The id list is passed as a
-            // single JSON array parameter (see SqlListParameter) instead of
-            // Dapper's own "IN @Ids" expansion (one SQL parameter per id),
-            // which risks SQL Server's 2100-parameter-per-query ceiling for
-            // a board with a lot of threads.
-            var rows = connection.Query<ThreadPostRow>(
-                "SELECT Id AS PostId, ThreadId, CreatedByUserId FROM dbo.Posts WHERE ThreadId IN (SELECT CAST(value AS INT) FROM OPENJSON(@ThreadIds))",
-                new { ThreadIds = SqlListParameter.ToJson(ids) });
-
-            return rows
-                .GroupBy(r => r.ThreadId)
-                .ToDictionary(g => g.Key, g => new ThreadPostSummary
-                {
-                    ParticipantCount = g.Select(r => r.CreatedByUserId).Distinct().Count(),
-                    PostIds = g.Select(r => r.PostId).ToList()
-                });
+            var exists = connection.ExecuteScalar<int?>(
+                "SELECT TOP 1 1 FROM dbo.Posts WHERE ThreadId = @ThreadId AND CreatedByUserId = @UserId",
+                new { ThreadId = threadId, UserId = ParseUserId(userId) });
+            return exists.HasValue;
         }
 
         public IReadOnlyDictionary<int, Post> GetByIds(IEnumerable<int> ids)
@@ -148,13 +128,6 @@ namespace MvcBB.API.SQL
             return rows.Select(MapToPost).ToList();
         }
 
-        private class ThreadPostRow
-        {
-            public int PostId { get; set; }
-            public int ThreadId { get; set; }
-            public int CreatedByUserId { get; set; }
-        }
-
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private static Post MapToPost(PostRow row) => new()
@@ -178,6 +151,7 @@ namespace MvcBB.API.SQL
             DeleteReason = row.DeleteReason,
             QuotedPostId = row.QuotedPostId,
             ImageUrl = row.ImageUrl,
+            IsImportedData = row.IsImportedData,
             UserAvatar = row.UserAvatar,
             UserSignature = row.UserSignature,
             UserPostCount = row.UserPostCount,
@@ -211,6 +185,7 @@ namespace MvcBB.API.SQL
             public string? DeleteReason { get; set; }
             public int? QuotedPostId { get; set; }
             public string? ImageUrl { get; set; }
+            public bool IsImportedData { get; set; }
             public string? UserAvatar { get; set; }
             public string? UserSignature { get; set; }
             public int UserPostCount { get; set; }

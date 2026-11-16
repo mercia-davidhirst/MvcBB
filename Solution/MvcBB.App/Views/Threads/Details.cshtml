@@ -21,7 +21,28 @@
 
     <div class="card mb-4">
         <div class="card-header thread-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">@Model.Title</h4>
+            <h4 class="mb-0">
+                @if (Model.IsImportedData)
+                {
+                    <i class="bi bi-archive text-muted me-1" title="Imported from legacy forum data"></i>
+                }
+                @Model.Title
+                @switch (Model.ActivityStatus)
+                {
+                    case "hot":
+                        <i class="bi bi-fire text-danger ms-1" title="Hot topic"></i>
+                        break;
+                    case "active":
+                        <i class="bi bi-circle-fill text-success ms-1" style="font-size: 0.6rem;" title="Active topic"></i>
+                        break;
+                    case "cool":
+                        <i class="bi bi-circle-fill text-primary ms-1" style="font-size: 0.6rem;" title="Cool topic"></i>
+                        break;
+                    case "grave":
+                        <i class="bi bi-moon-stars-fill text-secondary ms-1" title="Dormant topic"></i>
+                        break;
+                }
+            </h4>
             <div>
                 @if (!Model.IsLocked || User.IsInRole("Administrator") || User.IsInRole("Moderator"))
                 {
@@ -182,6 +203,18 @@
                                         @post.CreatedByUsername
                                     </a>
                                 </strong>
+                                @if (post.CreatedByRole == "Administrator")
+                                {
+                                    <i class="bi bi-shield-fill-check text-danger ms-1" title="Administrator"></i>
+                                }
+                                else if (post.CreatedByRole == "Moderator")
+                                {
+                                    <i class="bi bi-shield-fill text-warning ms-1" title="Moderator"></i>
+                                }
+                                @if (post.IsImportedData)
+                                {
+                                    <i class="bi bi-archive text-muted ms-1" title="Imported from legacy forum data"></i>
+                                }
                                 @if (!string.IsNullOrEmpty(post.CreatedByRankTitle))
                                 {
                                     <small class="d-block">

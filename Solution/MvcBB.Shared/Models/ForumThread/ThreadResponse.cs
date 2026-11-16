@@ -13,6 +13,7 @@ namespace MvcBB.Shared.Models.ForumThread
         public DateTime? UpdatedAt { get; set; }
         public bool IsSticky { get; set; }
         public bool IsLocked { get; set; }
+        public bool IsImportedData { get; set; }
         public int ViewCount { get; set; }
         public int ReplyCount { get; set; }
         public DateTime? LastPostAt { get; set; }
@@ -26,6 +27,26 @@ namespace MvcBB.Shared.Models.ForumThread
         public PostResponse? LastPost { get; set; }
         public int TotalLikes { get; set; }
         public int ParticipantCount { get; set; }
+
+        /// <summary>
+        /// Derived purely from ReplyCount/LastPostAt/CreatedAt, not stored -
+        /// "hot" (&gt;30 replies, active within 24h), "active" (&lt;=30 replies,
+        /// active within 24h), "cool" (active within 24h-30 days), "none" (no
+        /// icon - inactive 30 days-1 year) or "grave" (inactive 1+ year).
+        /// </summary>
+        public string ActivityStatus
+        {
+            get
+            {
+                var lastActivity = LastPostAt ?? CreatedAt;
+                var age = DateTime.UtcNow - lastActivity;
+                if (age > TimeSpan.FromDays(365)) return "grave";
+                if (age > TimeSpan.FromDays(30)) return "none";
+                if (age > TimeSpan.FromDays(1)) return "cool";
+                return ReplyCount > 30 ? "hot" : "active";
+            }
+        }
+
         public PollResponse? Poll { get; set; }
         public bool IsSubscribed { get; set; }
         public bool NotifyViaMessage { get; set; }

@@ -24,6 +24,10 @@ two-tier MVC + API application with a swappable persistence layer.
   scripts) — they haven't been exercised against a live SQL Server/PostgreSQL
   instance beyond schema/proc smoke tests.
 
+A companion console project, **MvcBB.DataMigration** (under `../Migration`),
+imports a legacy WoltLab Burning Board (WBB) MySQL dump into this schema for
+both SQL Server and PostgreSQL targets.
+
 ## Functionality
 
 ### Forums
@@ -37,9 +41,23 @@ two-tier MVC + API application with a swappable persistence layer.
   live vote counts and results.
 - Thread statistics: reply count, view count, total likes, participant count,
   last poster — shown on every thread listing (home page, board index, board
-  details) via a shared component, and on the thread itself.
+  details) via a shared component, and on the thread itself. Likes and
+  participant counts are maintained as stored counters, updated inline as
+  likes/replies happen, rather than recomputed on every page load.
 - Thread "watch"/subscribe: opt in to notifications on new replies, choosing
   private-message and/or email delivery independently.
+- Thread activity-status icon (hot/active/cool/dormant/none), shown next to
+  the thread title on both the thread page and board listings, based on reply
+  count and time since last activity.
+- Board categories can be collapsed/expanded from the board listing page,
+  with the collapsed state remembered per-browser.
+- Boards load their list of threads up front; each board's most recent
+  threads are fetched on demand via a "show recent threads" button, so a
+  board index with many boards no longer waits on every board's threads to
+  load before the page renders.
+- Inactive boards are hidden from everyone except Administrators.
+- Posts/threads imported from a legacy forum are flagged and shown with a
+  small icon, to distinguish migrated content from content created natively.
 
 ### Members & profiles
 - Registration, login, password reset (emailed link — logged to console in
@@ -56,7 +74,10 @@ two-tier MVC + API application with a swappable persistence layer.
 ### Moderation & content tools
 - Three roles (User, Moderator, Administrator) plus a `Deleted` state used
   for anonymizing removed accounts (existing posts/threads keep a generic
-  author rather than being deleted outright).
+  author rather than being deleted outright). Administrators and Moderators
+  are marked with a role icon next to their username on every post, and
+  role colour (red/green/blue/grey) is consistent across the member
+  directory and profile pages.
 - Content reporting (posts, threads, users) with an admin review queue.
 - Site-wide search across threads/posts.
 - Admin-managed **word filter**: a censor list applied to post content and
@@ -68,7 +89,8 @@ two-tier MVC + API application with a swappable persistence layer.
 - Admin dashboard linking every management area: Users, Boards, BBCode,
   Smilies, Ranks, Word Filter, Reports, Settings.
 - Display settings: site name/title/logo, welcome message, threads-per-page,
-  and an optional centered footer disclaimer.
+  site-wide date/time display format, and an optional centered footer
+  disclaimer.
 - User management: role changes, custom titles, account anonymization.
 
 ### Appearance

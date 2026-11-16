@@ -34,6 +34,8 @@ BEGIN
         DeleteReason        NVARCHAR(500)      NULL,
         QuotedPostId        INT                NULL,
         ImageUrl            NVARCHAR(500)      NULL,
+        LikeCount           INT                NOT NULL CONSTRAINT DF_Posts_LikeCount DEFAULT (0),
+        IsImportedData      BIT                NOT NULL CONSTRAINT DF_Posts_IsImportedData DEFAULT (0),
         CONSTRAINT PK_Posts PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_Posts_Thread FOREIGN KEY (ThreadId) REFERENCES dbo.Threads (Id),
         CONSTRAINT FK_Posts_CreatedByUser FOREIGN KEY (CreatedByUserId) REFERENCES dbo.Users (Id),
@@ -45,15 +47,39 @@ BEGIN
 
     CREATE NONCLUSTERED INDEX IX_Posts_ThreadId_CreatedAt ON dbo.Posts (ThreadId, CreatedAt);
     CREATE NONCLUSTERED INDEX IX_Posts_CreatedByUserId ON dbo.Posts (CreatedByUserId) INCLUDE (IsDeleted);
+    -- Supports IPostRepository.HasPostInThread, used to decide whether a new
+    -- post makes its author a new distinct participant on the thread.
+    CREATE NONCLUSTERED INDEX IX_Posts_ThreadId_CreatedByUserId ON dbo.Posts (ThreadId, CreatedByUserId);
 END
 GO
 
 -- Schema changes for a database that already has an older version of this
 -- table (a fresh install gets the up-to-date shape directly from
 -- CREATE TABLE above, so these only ever run against an existing table):
--- none pending yet - add guarded ALTER TABLE statements here, e.g.:
---   IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'NewColumn')
---   BEGIN
---       ALTER TABLE dbo.Posts ADD NewColumn ...;
---   END
---   GO
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'LikeCount')
+BEGIN
+    ALTER TABLE dbo.Posts ADD LikeCount INT NOT NULL CONSTRAINT DF_Posts_LikeCount DEFAULT (0);
+
+    -- One-time backfill from the data this column replaces - matches what
+    -- usp_PostLike_GetCount used to compute with COUNT(*) on every read.
+    -- Run via EXEC() so the reference to the column just added above is
+    -- resolved at execution time, not batch-parse time (SQL Server
+    -- validates column names for the whole batch up front, before the
+    -- ALTER above has actually run).
+    EXEC(N'
+        UPDATE p
+        SET p.LikeCount = (SELECT COUNT(*) FROM dbo.PostLikes AS pl WHERE pl.PostId = p.Id)
+        FROM dbo.Posts AS p;
+    ');
+END
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Posts_ThreadId_CreatedByUserId' AND object_id = OBJECT_ID('dbo.Posts'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_Posts_ThreadId_CreatedByUserId ON dbo.Posts (ThreadId, CreatedByUserId);
+END
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'IsImportedData')
+BEGIN
+    ALTER TABLE dbo.Posts ADD IsImportedData BIT NOT NULL CONSTRAINT DF_Posts_IsImportedData DEFAULT (0);
+END
+GO

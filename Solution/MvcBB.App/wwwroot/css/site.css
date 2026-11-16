@@ -113,6 +113,13 @@ blockquote {
     color: #6c757d;
 }
 
+/* Bootstrap's own .blockquote-footer has margin-top: -1rem, meant to hug a
+   paragraph that still has its default bottom margin. Our quoted <p> uses
+   mb-0, so there's nothing to cancel and the footer runs into the quote. */
+.blockquote-footer {
+    margin-top: 0.75rem;
+}
+
 pre code {
     display: block;
     padding: 1rem;

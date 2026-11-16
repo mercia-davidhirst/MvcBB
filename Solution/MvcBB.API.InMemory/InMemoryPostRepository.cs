@@ -38,18 +38,8 @@ namespace MvcBB.API.InMemory
                 _store.Posts[index] = post;
         }
 
-        public IReadOnlyDictionary<int, ThreadPostSummary> GetThreadSummaries(IEnumerable<int> threadIds)
-        {
-            var idSet = threadIds.ToHashSet();
-            return _store.Posts
-                .Where(p => idSet.Contains(p.ThreadId))
-                .GroupBy(p => p.ThreadId)
-                .ToDictionary(g => g.Key, g => new ThreadPostSummary
-                {
-                    ParticipantCount = g.Select(p => p.CreatedByUserId).Distinct().Count(),
-                    PostIds = g.Select(p => p.Id).ToList()
-                });
-        }
+        public bool HasPostInThread(int threadId, string userId) =>
+            _store.Posts.Any(p => p.ThreadId == threadId && p.CreatedByUserId == userId);
 
         public IReadOnlyDictionary<int, Post> GetByIds(IEnumerable<int> ids)
         {

@@ -34,14 +34,25 @@ CREATE TABLE IF NOT EXISTS public.posts
     delete_reason           VARCHAR(500)    NULL,
     quoted_post_id          INTEGER         NULL REFERENCES public.posts (id),
     image_url               VARCHAR(500)    NULL,
+    like_count              INTEGER         NOT NULL DEFAULT 0,
+    is_imported_data        BOOLEAN         NOT NULL DEFAULT FALSE,
     CONSTRAINT ck_posts_content_length CHECK (char_length(content) <= 10000)
 );
 
 CREATE INDEX IF NOT EXISTS ix_posts_thread_id_created_at ON public.posts (thread_id, created_at);
 CREATE INDEX IF NOT EXISTS ix_posts_created_by_user_id ON public.posts (created_by_user_id) INCLUDE (is_deleted);
+-- Supports IPostRepository.HasPostInThread, used to decide whether a new
+-- post makes its author a new distinct participant on the thread.
+CREATE INDEX IF NOT EXISTS ix_posts_thread_id_created_by_user_id ON public.posts (thread_id, created_by_user_id);
 
 -- Schema changes for a database that already has an older version of this
 -- table (a fresh install gets the up-to-date shape directly from
 -- CREATE TABLE above, so these only ever run against an existing table):
--- none pending yet - add guarded ALTER TABLE statements here, e.g.:
---   ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS new_column ...;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS like_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS is_imported_data BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- One-time backfill from the data this column replaces - matches what
+-- fn_post_like_get_count used to compute with COUNT(*) on every read. Cheap
+-- to run again on an already-backfilled database (every row already matches).
+UPDATE public.posts AS p
+SET like_count = (SELECT COUNT(*) FROM public.post_likes AS pl WHERE pl.post_id = p.id);

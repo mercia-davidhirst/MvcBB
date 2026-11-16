@@ -19,7 +19,6 @@ namespace MvcBB.API.Controllers
         private readonly IBoardRepository _boardRepository;
         private readonly IPostRepository _postRepository;
         private readonly IUserRepository _userRepository;
-        private readonly IPostLikeRepository _postLikeRepository;
         private readonly IPollRepository _pollRepository;
         private readonly IWordFilterRepository _wordFilterRepository;
         private readonly IThreadSubscriptionRepository _subscriptionRepository;
@@ -30,7 +29,6 @@ namespace MvcBB.API.Controllers
             IBoardRepository boardRepository,
             IPostRepository postRepository,
             IUserRepository userRepository,
-            IPostLikeRepository postLikeRepository,
             IPollRepository pollRepository,
             IWordFilterRepository wordFilterRepository,
             IThreadSubscriptionRepository subscriptionRepository,
@@ -40,7 +38,6 @@ namespace MvcBB.API.Controllers
             _boardRepository = boardRepository;
             _postRepository = postRepository;
             _userRepository = userRepository;
-            _postLikeRepository = postLikeRepository;
             _pollRepository = pollRepository;
             _wordFilterRepository = wordFilterRepository;
             _subscriptionRepository = subscriptionRepository;
@@ -75,7 +72,7 @@ namespace MvcBB.API.Controllers
         {
             var board = _boardRepository.GetById(boardId);
             var isAuthenticated = User.Identity?.IsAuthenticated == true;
-            if (board == null || !board.IsVisibleTo(isAuthenticated))
+            if (board == null || !board.IsVisibleTo(isAuthenticated, User.IsInRole("Administrator")))
             {
                 return NotFound(new { message = "Board not found" });
             }
@@ -148,7 +145,8 @@ namespace MvcBB.API.Controllers
                 CreatedAt = now,
                 LastPostAt = now,
                 LastPostByUserId = userId,
-                PostCount = 1
+                PostCount = 1,
+                ParticipantCount = 1
             };
 
             thread = _threadRepository.Add(thread);
@@ -359,9 +357,11 @@ namespace MvcBB.API.Controllers
         /// <summary>
         /// Maps a page's worth of threads to responses with a fixed, small
         /// number of batched queries total (board/username are already on
-        /// ForumThread via vw_ThreadDetails) - instead of participant count,
-        /// like totals, poll, and subscription each costing a separate
-        /// round trip per thread.
+        /// ForumThread via vw_ThreadDetails; TotalLikes/ParticipantCount are
+        /// now stored columns on Threads, maintained incrementally, rather
+        /// than a like-totals/distinct-participant aggregate recomputed here
+        /// on every request) - instead of poll and subscription each costing
+        /// a separate round trip per thread.
         /// </summary>
         private List<ThreadResponse> MapToThreadResponses(IReadOnlyList<ForumThread> threads)
         {
@@ -372,10 +372,6 @@ namespace MvcBB.API.Controllers
 
             var threadIds = threads.Select(t => t.Id).ToList();
             var currentUserId = CurrentUserId;
-
-            var summaries = _postRepository.GetThreadSummaries(threadIds);
-            var allPostIds = summaries.Values.SelectMany(s => s.PostIds).ToList();
-            var likeCounts = _postLikeRepository.GetLikeCounts(allPostIds);
 
             var pollsByThreadId = _pollRepository.GetByThreadIds(threadIds);
             var pollIds = pollsByThreadId.Values.Select(p => p.Id).ToList();
@@ -390,9 +386,6 @@ namespace MvcBB.API.Controllers
 
             return threads.Select(t =>
             {
-                summaries.TryGetValue(t.Id, out var summary);
-                var postIds = summary?.PostIds ?? Array.Empty<int>();
-
                 PollResponse? pollResponse = null;
                 if (pollsByThreadId.TryGetValue(t.Id, out var poll))
                 {
@@ -431,13 +424,14 @@ namespace MvcBB.API.Controllers
                     UpdatedAt = t.UpdatedAt,
                     IsSticky = t.IsSticky,
                     IsLocked = t.IsLocked,
+                    IsImportedData = t.IsImportedData,
                     ViewCount = t.ViewCount,
                     ReplyCount = t.PostCount,
                     LastPostAt = t.LastPostAt,
                     LastPostByUserId = t.LastPostByUserId,
                     LastPostByUsername = t.LastPostByUsername,
-                    TotalLikes = postIds.Sum(id => likeCounts.TryGetValue(id, out var c) ? c : 0),
-                    ParticipantCount = summary?.ParticipantCount ?? 0,
+                    TotalLikes = t.TotalLikes,
+                    ParticipantCount = t.ParticipantCount,
                     Poll = pollResponse,
                     IsSubscribed = subscription != null,
                     NotifyViaMessage = subscription?.NotifyViaMessage ?? false,

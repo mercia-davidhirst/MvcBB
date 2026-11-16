@@ -40,7 +40,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             var newId = connection.QuerySingle<int>(
-                "CALL public.sp_thread_insert(@Title, @BoardId, @CreatedByUserId, @IsSticky, @IsLocked, @ViewCount, @PostCount, @LastPostAt, @LastPostByUserId, NULL)",
+                "CALL public.sp_thread_insert(@Title, @BoardId, @CreatedByUserId, @IsSticky, @IsLocked, @ViewCount, @PostCount, @ParticipantCount, @LastPostAt, @LastPostByUserId, NULL)",
                 new
                 {
                     thread.Title,
@@ -50,6 +50,7 @@ namespace MvcBB.API.PostgreSql
                     thread.IsLocked,
                     thread.ViewCount,
                     thread.PostCount,
+                    thread.ParticipantCount,
                     thread.LastPostAt,
                     LastPostByUserId = ParseUserId(thread.LastPostByUserId)
                 });
@@ -62,7 +63,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             connection.Execute(
-                "CALL public.sp_thread_update(@Id, @Title, @BoardId, @IsSticky, @IsLocked, @ViewCount, @PostCount, @LastPostAt, @LastPostByUserId)",
+                "CALL public.sp_thread_update(@Id, @Title, @BoardId, @IsSticky, @IsLocked, @ViewCount, @PostCount, @ParticipantCount, @LastPostAt, @LastPostByUserId)",
                 new
                 {
                     thread.Id,
@@ -72,6 +73,7 @@ namespace MvcBB.API.PostgreSql
                     thread.IsLocked,
                     thread.ViewCount,
                     thread.PostCount,
+                    thread.ParticipantCount,
                     thread.LastPostAt,
                     LastPostByUserId = ParseUserId(thread.LastPostByUserId)
                 });
@@ -158,8 +160,11 @@ namespace MvcBB.API.PostgreSql
             UpdatedAt = row.UpdatedAt,
             IsSticky = row.IsSticky,
             IsLocked = row.IsLocked,
+            IsImportedData = row.IsImportedData,
             ViewCount = row.ViewCount,
             PostCount = row.PostCount,
+            TotalLikes = row.TotalLikes,
+            ParticipantCount = row.ParticipantCount,
             LastPostAt = row.LastPostAt,
             LastPostByUserId = row.LastPostByUserId?.ToString(),
             LastPostByUsername = row.LastPostByUsername
@@ -183,8 +188,11 @@ namespace MvcBB.API.PostgreSql
             public DateTime? UpdatedAt { get; set; }
             public bool IsSticky { get; set; }
             public bool IsLocked { get; set; }
+            public bool IsImportedData { get; set; }
             public int ViewCount { get; set; }
             public int PostCount { get; set; }
+            public int TotalLikes { get; set; }
+            public int ParticipantCount { get; set; }
             public DateTime? LastPostAt { get; set; }
             public int? LastPostByUserId { get; set; }
             public string? LastPostByUsername { get; set; }

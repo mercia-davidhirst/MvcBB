@@ -27,7 +27,8 @@ namespace MvcBB.API.Controllers
         public ActionResult<IEnumerable<BoardResponse>> GetBoards()
         {
             var isAuthenticated = User.Identity?.IsAuthenticated == true;
-            var boards = _boardRepository.GetAll().Where(b => b.IsVisibleTo(isAuthenticated)).ToList();
+            var isAdmin = User.IsInRole("Administrator");
+            var boards = _boardRepository.GetAll().Where(b => b.IsVisibleTo(isAuthenticated, isAdmin)).ToList();
             return Ok(MapToBoardResponses(boards));
         }
 
@@ -35,7 +36,7 @@ namespace MvcBB.API.Controllers
         public ActionResult<BoardResponse> GetBoard(int id)
         {
             var board = _boardRepository.GetById(id);
-            if (board == null || !board.IsVisibleTo(User.Identity?.IsAuthenticated == true))
+            if (board == null || !board.IsVisibleTo(User.Identity?.IsAuthenticated == true, User.IsInRole("Administrator")))
             {
                 return NotFound(new { message = "Board not found" });
             }
@@ -55,7 +56,7 @@ namespace MvcBB.API.Controllers
             var board = new Board
             {
                 Name = request.Name,
-                Description = request.Description,
+                Description = request.Description ?? string.Empty,
                 SortOrder = request.SortOrder,
                 ParentId = request.ParentId,
                 IsCategory = request.IsCategory,
@@ -85,7 +86,7 @@ namespace MvcBB.API.Controllers
             }
 
             board.Name = request.Name;
-            board.Description = request.Description;
+            board.Description = request.Description ?? string.Empty;
             board.SortOrder = request.SortOrder;
             board.IsActive = request.IsActive;
             board.ParentId = request.ParentId;

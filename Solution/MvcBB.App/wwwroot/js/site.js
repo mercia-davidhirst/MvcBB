@@ -93,3 +93,116 @@
 
     setInterval(poll, POLL_INTERVAL_MS);
 })();
+
+// Board listing: category collapse state, persisted client-side the same way
+// as the dark/light theme toggle above - a JSON map of categoryId -> collapsed,
+// applied directly (no animation) on load, then kept in sync with Bootstrap's
+// own collapse events as the user toggles a category.
+(function () {
+    var STORAGE_KEY = 'mvcbb-category-collapsed';
+
+    function getCollapsedMap() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function setCollapsed(categoryId, collapsed) {
+        try {
+            var map = getCollapsedMap();
+            if (collapsed) {
+                map[categoryId] = true;
+            } else {
+                delete map[categoryId];
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+        } catch (e) {
+            // Private browsing / blocked storage - the toggle still works for this page view.
+        }
+    }
+
+    function setChevron(toggleBtn, collapsed) {
+        var icon = toggleBtn.querySelector('i');
+        if (icon) {
+            icon.className = collapsed ? 'bi bi-chevron-right' : 'bi bi-chevron-down';
+        }
+        toggleBtn.setAttribute('aria-expanded', (!collapsed).toString());
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var map = getCollapsedMap();
+        document.querySelectorAll('.category-collapse-toggle').forEach(function (toggleBtn) {
+            var categoryId = toggleBtn.getAttribute('data-category-id');
+            var body = document.getElementById('category-collapse-' + categoryId);
+            if (!body || !map[categoryId]) {
+                return;
+            }
+            body.classList.remove('show');
+            setChevron(toggleBtn, true);
+        });
+
+        document.querySelectorAll('.category-collapse-body').forEach(function (body) {
+            body.addEventListener('shown.bs.collapse', function (event) {
+                if (event.target !== body) return;
+                var categoryId = body.id.replace('category-collapse-', '');
+                setCollapsed(categoryId, false);
+                var toggleBtn = document.querySelector('.category-collapse-toggle[data-category-id="' + categoryId + '"]');
+                if (toggleBtn) setChevron(toggleBtn, false);
+            });
+            body.addEventListener('hidden.bs.collapse', function (event) {
+                if (event.target !== body) return;
+                var categoryId = body.id.replace('category-collapse-', '');
+                setCollapsed(categoryId, true);
+                var toggleBtn = document.querySelector('.category-collapse-toggle[data-category-id="' + categoryId + '"]');
+                if (toggleBtn) setChevron(toggleBtn, true);
+            });
+        });
+    });
+})();
+
+// Board listing: each board's "recent threads" are loaded on demand instead
+// of eagerly for every board on initial page render (that was causing the
+// page to time out as the board count grew). First click fetches and caches
+// the markup; later clicks just toggle visibility.
+(function () {
+    document.addEventListener('click', function (event) {
+        var btn = event.target.closest('.board-recent-threads-toggle');
+        if (!btn) {
+            return;
+        }
+
+        var boardId = btn.getAttribute('data-board-id');
+        var container = document.getElementById('recent-threads-' + boardId);
+        if (!container) {
+            return;
+        }
+
+        if (container.dataset.loaded === 'true') {
+            var nowHidden = container.classList.toggle('d-none');
+            btn.innerHTML = nowHidden
+                ? '<i class="bi bi-chat-left-text"></i> Show recent threads'
+                : '<i class="bi bi-chat-left-text"></i> Hide recent threads';
+            return;
+        }
+
+        btn.disabled = true;
+        fetch('/Boards/GetRecentThreads?boardId=' + encodeURIComponent(boardId))
+            .then(function (response) { return response.ok ? response.text() : null; })
+            .then(function (html) {
+                if (html !== null) {
+                    container.innerHTML = html;
+                    container.dataset.loaded = 'true';
+                    container.classList.remove('d-none');
+                    btn.innerHTML = '<i class="bi bi-chat-left-text"></i> Hide recent threads';
+                }
+            })
+            .catch(function () {
+                // Transient network/API hiccup - leave the button enabled so the user can retry.
+            })
+            .finally(function () {
+                btn.disabled = false;
+            });
+    });
+})();

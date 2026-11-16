@@ -89,7 +89,7 @@ namespace MvcBB.API.Controllers
         private bool IsThreadVisible(int boardId, bool isAuthenticated)
         {
             var board = _boardRepository.GetById(boardId);
-            return board == null || board.IsVisibleTo(isAuthenticated);
+            return board == null || board.IsVisibleTo(isAuthenticated, User.IsInRole("Administrator"));
         }
 
         [HttpGet("{id}/quote")]
@@ -164,6 +164,10 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
+            // Checked before adding the post itself, otherwise this post
+            // would always "find" itself and never count as a new participant.
+            var isNewParticipant = !_postRepository.HasPostInThread(thread.Id, userId);
+
             var post = new Post
             {
                 Content = WordFilterApplier.Apply(request.Content, _wordFilterRepository.GetAll()),
@@ -179,6 +183,10 @@ namespace MvcBB.API.Controllers
             thread.LastPostAt = post.CreatedAt;
             thread.LastPostByUserId = userId;
             thread.PostCount++;
+            if (isNewParticipant)
+            {
+                thread.ParticipantCount++;
+            }
             _threadRepository.Update(thread);
 
             var board = _boardRepository.GetById(thread.BoardId);
@@ -379,10 +387,12 @@ namespace MvcBB.API.Controllers
                     ImageUrl = p.ImageUrl,
                     QuotedPostId = p.QuotedPostId,
                     QuotedPost = quotedResponse,
+                    IsImportedData = p.IsImportedData,
                     LikeCount = likeCounts.TryGetValue(p.Id, out var lc) ? lc : 0,
                     IsLikedByCurrentUser = likedPostIds.Contains(p.Id),
                     CreatedByRankTitle = rankTitle,
-                    CreatedByRankImagePath = rankImagePath
+                    CreatedByRankImagePath = rankImagePath,
+                    CreatedByRole = p.UserRole
                 };
             }).ToList();
         }

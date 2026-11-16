@@ -34,6 +34,7 @@ SELECT
     p.delete_reason,
     p.quoted_post_id,
     p.image_url,
+    p.is_imported_data,
     creator.avatar_url                 AS user_avatar,
     creator.signature                  AS user_signature,
     post_counts.user_post_count,

@@ -9,8 +9,8 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT Id, Title, BoardId, BoardName, BoardIsPrivate, CreatedByUserId, CreatedByUsername,
-           CreatedAt, UpdatedAt, IsSticky, IsLocked, ViewCount, PostCount, LastPostAt,
-           LastPostByUserId, LastPostByUsername
+           CreatedAt, UpdatedAt, IsSticky, IsLocked, ViewCount, PostCount, TotalLikes,
+           ParticipantCount, LastPostAt, LastPostByUserId, LastPostByUsername, IsImportedData
     FROM dbo.vw_ThreadDetails
     ORDER BY IsSticky DESC, ISNULL(LastPostAt, CreatedAt) DESC;
 END;

@@ -92,30 +92,13 @@ namespace MvcBB.API.PostgreSql
         }
 
 
-        public IReadOnlyDictionary<int, ThreadPostSummary> GetThreadSummaries(IEnumerable<int> threadIds)
+        public bool HasPostInThread(int threadId, string userId)
         {
-            var ids = threadIds.Distinct().ToList();
-            if (ids.Count == 0)
-            {
-                return new Dictionary<int, ThreadPostSummary>();
-            }
-
             using var connection = _connectionFactory.CreateConnection();
-            // A variable-length IN-list doesn't fit a stored function's fixed
-            // parameters - Dapper expands @ThreadIds into IN (@ThreadIds1, ...)
-            // itself, so this one goes straight against the table rather than
-            // through an fn_*/sp_* function.
-            var rows = connection.Query<ThreadPostRow>(
-                "SELECT id AS post_id, thread_id, created_by_user_id FROM public.posts WHERE thread_id = ANY(@ThreadIds)",
-                new { ThreadIds = ids.ToArray() });
-
-            return rows
-                .GroupBy(r => r.ThreadId)
-                .ToDictionary(g => g.Key, g => new ThreadPostSummary
-                {
-                    ParticipantCount = g.Select(r => r.CreatedByUserId).Distinct().Count(),
-                    PostIds = g.Select(r => r.PostId).ToList()
-                });
+            var exists = connection.ExecuteScalar<int?>(
+                "SELECT 1 FROM public.posts WHERE thread_id = @ThreadId AND created_by_user_id = @UserId LIMIT 1",
+                new { ThreadId = threadId, UserId = ParseUserId(userId) });
+            return exists.HasValue;
         }
 
         public IReadOnlyDictionary<int, Post> GetByIds(IEnumerable<int> ids)
@@ -152,13 +135,6 @@ namespace MvcBB.API.PostgreSql
             return rows.Select(MapToPost).ToList();
         }
 
-        private class ThreadPostRow
-        {
-            public int PostId { get; set; }
-            public int ThreadId { get; set; }
-            public int CreatedByUserId { get; set; }
-        }
-
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private static Post MapToPost(PostRow row) => new()
@@ -182,6 +158,7 @@ namespace MvcBB.API.PostgreSql
             DeleteReason = row.DeleteReason,
             QuotedPostId = row.QuotedPostId,
             ImageUrl = row.ImageUrl,
+            IsImportedData = row.IsImportedData,
             UserAvatar = row.UserAvatar,
             UserSignature = row.UserSignature,
             UserPostCount = row.UserPostCount,
@@ -215,6 +192,7 @@ namespace MvcBB.API.PostgreSql
             public string? DeleteReason { get; set; }
             public int? QuotedPostId { get; set; }
             public string? ImageUrl { get; set; }
+            public bool IsImportedData { get; set; }
             public string? UserAvatar { get; set; }
             public string? UserSignature { get; set; }
             public int UserPostCount { get; set; }

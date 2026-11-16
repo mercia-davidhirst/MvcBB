@@ -34,6 +34,7 @@ SELECT
     p.DeleteReason,
     p.QuotedPostId,
     p.ImageUrl,
+    p.IsImportedData,
     creator.AvatarUrl                  AS UserAvatar,
     creator.Signature                  AS UserSignature,
     postCounts.UserPostCount,

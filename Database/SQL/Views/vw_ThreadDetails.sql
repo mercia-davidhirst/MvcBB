@@ -28,9 +28,12 @@ SELECT
     t.IsLocked,
     t.ViewCount,
     t.PostCount,
+    t.TotalLikes,
+    t.ParticipantCount,
     t.LastPostAt,
     t.LastPostByUserId,
-    lastPoster.Username         AS LastPostByUsername
+    lastPoster.Username         AS LastPostByUsername,
+    t.IsImportedData
 FROM dbo.Threads AS t
 INNER JOIN dbo.Boards AS b ON b.Id = t.BoardId
 INNER JOIN dbo.Users AS creator ON creator.Id = t.CreatedByUserId

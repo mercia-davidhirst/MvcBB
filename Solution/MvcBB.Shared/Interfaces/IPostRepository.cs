@@ -11,12 +11,11 @@ namespace MvcBB.Shared.Interfaces
         void Update(Post post);
 
         /// <summary>
-        /// For each of the given thread ids: how many distinct users posted,
-        /// and every post id in that thread - one query instead of one
-        /// GetByThreadId call per thread. A thread with no posts is simply
-        /// absent from the result.
+        /// Whether this user has (or had) at least one post in this thread -
+        /// used to decide whether a new post makes them a new distinct
+        /// participant, without loading/counting every post in the thread.
         /// </summary>
-        IReadOnlyDictionary<int, ThreadPostSummary> GetThreadSummaries(IEnumerable<int> threadIds);
+        bool HasPostInThread(int threadId, string userId);
 
         /// <summary>Multiple posts by id in one query - e.g. batch-resolving quoted posts on a page.</summary>
         IReadOnlyDictionary<int, Post> GetByIds(IEnumerable<int> ids);

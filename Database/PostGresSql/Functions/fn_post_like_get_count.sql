@@ -7,5 +7,5 @@ RETURNS INTEGER
 LANGUAGE sql
 STABLE
 AS $$
-    SELECT COUNT(*)::INTEGER FROM public.post_likes WHERE post_id = p_post_id;
+    SELECT like_count FROM public.posts WHERE id = p_post_id;
 $$;

@@ -51,6 +51,20 @@ namespace MvcBB.App.Controllers
             }
         }
 
+        /// <summary>
+        /// Lazily loaded after the Index page itself has already rendered -
+        /// doing this eagerly for every board on the page (as a view
+        /// component invoked once per board) was causing the board listing
+        /// to time out as the number of boards-with-threads grew, since each
+        /// invocation is its own API round trip.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetRecentThreads(int boardId, int maxCount = 5)
+        {
+            var result = await _threadService.GetThreadsAsync(boardId, page: 1, pageSize: maxCount);
+            return PartialView("~/Views/Shared/Components/ThreadList/Default.cshtml", result.Threads);
+        }
+
         [Authorize(Policy = "ManageBoards")]
         public async Task<IActionResult> Create()
         {

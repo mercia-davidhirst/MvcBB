@@ -1,8 +1,11 @@
+@using MvcBB.Shared.Interfaces
+@using MvcBB.Shared.Models.User
 @model UserResponse
-
+@inject IBBCodeService BBCodeService
 @{
     var isOwnProfile = ViewData["IsOwnProfile"] as bool? ?? true;
     var recentPosts = ViewData["RecentPosts"] as IEnumerable<PostDto> ?? Enumerable.Empty<PostDto>();
+    var smilies = ViewData["Smilies"] as Dictionary<string, string>;
     ViewData["Title"] = isOwnProfile ? "My Profile" : $"{Model.Username}'s Profile";
 }
 
@@ -44,7 +47,9 @@
                     <ul class="list-group list-group-flush text-start">
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             Role
-                            <span class="badge bg-primary rounded-pill">@Model.RoleName</span>
+                            <span class="badge rounded-pill bg-@(Model.Role == UserRole.Administrator ? "danger" :
+                                                              Model.Role == UserRole.Moderator ? "warning" :
+                                                              Model.Role == UserRole.Deleted ? "secondary" : "primary")">@Model.RoleName</span>
                         </li>
                         @if (!string.IsNullOrEmpty(Model.RankTitle))
                         {
@@ -82,14 +87,14 @@
                         {
                             <li class="list-group-item">
                                 <small class="d-block text-muted">Signature</small>
-                                @Model.Signature
+                                @Html.Raw(BBCodeService.ParseBBCode(Model.Signature, smilies))
                             </li>
                         }
                         @if (!string.IsNullOrEmpty(Model.Bio))
                         {
                             <li class="list-group-item">
                                 <small class="d-block text-muted">Bio</small>
-                                @Model.Bio
+                                @Html.Raw(BBCodeService.ParseBBCode(Model.Bio, smilies))
                             </li>
                         }
                     </ul>
@@ -112,7 +117,7 @@
                             {
                                 <a asp-controller="Threads" asp-action="Details" asp-route-id="@post.ThreadId" asp-fragment="post-@post.Id"
                                    class="list-group-item list-group-item-action">
-                                    <p class="mb-1 text-truncate">@post.Content</p>
+                                    <p class="mb-1 text-truncate">@Html.Raw(BBCodeService.ParseBBCode(post.Content, smilies))</p>
                                     <small class="text-muted">@(await Html.FormatDateTimeAsync(post.CreatedAt))</small>
                                 </a>
                             }

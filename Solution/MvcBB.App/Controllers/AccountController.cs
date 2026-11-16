@@ -19,19 +19,22 @@ namespace MvcBB.App.Controllers
         private readonly ITurnstileService _turnstileService;
         private readonly IImageUploadService _imageUploadService;
         private readonly ISettingsService _settingsService;
+        private readonly IMvcBBCodeService _bbCodeService;
 
         public AccountController(
             IUserService userService,
             IPostService postService,
             ITurnstileService turnstileService,
             IImageUploadService imageUploadService,
-            ISettingsService settingsService)
+            ISettingsService settingsService,
+            IMvcBBCodeService bbCodeService)
         {
             _userService = userService;
             _postService = postService;
             _turnstileService = turnstileService;
             _imageUploadService = imageUploadService;
             _settingsService = settingsService;
+            _bbCodeService = bbCodeService;
         }
 
         public IActionResult Login()
@@ -231,6 +234,7 @@ namespace MvcBB.App.Controllers
 
                 ViewData["IsOwnProfile"] = isOwnProfile;
                 ViewData["RecentPosts"] = await _postService.GetPostsByUserAsync(profile.Id, 5);
+                ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
                 if (isOwnProfile)
                 {
                     ViewData["PasswordPolicyHint"] = PasswordPolicyValidator.Describe(await _settingsService.GetPasswordPolicyAsync());

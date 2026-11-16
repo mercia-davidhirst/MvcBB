@@ -9,7 +9,7 @@ namespace MvcBB.Shared.Models.Board
         public string Name { get; set; } = string.Empty;
 
         [StringLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; }
 
         [Range(0, int.MaxValue, ErrorMessage = "Sort order must be a non-negative number")]
         [Display(Name = "Sort Order")]

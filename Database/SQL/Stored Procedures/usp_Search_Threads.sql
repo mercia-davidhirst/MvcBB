@@ -22,8 +22,8 @@ BEGIN
     DECLARE @Pattern NVARCHAR(MAX) = '%' + REPLACE(REPLACE(REPLACE(LOWER(@Query), '[', '[[]'), '%', '[%]'), '_', '[_]') + '%';
 
     SELECT Id, Title, BoardId, BoardName, BoardIsPrivate, CreatedByUserId, CreatedByUsername,
-           CreatedAt, UpdatedAt, IsSticky, IsLocked, ViewCount, PostCount, LastPostAt,
-           LastPostByUserId, LastPostByUsername
+           CreatedAt, UpdatedAt, IsSticky, IsLocked, ViewCount, PostCount, TotalLikes,
+           ParticipantCount, LastPostAt, LastPostByUserId, LastPostByUsername, IsImportedData
     FROM dbo.vw_ThreadDetails
     WHERE (LOWER(Title) LIKE @Pattern OR LOWER(CreatedByUsername) LIKE @Pattern)
       AND (@BoardId IS NULL OR BoardId = @BoardId)

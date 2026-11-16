@@ -37,6 +37,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Ranks" ? "active" : "")"
+                           asp-controller="Admin" asp-action="Ranks">
+                            <i class="bi bi-award me-2"></i>
+                            Ranks
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Reports" ? "active" : "")"
                            asp-controller="Reports" asp-action="Index">
                             <i class="bi bi-flag me-2"></i>
@@ -62,6 +69,13 @@
                            asp-controller="Account" asp-action="Users">
                             <i class="bi bi-people me-2"></i>
                             Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "WordFilters" ? "active" : "")"
+                           asp-controller="Admin" asp-action="WordFilters">
+                            <i class="bi bi-funnel me-2"></i>
+                            Word Filters
                         </a>
                     </li>
                 </ul>

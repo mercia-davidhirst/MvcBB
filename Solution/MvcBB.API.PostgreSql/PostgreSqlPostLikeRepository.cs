@@ -43,12 +43,12 @@ namespace MvcBB.API.PostgreSql
                 return new Dictionary<int, int>();
             }
 
-            // A variable-length IN-list doesn't fit a stored function's fixed
-            // parameters - this batch method goes straight against the table
-            // instead of through an fn_post_like_*/sp_post_like_* function.
+            // like_count is a stored column on posts (maintained by
+            // sp_post_like_add/remove), not a live COUNT(*) aggregate - this
+            // just reads it back for the requested ids.
             using var connection = _connectionFactory.CreateConnection();
             var rows = connection.Query<LikeCountRow>(
-                "SELECT post_id, COUNT(*) AS like_count FROM public.post_likes WHERE post_id = ANY(@PostIds) GROUP BY post_id",
+                "SELECT id AS post_id, like_count FROM public.posts WHERE id = ANY(@PostIds)",
                 new { PostIds = ids });
             return rows.ToDictionary(r => r.PostId, r => r.LikeCount);
         }

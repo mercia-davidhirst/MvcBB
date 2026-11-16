@@ -18,6 +18,7 @@ namespace MvcBB.Shared.Models.Post
         public int? QuotedPostId { get; set; }
         public PostResponse? QuotedPost { get; set; }
         public string? ImageUrl { get; set; }
+        public bool IsImportedData { get; set; }
 
         // Additional properties for UI display
         public string CreatedByUsername { get; set; } = string.Empty;
@@ -28,5 +29,6 @@ namespace MvcBB.Shared.Models.Post
         public bool IsLikedByCurrentUser { get; set; }
         public string? CreatedByRankTitle { get; set; }
         public string? CreatedByRankImagePath { get; set; }
+        public string? CreatedByRole { get; set; }
     }
 } 

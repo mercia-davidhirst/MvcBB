@@ -23,8 +23,11 @@ BEGIN
         IsLocked            BIT                NOT NULL CONSTRAINT DF_Threads_IsLocked DEFAULT (0),
         ViewCount           INT                NOT NULL CONSTRAINT DF_Threads_ViewCount DEFAULT (0),
         PostCount           INT                NOT NULL CONSTRAINT DF_Threads_PostCount DEFAULT (0),
+        TotalLikes          INT                NOT NULL CONSTRAINT DF_Threads_TotalLikes DEFAULT (0),
+        ParticipantCount    INT                NOT NULL CONSTRAINT DF_Threads_ParticipantCount DEFAULT (0),
         LastPostAt          DATETIME2(3)       NULL,
         LastPostByUserId    INT                NULL,
+        IsImportedData      BIT                NOT NULL CONSTRAINT DF_Threads_IsImportedData DEFAULT (0),
         CONSTRAINT PK_Threads PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_Threads_Board FOREIGN KEY (BoardId) REFERENCES dbo.Boards (Id),
         CONSTRAINT FK_Threads_CreatedByUser FOREIGN KEY (CreatedByUserId) REFERENCES dbo.Users (Id),
@@ -39,9 +42,48 @@ GO
 -- Schema changes for a database that already has an older version of this
 -- table (a fresh install gets the up-to-date shape directly from
 -- CREATE TABLE above, so these only ever run against an existing table):
--- none pending yet - add guarded ALTER TABLE statements here, e.g.:
---   IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Threads') AND name = 'NewColumn')
---   BEGIN
---       ALTER TABLE dbo.Threads ADD NewColumn ...;
---   END
---   GO
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Threads') AND name = 'TotalLikes')
+BEGIN
+    ALTER TABLE dbo.Threads ADD TotalLikes INT NOT NULL CONSTRAINT DF_Threads_TotalLikes DEFAULT (0);
+
+    -- One-time backfill from the data this column replaces - matches what
+    -- ThreadsController.MapToThreadResponses used to compute on the fly
+    -- (likes across every post in the thread). Run via EXEC() so the
+    -- reference to the column just added above is resolved at execution
+    -- time, not batch-parse time (SQL Server validates column names for the
+    -- whole batch up front, before the ALTER above has actually run).
+    EXEC(N'
+        UPDATE t
+        SET t.TotalLikes = (
+            SELECT COUNT(*)
+            FROM dbo.Posts AS p
+            INNER JOIN dbo.PostLikes AS pl ON pl.PostId = p.Id
+            WHERE p.ThreadId = t.Id
+        )
+        FROM dbo.Threads AS t;
+    ');
+END
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Threads') AND name = 'IsImportedData')
+BEGIN
+    ALTER TABLE dbo.Threads ADD IsImportedData BIT NOT NULL CONSTRAINT DF_Threads_IsImportedData DEFAULT (0);
+END
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Threads') AND name = 'ParticipantCount')
+BEGIN
+    ALTER TABLE dbo.Threads ADD ParticipantCount INT NOT NULL CONSTRAINT DF_Threads_ParticipantCount DEFAULT (0);
+
+    -- One-time backfill - matches what ThreadsController.MapToThreadResponses
+    -- used to compute on the fly (distinct authors across the thread's
+    -- posts). Run via EXEC() - see the TotalLikes block above for why.
+    EXEC(N'
+        UPDATE t
+        SET t.ParticipantCount = (
+            SELECT COUNT(DISTINCT p.CreatedByUserId)
+            FROM dbo.Posts AS p
+            WHERE p.ThreadId = t.Id
+        )
+        FROM dbo.Threads AS t;
+    ');
+END
+GO

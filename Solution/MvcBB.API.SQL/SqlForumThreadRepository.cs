@@ -49,6 +49,7 @@ namespace MvcBB.API.SQL
                 thread.IsLocked,
                 thread.ViewCount,
                 thread.PostCount,
+                thread.ParticipantCount,
                 thread.LastPostAt,
                 LastPostByUserId = ParseUserId(thread.LastPostByUserId)
             }, commandType: CommandType.StoredProcedure);
@@ -70,6 +71,7 @@ namespace MvcBB.API.SQL
                 thread.IsLocked,
                 thread.ViewCount,
                 thread.PostCount,
+                thread.ParticipantCount,
                 thread.LastPostAt,
                 LastPostByUserId = ParseUserId(thread.LastPostByUserId)
             }, commandType: CommandType.StoredProcedure);
@@ -113,8 +115,8 @@ namespace MvcBB.API.SQL
             using var connection = _connectionFactory.CreateConnection();
             var rows = connection.Query<ThreadRow>(
                 @"SELECT Id, Title, BoardId, BoardName, BoardIsPrivate, CreatedByUserId, CreatedByUsername,
-                         CreatedAt, UpdatedAt, IsSticky, IsLocked, ViewCount, PostCount, LastPostAt,
-                         LastPostByUserId, LastPostByUsername
+                         CreatedAt, UpdatedAt, IsSticky, IsLocked, ViewCount, PostCount, TotalLikes,
+                         ParticipantCount, LastPostAt, LastPostByUserId, LastPostByUsername, IsImportedData
                   FROM (
                       SELECT *, ROW_NUMBER() OVER (PARTITION BY BoardId ORDER BY COALESCE(LastPostAt, CreatedAt) DESC) AS Rn
                       FROM dbo.vw_ThreadDetails
@@ -170,8 +172,11 @@ namespace MvcBB.API.SQL
             UpdatedAt = row.UpdatedAt,
             IsSticky = row.IsSticky,
             IsLocked = row.IsLocked,
+            IsImportedData = row.IsImportedData,
             ViewCount = row.ViewCount,
             PostCount = row.PostCount,
+            TotalLikes = row.TotalLikes,
+            ParticipantCount = row.ParticipantCount,
             LastPostAt = row.LastPostAt,
             LastPostByUserId = row.LastPostByUserId?.ToString(),
             LastPostByUsername = row.LastPostByUsername
@@ -195,8 +200,11 @@ namespace MvcBB.API.SQL
             public DateTime? UpdatedAt { get; set; }
             public bool IsSticky { get; set; }
             public bool IsLocked { get; set; }
+            public bool IsImportedData { get; set; }
             public int ViewCount { get; set; }
             public int PostCount { get; set; }
+            public int TotalLikes { get; set; }
+            public int ParticipantCount { get; set; }
             public DateTime? LastPostAt { get; set; }
             public int? LastPostByUserId { get; set; }
             public string? LastPostByUsername { get; set; }

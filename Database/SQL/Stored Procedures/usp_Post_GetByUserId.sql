@@ -16,7 +16,7 @@ BEGIN
     SELECT TOP (@Take) Id, Content, ThreadId, ThreadTitle, CreatedByUserId, CreatedByUsername,
            CreatedAt, IsEdited, EditReason, UpdatedAt, UpdatedByUserId, UpdatedByUsername,
            IsDeleted, DeletedByUserId, DeletedByUsername, DeletedAt, DeleteReason,
-           QuotedPostId, ImageUrl, UserAvatar, UserSignature, UserPostCount, UserJoinedAt, UserRole
+           QuotedPostId, ImageUrl, IsImportedData, UserAvatar, UserSignature, UserPostCount, UserJoinedAt, UserRole
     FROM dbo.vw_PostDetails
     WHERE CreatedByUserId = @UserId AND IsDeleted = 0
     ORDER BY CreatedAt DESC;
