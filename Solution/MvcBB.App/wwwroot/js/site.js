@@ -206,3 +206,27 @@
             });
     });
 })();
+
+// Password reveal toggle. A single delegated listener handles every
+// .password-toggle-btn on the page, so each password field's markup just
+// needs the button - no per-page wiring.
+(function () {
+    document.addEventListener('click', function (event) {
+        var btn = event.target.closest('.password-toggle-btn');
+        if (!btn) {
+            return;
+        }
+
+        var input = btn.closest('.input-group')?.querySelector('input');
+        var icon = btn.querySelector('i');
+        if (!input || !icon) {
+            return;
+        }
+
+        var revealing = input.type === 'password';
+        input.type = revealing ? 'text' : 'password';
+        icon.classList.toggle('bi-eye', !revealing);
+        icon.classList.toggle('bi-eye-slash', revealing);
+        btn.setAttribute('aria-label', revealing ? 'Hide password' : 'Show password');
+    });
+})();

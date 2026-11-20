@@ -44,10 +44,15 @@ namespace MvcBB.API.InMemory
                 .Select(b => b.Id)
                 .ToHashSet();
 
+            // Sticky only wins the sort for a single board's own thread list
+            // (boardId given) - for the site-wide "latest across every
+            // board" feed (boardId null), sticky is ignored so an old thread
+            // pinned in one board can't crowd out genuinely recent activity
+            // from every other board.
             var filtered = _store.Threads
                 .Where(t => visibleBoardIds.Contains(t.BoardId))
                 .Where(t => !boardId.HasValue || t.BoardId == boardId.Value)
-                .OrderByDescending(t => t.IsSticky)
+                .OrderByDescending(t => boardId.HasValue && t.IsSticky)
                 .ThenByDescending(t => t.LastPostAt ?? t.CreatedAt)
                 .ToList();
 
