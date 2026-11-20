@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MvcBB.Shared\MvcBB.Shared.csproj" />
+    <ProjectReference Include="..\MvcBB.ModKit\MvcBB.ModKit.csproj" />
   </ItemGroup>
 
 </Project>

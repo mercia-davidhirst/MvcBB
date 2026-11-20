@@ -3,6 +3,7 @@ using MvcBB.Shared.Models.BBCode;
 using MvcBB.Shared.Models.Board;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Message;
+using MvcBB.Shared.Models.Mod;
 using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
 using MvcBB.Shared.Models.Rank;
@@ -38,6 +39,7 @@ namespace MvcBB.API.InMemory
         public List<AnnouncementModel> Announcements { get; } = new();
         public DisplaySettings DisplaySettings { get; set; } = new();
         public PasswordPolicy PasswordPolicy { get; set; } = new();
+        public List<ModRecord> Mods { get; } = new();
 
         public InMemoryStore()
         {

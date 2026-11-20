@@ -109,6 +109,7 @@ both SQL Server and PostgreSQL targets.
 | `MvcBB.API.InMemory` | In-memory repository implementation (default) |
 | `MvcBB.API.SQL` | SQL Server repository implementation |
 | `MvcBB.API.PostgreSql` | PostgreSQL repository implementation |
+| `MvcBB.ModKit` | Enables user created mod integrations into the core solution |
 
 ## Running locally
 
@@ -116,3 +117,27 @@ Both `MvcBB.App` and `MvcBB.API` need to run together — the App has no
 direct database access and calls the API over HTTP. With the default
 `InMemory` provider, no database setup is required; an admin account
 (`admin` / `Admin123!`) is seeded automatically on first run.
+
+## Modding
+
+1. Create the API-side project (if the mod needs its own data/endpoints)
+
+Plain class library (Sdk="Microsoft.NET.Sdk"), reference MvcBB.ModKit (+ MvcBB.API.SQL if it needs a SQL Server connection).
+Implement IApiMod: Id, Name, Version, MinCoreVersion/MaxCoreVersion, ConfigureServices (register the mod's own repository/services), InstallAsync (idempotent DDL for its own tables, prefixed e.g. Mod_YourId_*).
+Write its controllers, each tagged [Mod("yourId")].
+Template: MvcBB.Mods.MyMod.Api\MyMod.cs / MyModController.cs.
+2. Create the App-side project (if it has a UI)
+
+Razor Class Library (Sdk="Microsoft.NET.Sdk.Razor", AddRazorSupportForMvc=true, and critically RazorCompileOnBuild/RazorCompileOnPublish set to true — without that, a drop-in DLL has no file watcher to fall back on and its views silently won't exist).
+Implement IAppMod: Id (must match the API-side Id), Name, ConfigureServices, GetNavItems().
+Write its controllers (tagged [Mod("yourId")]) and views under Views/{Controller}/{Action}.cshtml.
+Template: MvcBB.Mods.MyMod.App\MyModAppMod.cs / MyModController.cs / Views\MyMod\Index.cshtml.
+3. Build both projects.
+
+4. Deploy — copy the built DLLs:
+
+API-side DLL → MvcBB.API's output Mods/ folder.
+App-side DLL → MvcBB.App's output Mods/ folder. No core source changes, no solution file changes required for this step.
+5. Restart both processes once. Discovery (and InstallAsync) only run at startup, so a new mod needs a restart to be picked up — this is different from enable/disable, which is a live toggle with no restart.
+
+6. Log in as Administrator, go to /Mods, click Enable. It shows up as Incompatible and can't be enabled if its declared version range doesn't cover the running MvcBB.ModKit version.

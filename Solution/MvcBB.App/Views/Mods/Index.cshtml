@@ -1,0 +1,59 @@
+@using MvcBB.Shared.Models.Mod
+@model IEnumerable<ModRecord>
+@{
+    ViewData["Title"] = "Mods";
+    Layout = "_AdminLayout";
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Version</th>
+                        <th>Core compatibility</th>
+                        <th>Status</th>
+                        <th>Enabled</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var mod in Model.OrderBy(m => m.Name))
+                    {
+                        <tr>
+                            <td>@mod.Name <small class="text-muted">(@mod.Id)</small></td>
+                            <td>@mod.Version</td>
+                            <td>@mod.MinCoreVersion@(mod.MaxCoreVersion != null ? $" - {mod.MaxCoreVersion}" : "+")</td>
+                            <td>
+                                <span class="badge bg-@(mod.Status == ModStatus.Compatible ? "success" : "danger")">
+                                    @mod.Status
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-@(mod.IsEnabled ? "success" : "secondary")">
+                                    @(mod.IsEnabled ? "Enabled" : "Disabled")
+                                </span>
+                            </td>
+                            <td>
+                                <form asp-action="SetEnabled" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@mod.Id" />
+                                    @* A bare bool expression as an attribute value triggers Razor's HTML
+                                       boolean-attribute rendering (e.g. value="value" instead of "True"/
+                                       "False") - force it to an explicit string to avoid that. *@
+                                    <input type="hidden" name="enabled" value="@(!mod.IsEnabled ? "true" : "false")" />
+                                    <button type="submit" class="btn btn-sm btn-outline-@(mod.IsEnabled ? "danger" : "success")"
+                                            @(mod.Status != ModStatus.Compatible && !mod.IsEnabled ? "disabled" : "")>
+                                        @(mod.IsEnabled ? "Disable" : "Enable")
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

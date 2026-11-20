@@ -1,17 +1,29 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.IdentityModel.Tokens;
+using System.Data;
 using System.Text;
 using MvcBB.Shared.Services;
 using Microsoft.AspNetCore.Diagnostics;
 using MvcBB.Shared.Interfaces;
+using MvcBB.Shared.Models.Mod;
+using MvcBB.API.Filters;
 using MvcBB.API.InMemory;
+using MvcBB.API.Mods;
 using MvcBB.API.SQL;
 using MvcBB.API.PostgreSql;
+using MvcBB.ModKit;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+var mvcBuilder = builder.Services.AddControllers(options =>
+{
+    // Soft-disable enforcement for mod controllers - see ModEnabledFilter.
+    // No-op for every core controller (none carry [Mod]).
+    options.Filters.Add<ModEnabledFilter>();
+});
+builder.Services.AddMemoryCache();
 
 // Register data layer. DataProvider selects which backing store the API runs
 // against; defaults to "InMemory" (no configuration/external dependency
@@ -32,6 +44,25 @@ switch (dataProvider)
         break;
     default:
         throw new InvalidOperationException($"Unknown DataProvider '{dataProvider}'. Expected 'InMemory', 'Sql' or 'PostgreSql'.");
+}
+
+// Mod framework: discover drop-in mod assemblies from a "Mods" folder next
+// to this process's own build output. A mod ships as a plain DLL built
+// against MvcBB.ModKit - dropping it in here (and in MvcBB.App's own Mods
+// folder for its App-side counterpart) is the entire "installation" step;
+// nothing above this line ever needs to change for a new mod. Mods live in
+// their own separate solutions/projects, never in this one - see
+// MvcBB.ModKit.IApiMod for the contract a mod's API-side assembly implements.
+var modsFolder = Path.Combine(AppContext.BaseDirectory, "Mods");
+var modAssemblies = ModLoader.LoadModAssemblies(modsFolder);
+var apiMods = ModLoader.CreateMods<IApiMod>(modAssemblies);
+foreach (var mod in apiMods)
+{
+    mod.ConfigureServices(builder.Services, builder.Configuration);
+}
+foreach (var modAssembly in modAssemblies)
+{
+    mvcBuilder.ConfigureApplicationPartManager(apm => apm.ApplicationParts.Add(new AssemblyPart(modAssembly)));
 }
 
 // Register services
@@ -103,6 +134,40 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Mod framework: register every discovered mod in the Mods table and run
+// InstallAsync for any whose declared Version hasn't been installed yet.
+// Done once, after Build(), inside its own scope so it can resolve the
+// now-fully-configured container (connection factories, and anything the
+// mod's own ConfigureServices registered above).
+using (var modStartupScope = app.Services.CreateScope())
+{
+    var modRepository = modStartupScope.ServiceProvider.GetRequiredService<IModRepository>();
+    var coreVersion = typeof(IApiMod).Assembly.GetName().Version ?? new Version(1, 0, 0, 0);
+
+    foreach (var mod in apiMods)
+    {
+        var isCompatible = ModLoader.IsCompatible(mod.MinCoreVersion, mod.MaxCoreVersion, coreVersion);
+        var status = isCompatible ? ModStatus.Compatible : ModStatus.Incompatible;
+        modRepository.Upsert(mod.Id, mod.Name, mod.Version, mod.MinCoreVersion, mod.MaxCoreVersion, status);
+
+        var record = modRepository.GetById(mod.Id);
+        if (!isCompatible || record == null || record.InstalledVersion == mod.Version)
+            continue;
+
+        IDbConnection? connection = dataProvider switch
+        {
+            "Sql" => modStartupScope.ServiceProvider.GetRequiredService<ISqlConnectionFactory>().CreateConnection(),
+            "PostgreSql" => modStartupScope.ServiceProvider.GetRequiredService<IPostgreSqlConnectionFactory>().CreateConnection(),
+            _ => null
+        };
+        using (connection)
+        {
+            await mod.InstallAsync(new ModInstallContext(dataProvider, connection));
+        }
+        modRepository.SetInstalledVersion(mod.Id, mod.Version);
+    }
+}
 
 // Add global exception handling
 app.UseExceptionHandler(errorApp =>

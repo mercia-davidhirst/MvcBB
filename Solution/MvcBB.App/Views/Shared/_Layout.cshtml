@@ -1,8 +1,21 @@
 ﻿@using MvcBB.App.Interfaces
+@using MvcBB.ModKit
 @inject ISettingsService SettingsService
 @inject IMessageService MessageService
+@inject IModsService ModsService
+@inject IReadOnlyList<IAppMod> DiscoveredAppMods
 @{
     var displaySettings = await SettingsService.GetDisplaySettingsAsync();
+    // Mod-contributed nav items (see MvcBB.ModKit.IAppMod) - skipped for any
+    // mod the admin hasn't enabled. DiscoveredAppMods is just whichever mod
+    // assemblies this process found in its own Mods/ folder at startup;
+    // enabled state always comes from the API's registry, never from
+    // whether the assembly happens to be present.
+    var enabledModIds = await ModsService.GetEnabledModIdsAsync();
+    var navModItems = DiscoveredAppMods
+        .Where(m => enabledModIds.Contains(m.Id))
+        .SelectMany(m => m.GetNavItems())
+        .ToList();
     // Whatever Version/AssemblyVersion the MvcBB.App project is built with -
     // GetEntryAssembly() (not GetExecutingAssembly()) so this reads the app's
     // own version even though Razor views compile into their own assembly.
@@ -78,6 +91,14 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-controller="Members" asp-action="Index">Members</a>
                         </li>
+                        @foreach (var navItem in navModItems)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="@navItem.Controller" asp-action="@navItem.Action">
+                                    <i class="bi @navItem.IconCssClass"></i> @navItem.Text
+                                </a>
+                            </li>
+                        }
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
@@ -112,6 +133,11 @@
                                         <li>
                                             <a class="dropdown-item" asp-controller="Admin" asp-action="Boards">
                                                 <i class="bi bi-grid me-2"></i>Boards
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Mods" asp-action="Index">
+                                                <i class="bi bi-puzzle me-2"></i>Mods
                                             </a>
                                         </li>
                                         <li>

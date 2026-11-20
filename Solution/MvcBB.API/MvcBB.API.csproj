@@ -20,6 +20,7 @@
     <ProjectReference Include="..\MvcBB.API.SQL\MvcBB.API.SQL.csproj" />
     <ProjectReference Include="..\MvcBB.API.PostgreSql\MvcBB.API.PostgreSql.csproj" />
     <ProjectReference Include="..\MvcBB.Shared\MvcBB.Shared.csproj" />
+    <ProjectReference Include="..\MvcBB.ModKit\MvcBB.ModKit.csproj" />
   </ItemGroup>
 
 </Project>

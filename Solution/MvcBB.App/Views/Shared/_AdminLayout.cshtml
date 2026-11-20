@@ -37,6 +37,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Mods" ? "active" : "")"
+                           asp-controller="Mods" asp-action="Index">
+                            <i class="bi bi-puzzle me-2"></i>
+                            Mods
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Ranks" ? "active" : "")"
                            asp-controller="Admin" asp-action="Ranks">
                             <i class="bi bi-award me-2"></i>
