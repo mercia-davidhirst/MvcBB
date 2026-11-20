@@ -298,6 +298,13 @@
                                 <img src="@post.ImageUrl" alt="Attached image" class="img-fluid rounded" />
                             </div>
                         }
+                        @if (!string.IsNullOrEmpty(post.CreatedBySignature))
+                        {
+                            <hr class="my-3" />
+                            <div class="post-signature small text-muted">
+                                @Html.Raw(BBCodeService.ParseBBCode(post.CreatedBySignature, smilies))
+                            </div>
+                        }
                     </div>
                 </div>
             }

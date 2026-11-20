@@ -30,5 +30,6 @@ namespace MvcBB.Shared.Models.Post
         public string? CreatedByRankTitle { get; set; }
         public string? CreatedByRankImagePath { get; set; }
         public string? CreatedByRole { get; set; }
+        public string? CreatedBySignature { get; set; }
     }
 } 

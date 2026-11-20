@@ -392,7 +392,8 @@ namespace MvcBB.API.Controllers
                     IsLikedByCurrentUser = likedPostIds.Contains(p.Id),
                     CreatedByRankTitle = rankTitle,
                     CreatedByRankImagePath = rankImagePath,
-                    CreatedByRole = p.UserRole
+                    CreatedByRole = p.UserRole,
+                    CreatedBySignature = p.UserSignature
                 };
             }).ToList();
         }
