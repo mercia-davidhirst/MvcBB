@@ -1,0 +1,19 @@
+@model ThreadResponse
+@* Hot / active / cool / dormant marker shown after a thread title, from
+   ThreadResponse.ActivityStatus (computed, no extra data needed). Shared by
+   the board thread listing and the home page's Latest Discussions. *@
+@switch (Model.ActivityStatus)
+{
+    case "hot":
+        <i class="bi bi-fire text-danger ms-1" title="Hot topic"></i>
+        break;
+    case "active":
+        <i class="bi bi-circle-fill text-success ms-1" style="font-size: 0.6rem;" title="Active topic"></i>
+        break;
+    case "cool":
+        <i class="bi bi-circle-fill text-primary ms-1" style="font-size: 0.6rem;" title="Cool topic"></i>
+        break;
+    case "grave":
+        <i class="bi bi-moon-stars-fill text-secondary ms-1" title="Dormant topic"></i>
+        break;
+}

@@ -7,37 +7,12 @@
             <div class="d-flex w-100 justify-content-between align-items-start">
                 <div>
                     <h5 class="mb-1">
-                        @if (thread.IsSticky)
-                        {
-                            <i class="bi bi-pin-angle-fill text-primary me-1" title="Sticky Thread"></i>
-                        }
-                        @if (thread.IsLocked)
-                        {
-                            <i class="bi bi-lock-fill text-warning me-1" title="Locked Thread"></i>
-                        }
-                        @if (thread.IsImportedData)
-                        {
-                            <i class="bi bi-archive text-muted me-1" title="Imported from legacy forum data"></i>
-                        }
+                        <partial name="_ThreadFlagIcons" model="thread" />
                         <a asp-controller="Threads" asp-action="Details" asp-route-id="@thread.Id"
                            class="text-decoration-none">
                             @thread.Title
                         </a>
-                        @switch (thread.ActivityStatus)
-                        {
-                            case "hot":
-                                <i class="bi bi-fire text-danger ms-1" title="Hot topic"></i>
-                                break;
-                            case "active":
-                                <i class="bi bi-circle-fill text-success ms-1" style="font-size: 0.6rem;" title="Active topic"></i>
-                                break;
-                            case "cool":
-                                <i class="bi bi-circle-fill text-primary ms-1" style="font-size: 0.6rem;" title="Cool topic"></i>
-                                break;
-                            case "grave":
-                                <i class="bi bi-moon-stars-fill text-secondary ms-1" title="Dormant topic"></i>
-                                break;
-                        }
+                        <partial name="_ThreadActivityIcon" model="thread" />
                     </h5>
                     <p class="mb-1">
                         <small class="text-muted">

@@ -65,18 +65,34 @@
                                 <div class="list-group-item">
                                     <div class="d-flex w-100 justify-content-between">
                                         <h6 class="mb-1">
+                                            <partial name="_ThreadFlagIcons" model="thread" />
                                             <a asp-controller="Threads" asp-action="Details" asp-route-id="@thread.Id" 
                                                class="text-decoration-none">@thread.Title</a>
+                                            <partial name="_ThreadActivityIcon" model="thread" />
                                         </h6>
-                                        <small class="text-muted">@(await Html.FormatDateTimeAsync(thread.CreatedAt))</small>
+                                        <small class="text-muted text-nowrap ms-2">Replies: @thread.ReplyCount</small>
                                     </div>
                                     <p class="mb-1">
-                                        <small>
-                                            Posted by @thread.CreatedByUsername in 
+                                        <small class="text-muted">
+                                            Started by 
+                                            <a asp-controller="Account" asp-action="Profile" asp-route-username="@thread.CreatedByUsername" 
+                                               class="text-decoration-none">@thread.CreatedByUsername</a>
+                                            on @(await Html.FormatDateTimeAsync(thread.CreatedAt)) in 
                                             <a asp-controller="Boards" asp-action="Details" asp-route-id="@thread.BoardId" 
                                                class="text-decoration-none">@thread.BoardName</a>
                                         </small>
                                     </p>
+                                    @if (thread.LastPostAt.HasValue)
+                                    {
+                                        <p class="mb-0">
+                                            <small class="text-muted">
+                                                Last post by 
+                                                <a asp-controller="Account" asp-action="Profile" asp-route-username="@thread.LastPostByUsername" 
+                                                   class="text-decoration-none">@thread.LastPostByUsername</a>
+                                                on @(await Html.FormatDateTimeAsync(thread.LastPostAt.Value))
+                                            </small>
+                                        </p>
+                                    }
                                 </div>
                             }
                         </div>

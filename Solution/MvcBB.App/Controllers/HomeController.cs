@@ -33,12 +33,12 @@ public class HomeController : Controller
     {
         try
         {
-            // Get latest threads (first page, 10 per page for home)
+            // Latest threads: the API already returns the 10 most recently
+            // active threads across every visible board (by LastPostAt, then
+            // CreatedAt), with last poster/date already joined in - so keep
+            // that order rather than re-sorting by creation date here.
             var threadResult = await _threadService.GetThreadsAsync(boardId: null, page: 1, pageSize: 10);
-            var latestThreads = threadResult.Threads
-                .OrderByDescending(t => t.CreatedAt)
-                .Take(10)
-                .ToList();
+            var latestThreads = threadResult.Threads;
 
             // Get newest members - filtered, sorted and limited to 5 at the
             // data layer, rather than loading every member to sort/take here.
@@ -55,11 +55,17 @@ public class HomeController : Controller
             // aggregate COUNTs, rather than loading every member to total
             // them up here.
             var userStats = await _userService.GetUserStatsAsync(activeSinceDays: 7);
+
+            // Total posts from each visible board's stored PostCount (kept up
+            // to date on every new thread/reply) - previously this summed the
+            // reply counts of only the 10 threads shown above, so it
+            // undercounted badly.
+            var boards = await _boardService.GetBoardsAsync();
             var stats = new ForumStatistics
             {
                 TotalMembers = userStats.TotalMembers,
                 TotalThreads = threadResult.TotalThreads,
-                TotalPosts = threadResult.Threads.Sum(t => t.ReplyCount),
+                TotalPosts = boards.Sum(b => b.PostCount),
                 ActiveUsers = userStats.ActiveMembers
             };
 

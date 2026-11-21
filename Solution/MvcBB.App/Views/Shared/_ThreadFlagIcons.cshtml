@@ -1,0 +1,15 @@
+@model ThreadResponse
+@* Sticky / locked / imported markers shown before a thread title. Shared by
+   the board thread listing and the home page's Latest Discussions. *@
+@if (Model.IsSticky)
+{
+    <i class="bi bi-pin-angle-fill text-primary me-1" title="Sticky Thread"></i>
+}
+@if (Model.IsLocked)
+{
+    <i class="bi bi-lock-fill text-warning me-1" title="Locked Thread"></i>
+}
+@if (Model.IsImportedData)
+{
+    <i class="bi bi-archive text-muted me-1" title="Imported from legacy forum data"></i>
+}
