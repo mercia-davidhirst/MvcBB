@@ -148,7 +148,7 @@ namespace MvcBB.App.Services
                 .OrderBy(s => s.SortOrder)
                 .ToDictionary(
                     s => s.Code,
-                    s => $"<img src=\"{s.ImagePath}\" alt=\"{s.Description}\" class=\"smilie\" />"
+                    s => $"<img src=\"{System.Net.WebUtility.HtmlEncode(s.ImagePath)}\" alt=\"{System.Net.WebUtility.HtmlEncode(s.Description)}\" class=\"smilie\" />"
                 );
         }
 

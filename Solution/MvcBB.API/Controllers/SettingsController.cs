@@ -18,6 +18,7 @@ namespace MvcBB.API.Controllers
             _passwordPolicyService = passwordPolicyService;
         }
 
+        [AllowAnonymous]
         [HttpGet("display")]
         public ActionResult<DisplaySettings> GetDisplaySettings()
         {
@@ -40,6 +41,7 @@ namespace MvcBB.API.Controllers
         // Public (not just Administrator/ApiClient) - a password form (register,
         // change password, etc.) needs to show the current requirements to an
         // ordinary signed-out visitor, not just an admin.
+        [AllowAnonymous]
         [HttpGet("password-policy")]
         public ActionResult<PasswordPolicy> GetPasswordPolicy()
         {

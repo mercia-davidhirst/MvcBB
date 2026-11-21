@@ -98,6 +98,7 @@ namespace MvcBB.API.Controllers
             return tokenHandler.WriteToken(token);
         }
 
+        [AllowAnonymous]
         [HttpPost("register")]
         public ActionResult<UserAuthResponse> Register(UserRegistrationRequest request)
         {
@@ -157,6 +158,7 @@ namespace MvcBB.API.Controllers
             };
         }
 
+        [AllowAnonymous]
         [HttpPost("login")]
         public ActionResult<UserAuthResponse> Login(UserLoginRequest request)
         {
@@ -202,6 +204,7 @@ namespace MvcBB.API.Controllers
             };
         }
 
+        [AllowAnonymous]
         [HttpPost("forgot-password")]
         public async Task<ActionResult> ForgotPassword(ForgotPasswordRequest request)
         {
@@ -238,6 +241,7 @@ namespace MvcBB.API.Controllers
             return Ok(new { message = "If that email is registered, a password reset link has been sent." });
         }
 
+        [AllowAnonymous]
         [HttpPost("reset-password")]
         public ActionResult ResetPassword(ResetPasswordRequest request)
         {
@@ -276,6 +280,7 @@ namespace MvcBB.API.Controllers
         // GetMembers is, so it can't become a full-table dump as the member
         // base grows. Capped lower than the admin variant below since this
         // one needs no authorization at all.
+        [AllowAnonymous]
         [HttpGet]
         public ActionResult<IEnumerable<UserResponse>> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 100)
         {
@@ -306,6 +311,7 @@ namespace MvcBB.API.Controllers
 
         // Backs the homepage statistics panel - a couple of aggregate COUNTs
         // instead of the caller loading every user to total them up itself.
+        [AllowAnonymous]
         [HttpGet("stats")]
         public ActionResult<UserStatsResponse> GetStats([FromQuery] int activeSinceDays = 7)
         {
@@ -316,6 +322,7 @@ namespace MvcBB.API.Controllers
 
         // Public member-profile lookup - e.g. clicking a username elsewhere in the
         // forum. Email is excluded since this isn't the account owner viewing it.
+        [AllowAnonymous]
         [HttpGet("by-username/{username}")]
         public ActionResult<UserResponse> GetByUsername(string username)
         {
@@ -328,6 +335,7 @@ namespace MvcBB.API.Controllers
             return MapToUserResponse(user, includeEmail: false);
         }
 
+        [AllowAnonymous]
         [HttpGet("{id:int}")]
         public ActionResult<UserResponse> GetById(int id)
         {
@@ -340,6 +348,7 @@ namespace MvcBB.API.Controllers
             return MapToUserResponse(user, includeEmail: false);
         }
 
+        [AllowAnonymous]
         [HttpGet("members")]
         public ActionResult<MemberResponse> GetMembers([FromQuery] MemberRequest request)
         {

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -18,6 +19,7 @@ namespace MvcBB.API.Controllers
             _configuration = configuration;
         }
 
+        [AllowAnonymous]
         [HttpPost("token")]
         public ActionResult<LoginResponse> GetToken(LoginRequest request)
         {

@@ -29,6 +29,7 @@ namespace MvcBB.API.Controllers
 
         /// <summary>Anonymous - just the enabled Id list, polled/cached by both
         /// this process's own ModEnabledFilter and every MvcBB.App instance.</summary>
+        [AllowAnonymous]
         [HttpGet("enabled")]
         public ActionResult<IEnumerable<string>> GetEnabledIds()
         {

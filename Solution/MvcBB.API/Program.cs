@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.IdentityModel.Tokens;
 using System.Data;
@@ -109,6 +110,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.Zero
         };
     });
+
+// Secure by default: any endpoint without its own [Authorize]/[AllowAnonymous]
+// requires an authenticated caller (a signed-in user's JWT or the App's
+// ApiClient token). Endpoints that must stay public for guests - login,
+// registration, password reset, the service token, and the read-only
+// browsing endpoints - are marked [AllowAnonymous] explicitly.
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -257,7 +270,7 @@ app.MapGet("/", (IDatabaseHealthCheck healthCheck) =>
 
     return Results.Content(html, "text/html", System.Text.Encoding.UTF8,
         healthy ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
-});
+}).AllowAnonymous();
 
 app.MapControllers();
 

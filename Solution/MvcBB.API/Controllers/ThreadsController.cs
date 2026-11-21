@@ -44,6 +44,7 @@ namespace MvcBB.API.Controllers
             _displaySettingsService = displaySettingsService;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public ActionResult<ThreadListResponse> GetThreads([FromQuery] int page = 1, [FromQuery] int? pageSize = null)
         {
@@ -67,6 +68,7 @@ namespace MvcBB.API.Controllers
             });
         }
 
+        [AllowAnonymous]
         [HttpGet("board/{boardId}")]
         public ActionResult<ThreadListResponse> GetBoardThreads(int boardId, [FromQuery] int page = 1, [FromQuery] int? pageSize = null)
         {
@@ -96,6 +98,7 @@ namespace MvcBB.API.Controllers
             });
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public ActionResult<ThreadResponse> GetThread(int id)
         {

@@ -16,18 +16,21 @@ namespace MvcBB.API.Controllers
             _announcementService = announcementService;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public ActionResult<IEnumerable<AnnouncementModel>> GetAnnouncements()
         {
             return Ok(_announcementService.GetAnnouncements());
         }
 
+        [AllowAnonymous]
         [HttpGet("active")]
         public ActionResult<IEnumerable<AnnouncementModel>> GetActiveAnnouncements()
         {
             return Ok(_announcementService.GetActiveAnnouncements());
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public ActionResult<AnnouncementModel> GetAnnouncement(int id)
         {

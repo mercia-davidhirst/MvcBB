@@ -50,6 +50,7 @@ namespace MvcBB.API.Controllers
             _emailSender = emailSender;
         }
 
+        [AllowAnonymous]
         [HttpGet("thread/{threadId}")]
         public ActionResult<IEnumerable<PostResponse>> GetThreadPosts(int threadId)
         {
@@ -64,6 +65,7 @@ namespace MvcBB.API.Controllers
         }
 
         // Used by a member's profile page to show their most recent activity.
+        [AllowAnonymous]
         [HttpGet("by-user/{userId}")]
         public ActionResult<IEnumerable<PostResponse>> GetPostsByUser(int userId, [FromQuery] int take = 5)
         {
@@ -73,6 +75,7 @@ namespace MvcBB.API.Controllers
             return Ok(MapToPostResponses(posts));
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public ActionResult<PostResponse> GetPost(int id)
         {
@@ -92,6 +95,7 @@ namespace MvcBB.API.Controllers
             return board == null || board.IsVisibleTo(isAuthenticated, User.IsInRole("Administrator"));
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}/quote")]
         public ActionResult<string> GetQuoteContent(int id)
         {

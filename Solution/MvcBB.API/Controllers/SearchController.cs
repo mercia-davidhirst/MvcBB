@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Post;
@@ -33,6 +34,7 @@ namespace MvcBB.API.Controllers
             _userRepository = userRepository;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public ActionResult<SearchResponse> Search([FromQuery] SearchRequest request)
         {

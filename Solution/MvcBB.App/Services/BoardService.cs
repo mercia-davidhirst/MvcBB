@@ -81,7 +81,10 @@ namespace MvcBB.App.Services
 
         public async Task DeleteBoardAsync(int id)
         {
-            var token = await GetTokenAsync();
+            // Like Create/Update: the API now requires the Administrator role to
+            // delete a board, so this must send the signed-in admin's own token,
+            // not the mvc_client service token (which only carries ApiClient).
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.DeleteAsync($"api/boards/{id}");

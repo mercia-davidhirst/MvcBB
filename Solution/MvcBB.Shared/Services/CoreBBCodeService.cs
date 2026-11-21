@@ -29,10 +29,16 @@ namespace MvcBB.Shared.Services
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
 
+            // Encode first, so no user-supplied markup ever reaches the output as
+            // HTML. HtmlEncode leaves "[", "]", "=" and "/" untouched, so the BBCode
+            // pattern below still matches the encoded text, and every piece of
+            // HTML in the result is built by this method alone. Anything that
+            // fails validation stays as (already encoded) plain text.
+            var output = WebUtility.HtmlEncode(input);
+
             // Multiple passes let innermost tags resolve first, so nested tags
             // (e.g. [b][i]text[/i][/b]) still match once the inner tag's content
             // no longer breaks the non-greedy capture across a "[".
-            var output = input;
             string previous;
             var pass = 0;
             do
@@ -44,22 +50,37 @@ namespace MvcBB.Shared.Services
                     var value = match.Groups[2].Success ? match.Groups[2].Value : null;
                     var content = match.Groups[3].Value;
 
-                    return tag switch
+                    switch (tag)
                     {
-                        "b" => $"<strong>{content}</strong>",
-                        "i" => $"<em>{content}</em>",
-                        "u" => $"<u>{content}</u>",
-                        "s" => $"<s>{content}</s>",
-                        "quote" => $"<blockquote>{content}</blockquote>",
-                        "code" => $"<pre><code>{content}</code></pre>",
-                        "center" => $"<div style=\"text-align: center;\">{content}</div>",
-                        "right" => $"<div style=\"text-align: right;\">{content}</div>",
-                        "url" => $"<a href=\"{WebUtility.HtmlEncode(value ?? content)}\" target=\"_blank\" rel=\"noopener noreferrer\">{content}</a>",
-                        "img" => $"<img src=\"{WebUtility.HtmlEncode(content)}\" alt=\"\" />",
-                        "color" when value != null && SafeColorPattern.IsMatch(value) => $"<span style=\"color: {value};\">{content}</span>",
-                        "size" when value != null && SafeSizePattern.IsMatch(value) => $"<span style=\"font-size: {value}px;\">{content}</span>",
-                        _ => match.Value // Keep original if tag not recognized (or value failed validation)
-                    };
+                        case "b": return $"<strong>{content}</strong>";
+                        case "i": return $"<em>{content}</em>";
+                        case "u": return $"<u>{content}</u>";
+                        case "s": return $"<s>{content}</s>";
+                        case "quote": return $"<blockquote>{content}</blockquote>";
+                        case "code": return $"<pre><code>{content}</code></pre>";
+                        case "center": return $"<div style=\"text-align: center;\">{content}</div>";
+                        case "right": return $"<div style=\"text-align: right;\">{content}</div>";
+                        case "url":
+                        {
+                            var href = TryGetSafeUrl(value ?? content, allowMailto: true);
+                            return href == null
+                                ? match.Value
+                                : $"<a href=\"{WebUtility.HtmlEncode(href)}\" target=\"_blank\" rel=\"noopener noreferrer nofollow\">{content}</a>";
+                        }
+                        case "img":
+                        {
+                            var src = TryGetSafeUrl(content, allowMailto: false);
+                            return src == null
+                                ? match.Value
+                                : $"<img src=\"{WebUtility.HtmlEncode(src)}\" alt=\"\" />";
+                        }
+                        case "color" when value != null && SafeColorPattern.IsMatch(value):
+                            return $"<span style=\"color: {value};\">{content}</span>";
+                        case "size" when value != null && SafeSizePattern.IsMatch(value):
+                            return $"<span style=\"font-size: {value}px;\">{content}</span>";
+                        default:
+                            return match.Value; // Keep original if tag not recognized (or value failed validation)
+                    }
                 });
             } while (output != previous && ++pass < 10);
 
@@ -71,18 +92,69 @@ namespace MvcBB.Shared.Services
             return output;
         }
 
-        // Runs after BBCode tag parsing, since smilie codes (":)", ";-D", ...)
-        // contain no "[" or "]" and so can't interfere with tag matching.
-        // Longest-code-first so e.g. ":-)" matches before the shorter ":)"
-        // would otherwise consume part of it.
-        private static string ReplaceSmilies(string html, IReadOnlyDictionary<string, string> smilies)
+        /// <summary>
+        /// Returns the decoded URL if it is safe to put in an href/src: an absolute
+        /// http(s) URL (or mailto: for links), or a site-relative path starting with
+        /// a single "/". Anything else - javascript:, data:, vbscript:, other
+        /// schemes, or text that still contains markup - returns null.
+        /// </summary>
+        private static string? TryGetSafeUrl(string encodedValue, bool allowMailto)
         {
-            foreach (var pair in smilies.OrderByDescending(p => p.Key.Length))
+            var url = WebUtility.HtmlDecode(encodedValue).Trim();
+            if (url.Length == 0 || url.IndexOfAny(new[] { '<', '>', '"', '\'', '`' }) >= 0 || url.Any(char.IsControl))
+                return null;
+
+            if (url.StartsWith('/'))
             {
-                html = html.Replace(pair.Key, pair.Value);
+                // "//host" and "/\host" are treated by browsers as another site;
+                // only allow plain site-relative paths here.
+                return url.Length > 1 && (url[1] == '/' || url[1] == '\\') ? null : url;
             }
 
-            return html;
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps ||
+                 (allowMailto && uri.Scheme == Uri.UriSchemeMailto)))
+            {
+                return url;
+            }
+
+            return null;
+        }
+
+        // Runs after BBCode tag parsing. Smilies are only replaced in text between
+        // HTML tags (never inside a generated tag's attributes), and on the decoded
+        // text, so a code like ";)" can't land inside an entity such as "&quot;)"
+        // and break it. Longest-code-first so e.g. ":-)" matches before the
+        // shorter ":)" would otherwise consume part of it.
+        private static readonly Regex HtmlTagPattern = new(@"(<[^>]*>)", RegexOptions.Compiled);
+
+        private static string ReplaceSmilies(string html, IReadOnlyDictionary<string, string> smilies)
+        {
+            var codes = smilies.Keys.Where(k => !string.IsNullOrEmpty(k)).OrderByDescending(k => k.Length).ToList();
+            if (codes.Count == 0)
+                return html;
+
+            var smiliePattern = new Regex(string.Join("|", codes.Select(Regex.Escape)));
+            var parts = HtmlTagPattern.Split(html);
+            for (var i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length == 0 || parts[i][0] == '<')
+                    continue;
+
+                var text = WebUtility.HtmlDecode(parts[i]);
+                var result = new System.Text.StringBuilder();
+                var last = 0;
+                foreach (Match m in smiliePattern.Matches(text))
+                {
+                    result.Append(WebUtility.HtmlEncode(text.Substring(last, m.Index - last)));
+                    result.Append(smilies[m.Value]);
+                    last = m.Index + m.Length;
+                }
+                result.Append(WebUtility.HtmlEncode(text.Substring(last)));
+                parts[i] = result.ToString();
+            }
+
+            return string.Concat(parts);
         }
 
         public string StripBBCode(string input)

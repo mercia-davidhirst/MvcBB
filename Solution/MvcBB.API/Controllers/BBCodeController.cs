@@ -16,12 +16,14 @@ namespace MvcBB.API.Controllers
             _bbCodeService = bbCodeService;
         }
 
+        [AllowAnonymous]
         [HttpGet("tags")]
         public ActionResult<IEnumerable<BBCodeTagModel>> GetTags()
         {
             return Ok(_bbCodeService.GetBBCodeTags());
         }
 
+        [AllowAnonymous]
         [HttpGet("tags/{id}")]
         public ActionResult<BBCodeTagModel> GetTag(int id)
         {
@@ -90,12 +92,14 @@ namespace MvcBB.API.Controllers
             return NoContent();
         }
 
+        [AllowAnonymous]
         [HttpGet("smilies")]
         public ActionResult<IEnumerable<SmilieModel>> GetSmilies()
         {
             return Ok(_bbCodeService.GetSmilies());
         }
 
+        [AllowAnonymous]
         [HttpGet("smilies/{id}")]
         public ActionResult<SmilieModel> GetSmilie(int id)
         {

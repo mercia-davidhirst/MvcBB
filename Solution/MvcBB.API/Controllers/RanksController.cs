@@ -16,12 +16,14 @@ namespace MvcBB.API.Controllers
             _rankRepository = rankRepository;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public ActionResult<IEnumerable<RankModel>> GetAll()
         {
             return Ok(_rankRepository.GetAll());
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public ActionResult<RankModel> GetById(int id)
         {

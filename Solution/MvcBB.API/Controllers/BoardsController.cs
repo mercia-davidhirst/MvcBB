@@ -23,6 +23,7 @@ namespace MvcBB.API.Controllers
             _userRepository = userRepository;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public ActionResult<IEnumerable<BoardResponse>> GetBoards()
         {
@@ -32,6 +33,7 @@ namespace MvcBB.API.Controllers
             return Ok(MapToBoardResponses(boards));
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public ActionResult<BoardResponse> GetBoard(int id)
         {
@@ -98,6 +100,7 @@ namespace MvcBB.API.Controllers
             return Ok(MapToBoardResponses(new[] { board }).Single());
         }
 
+        [Authorize(Roles = "Administrator")]
         [HttpDelete("{id}")]
         public IActionResult DeleteBoard(int id)
         {
