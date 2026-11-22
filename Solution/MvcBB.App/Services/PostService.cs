@@ -63,7 +63,18 @@ public class PostService : IPostService
     {
         try
         {
+            // Send the member's token when signed in so the API includes posts
+            // from private boards they're allowed to see. If the token is
+            // rejected (e.g. it's gone stale) fall back to the guest view
+            // rather than failing the whole profile page.
+            AttachCurrentUserTokenIfPresent();
             var response = await _httpClient.GetAsync($"api/posts/by-user/{userId}?take={take}");
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                && _httpClient.DefaultRequestHeaders.Authorization != null)
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = null;
+                response = await _httpClient.GetAsync($"api/posts/by-user/{userId}?take={take}");
+            }
             response.EnsureSuccessStatusCode();
 
             var content = await response.Content.ReadAsStringAsync();

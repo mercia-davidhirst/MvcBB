@@ -35,7 +35,10 @@
                                     <div class="d-flex align-items-center mb-3">
                                         <i class="bi bi-person-circle fs-1 me-3"></i>
                                         <div>
-                                            <h5 class="card-title mb-1">@user.Username</h5>
+                                            <h5 class="card-title mb-1">
+                                                <a asp-controller="Account" asp-action="Profile"
+                                                   asp-route-username="@user.Username">@user.Username</a>
+                                            </h5>
                                             @if (user.Role == MvcBB.Shared.Models.User.UserRole.Administrator)
                                             {
                                                 <span class="badge bg-danger">Administrator</span>
