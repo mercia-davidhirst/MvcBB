@@ -1,5 +1,6 @@
 using MvcBB.Shared.Interfaces;
 using MvcBB.Shared.Models.Settings;
+using MvcBB.Shared.Services;
 
 namespace MvcBB.API.Services
 {
@@ -49,6 +50,19 @@ namespace MvcBB.API.Services
                 {
                     settings.TimeFormat = current.TimeFormat;
                 }
+            }
+
+            // Same rule for the time zone: blank means "server local time";
+            // anything else must be a zone this host can resolve, stored in
+            // its IANA form where possible. An unknown id keeps the current
+            // value rather than being written through.
+            if (ForumTimeZone.IsValidId(settings.TimeZoneId))
+            {
+                settings.TimeZoneId = ForumTimeZone.NormalizeId(settings.TimeZoneId);
+            }
+            else
+            {
+                settings.TimeZoneId = _repository.Get().TimeZoneId ?? string.Empty;
             }
 
             _repository.Update(settings);

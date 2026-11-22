@@ -2,6 +2,10 @@
 
 @{
     ViewData["Title"] = "Home";
+    // One context shared by every home page slot (home.sidebar, home.left,
+    // home.center.top, home.center, home.right). Empty slots render nothing
+    // at all, so a site without slot-using mods gets exactly the core layout.
+    var homeSlot = new PageSlotContext { ViewerUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value };
 }
 
 <div class="container-fluid">
@@ -48,11 +52,14 @@
                 </div>
             </div>
 
-            <mod-slot name="@CoreSlots.HomeSidebar" context="@(new PageSlotContext { ViewerUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value })" />
+            @* home.sidebar: the original home slot, still in its original place. *@
+            <mod-slot name="@CoreSlots.HomeSidebar" context="@homeSlot" />
+            <mod-slot name="@CoreSlots.HomeLeft" context="@homeSlot" />
         </div>
 
         <!-- Center Panel (70%) -->
         <div class="col-12 col-md-8">
+            <mod-slot name="@CoreSlots.HomeCenterTop" context="@homeSlot" />
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">Latest Discussions</h5>
@@ -105,6 +112,8 @@
                     }
                 </div>
             </div>
+
+            <mod-slot name="@CoreSlots.HomeCenter" context="@homeSlot" />
         </div>
 
         <!-- Right Panel (15%) -->
@@ -137,7 +146,7 @@
 
             @if (Model?.NewestMembers?.Any() == true)
             {
-                <div class="card">
+                <div class="card mb-4">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Newest Members</h5>
                     </div>
@@ -155,6 +164,8 @@
                     </div>
                 </div>
             }
+
+            <mod-slot name="@CoreSlots.HomeRight" context="@homeSlot" />
         </div>
     </div>
 </div>

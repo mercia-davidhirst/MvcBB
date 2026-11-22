@@ -43,7 +43,8 @@ namespace MvcBB.API.SQL
                 report.Type,
                 report.ContentId,
                 report.Status,
-                report.ModeratorNotes
+                report.ModeratorNotes,
+                report.PageUrl
             }, commandType: CommandType.StoredProcedure);
             return MapToReport(row);
         }
@@ -79,6 +80,12 @@ namespace MvcBB.API.SQL
             return connection.QuerySingle<int>("dbo.usp_Report_CountByType", new { Type = type }, commandType: CommandType.StoredProcedure);
         }
 
+        public int CountOpen()
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            return connection.QuerySingle<int>("dbo.usp_Report_CountOpen", commandType: CommandType.StoredProcedure);
+        }
+
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private static Report MapToReport(ReportRow row) => new()
@@ -92,7 +99,8 @@ namespace MvcBB.API.SQL
             Status = row.Status,
             ModeratorNotes = row.ModeratorNotes,
             ResolvedAt = row.ResolvedAt,
-            ResolvedByUserId = row.ResolvedByUserId?.ToString() ?? string.Empty
+            ResolvedByUserId = row.ResolvedByUserId?.ToString() ?? string.Empty,
+            PageUrl = row.PageUrl
         };
 
         /// <summary>
@@ -112,6 +120,7 @@ namespace MvcBB.API.SQL
             public string ModeratorNotes { get; set; } = string.Empty;
             public DateTime? ResolvedAt { get; set; }
             public int? ResolvedByUserId { get; set; }
+            public string? PageUrl { get; set; }
         }
     }
 }

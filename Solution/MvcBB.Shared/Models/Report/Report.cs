@@ -20,5 +20,12 @@ namespace MvcBB.Shared.Models.Report
         public string ModeratorNotes { get; set; } = string.Empty;
         public DateTime? ResolvedAt { get; set; }
         public string ResolvedByUserId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// For <see cref="ReportType.SiteIssue"/> reports: the page the reporter
+        /// was on when they raised it (a site-relative path, or null if they
+        /// chose not to include it). Always null for other report types.
+        /// </summary>
+        public string? PageUrl { get; set; }
     }
 } 

@@ -568,7 +568,9 @@ namespace MvcBB.App.Controllers
         {
             try
             {
-                await _userService.LockUserAsync(userId, lockedUntil);
+                // The lock form's datetime-local input is in the forum's time
+                // zone; the API stores and compares UTC.
+                await _userService.LockUserAsync(userId, await HttpContext.ForumTimeToUtcAsync(lockedUntil));
                 TempData["Success"] = lockedUntil.HasValue ? "User locked." : "User unlocked.";
             }
             catch (SessionExpiredException)

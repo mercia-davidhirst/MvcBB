@@ -23,11 +23,15 @@
                        class="btn btn-primary btn-sm">
                         <i class="bi bi-reply"></i> Reply
                     </a>
-                    <a asp-controller="Reports" asp-action="Create" 
-                       asp-route-type="Message" asp-route-contentId="@Model.Id" 
-                       class="btn btn-outline-warning btn-sm">
-                        <i class="bi bi-flag"></i> Report
-                    </a>
+                    @* Only the recipient can report a message (the API refuses anyone else). *@
+                    @if (Model.RecipientUserId == User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+                    {
+                        <a asp-controller="Reports" asp-action="Create" 
+                           asp-route-type="Message" asp-route-contentId="@Model.Id" 
+                           class="btn btn-outline-warning btn-sm">
+                            <i class="bi bi-flag"></i> Report
+                        </a>
+                    }
                     <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-inline">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-danger btn-sm" 

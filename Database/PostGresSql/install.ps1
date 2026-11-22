@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
     Deploys the MvcBB PostgreSQL schema (Database/PostGresSql) in dependency
-    order: Tables -> helper Functions -> Views -> remaining Functions ->
-    Stored Procedures -> Seed Data.
+    order: Tables -> Upgrades -> helper Functions -> Views -> remaining
+    Functions -> Stored Procedures -> Seed Data.
 
 .DESCRIPTION
     Runs every .sql script under this folder through psql, in the order
@@ -10,6 +10,10 @@
       1. Tables (00_extensions.sql enables citext, then 01-06 create the
          forum tables in FK order, 07-08 create the standalone BBCode tag /
          smilie tables).
+      1b. Upgrades - one guarded script per release (e.g. v1.1.0.sql), run
+         in version order, that brings an older database's tables up to the
+         current shape. Each only adds what's missing, so it's a no-op on a
+         fresh or already-upgraded database.
       2. fn_role_name and fn_report_content_exists - helper functions that
          vw_post_details and sp_report_insert depend on, so they must exist
          before step 3.
@@ -117,6 +121,15 @@ try {
     Write-Host "`n1) Tables (extension + tables, FK order)"
     Get-ChildItem -Path (Join-Path $root "Tables") -Filter *.sql | Sort-Object Name | ForEach-Object {
         Invoke-SqlFile -Path $_.FullName -TargetDatabase $Database
+    }
+
+    Write-Host "`n1b) Upgrades"
+    $upgradesPath = Join-Path $root "Upgrades"
+    if (Test-Path $upgradesPath) {
+        # Sorted by version (v1.1.0, v1.2.0, v1.10.0...) rather than by name.
+        Get-ChildItem -Path $upgradesPath -Filter "v*.sql" |
+            Sort-Object { [Version]($_.BaseName.TrimStart('v')) } |
+            ForEach-Object { Invoke-SqlFile -Path $_.FullName -TargetDatabase $Database }
     }
 
     Write-Host "`n2) Helper functions required by the view (fn_role_name, fn_report_content_exists)"

@@ -541,7 +541,7 @@ namespace MvcBB.App.Controllers
 
             try
             {
-                await _announcementService.AddAnnouncementAsync(model);
+                await WithUtcAnnouncementDatesAsync(model, () => _announcementService.AddAnnouncementAsync(model));
                 TempData["Success"] = "Announcement added successfully.";
                 return RedirectToAction(nameof(Announcements));
             }
@@ -570,8 +570,34 @@ namespace MvcBB.App.Controllers
             {
                 return NotFound();
             }
+            // Stored in UTC; the form edits forum wall-clock time.
+            announcement.StartDate = await HttpContext.UtcToForumTimeAsync(announcement.StartDate);
+            announcement.EndDate = await HttpContext.UtcToForumTimeAsync(announcement.EndDate);
             ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
             return View(announcement);
+        }
+
+        /// <summary>
+        /// The announcement form's Start/End dates are typed in the forum's time
+        /// zone, but stored in UTC. Converts them just for the API call, then
+        /// puts the typed values back so a redisplayed form (after an error)
+        /// shows what the admin entered.
+        /// </summary>
+        private async Task WithUtcAnnouncementDatesAsync(AnnouncementModel model, Func<Task> save)
+        {
+            var typedStart = model.StartDate;
+            var typedEnd = model.EndDate;
+            try
+            {
+                model.StartDate = await HttpContext.ForumTimeToUtcAsync(typedStart);
+                model.EndDate = await HttpContext.ForumTimeToUtcAsync(typedEnd);
+                await save();
+            }
+            finally
+            {
+                model.StartDate = typedStart;
+                model.EndDate = typedEnd;
+            }
         }
 
         [HttpPost]
@@ -586,7 +612,7 @@ namespace MvcBB.App.Controllers
 
             try
             {
-                await _announcementService.UpdateAnnouncementAsync(id, model);
+                await WithUtcAnnouncementDatesAsync(model, () => _announcementService.UpdateAnnouncementAsync(id, model));
                 TempData["Success"] = "Announcement updated successfully.";
                 return RedirectToAction(nameof(Announcements));
             }
@@ -745,6 +771,7 @@ namespace MvcBB.App.Controllers
             RegistrationEnabled = settings.RegistrationEnabled,
             DateFormat = settings.DateFormat,
             TimeFormat = settings.TimeFormat,
+            TimeZoneId = settings.TimeZoneId ?? string.Empty,
             PasswordPolicy = passwordPolicy
         };
     }

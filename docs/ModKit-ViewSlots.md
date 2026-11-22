@@ -1,8 +1,10 @@
 # ModKit view slots: design
 
-Status: **implemented** (uncommitted) in `MvcBB.ModKit` 1.1.0 and MvcBB.App.
+Status: **implemented** in `MvcBB.ModKit` 1.1.0 and MvcBB.App (MvcBB v1.1.0).
 Sections 3 to 7 and 11 describe what was built; where it differs from the
-original proposal, the text says so.
+original proposal, the text says so. Section 7.1 covers the portal home page
+slots (`home.left`, `home.center.top`, `home.center`, `home.right`) added
+later in the same release.
 
 ## 1. Problem
 
@@ -48,6 +50,10 @@ namespace MvcBB.ModKit
         public const string PostFooter     = "post.footer";
         public const string ProfileSidebar = "profile.sidebar";
         public const string HomeSidebar    = "home.sidebar";
+        public const string HomeLeft       = "home.left";
+        public const string HomeCenterTop  = "home.center.top";
+        public const string HomeCenter     = "home.center";
+        public const string HomeRight      = "home.right";
         public const string LayoutHead     = "layout.head";
     }
 }
@@ -339,6 +345,9 @@ that will look broken, and that's on the mod.
 | `home.sidebar` | Home page, left column, directly under the Quick Links card | `PageSlotContext` | Block, narrow. Each contribution renders its own card. |
 | `layout.head` | `<head>` of the main layout, after core's stylesheets, on every page using it | `PageSlotContext` | No wrapper. `<link rel="stylesheet">` tags only. |
 
+The four portal slots (`home.left`, `home.center.top`, `home.center`,
+`home.right`) were added afterwards; see 7.1.
+
 Changed from the proposal: `post.author` was described as inline, and
 `profile.sidebar` as a card after the details card. Both moved to directly
 under the member's name/avatar, which is where a per-member marker reads
@@ -351,6 +360,35 @@ rules out for now. A mod with per-member settings shows a link from
 `profile.sidebar` when `IsViewerOwnProfile` is true, pointing at its own
 `[Mod]` page with its own antiforgery-protected form. The clans mod does
 this.
+
+### 7.1 Portal home page slots
+
+The home page is a three-column portal: a narrow left column (Quick Links),
+a wide centre column (Latest Discussions) and a narrow right column
+(Statistics, Newest Members). A mod can add a widget to any of them:
+
+| Slot | Page and position | Context | Layout |
+| --- | --- | --- | --- |
+| `home.left` | Home page, left column, under Quick Links and any `home.sidebar` contributions | `PageSlotContext` | Block, narrow (2 of 12 grid columns on desktop, full width on phones). Each contribution renders its own card. |
+| `home.center.top` | Home page, centre column, above Latest Discussions | `PageSlotContext` | Block, wide (8 of 12). For something meant to be seen first. Each contribution renders its own card. |
+| `home.center` | Home page, centre column, under Latest Discussions | `PageSlotContext` | Block, wide (8 of 12). The main place for a larger widget. Each contribution renders its own card. |
+| `home.right` | Home page, right column, under Statistics and Newest Members | `PageSlotContext` | Block, narrow, like `home.left`. Each contribution renders its own card. |
+
+**`home.sidebar` is kept, unchanged.** It was the only home page slot in the
+first cut and the clans mod uses it, so it still renders exactly where it
+always has: in the left column directly under Quick Links. `home.left`
+renders straight after it, so the left column reads Quick Links, then
+`home.sidebar` contributions, then `home.left` contributions. It's not an
+alias that merges the two lists (that would change the wrapper class
+existing mods' CSS may target, `mod-slot-home-sidebar`); new mods should
+pick `home.left` (or another column) instead.
+
+**No empty gaps.** Every column already holds core cards, so all three
+columns always render, and an empty slot writes no markup at all (5.2 step
+5), so a site with no home page mods looks exactly as before. Each
+contribution should render a Bootstrap card with `mb-4`, matching the core
+cards around it; the Newest Members card now carries `mb-4` too, so a
+`home.right` card below it doesn't butt up against it.
 
 Natural next candidates: `profile.main` (right column, for public profile
 sections), `members.row` (Members list, per row, uses the same batching),
@@ -497,7 +535,8 @@ MvcBB.App:
 - `Views/Threads/Details.cshtml`: builds `SlotPage`, adds `post.author` and
   `post.footer`
 - `Views/Account/Profile.cshtml`: adds `profile.sidebar`
-- `Views/Home/Index.cshtml`: adds `home.sidebar`
+- `Views/Home/Index.cshtml`: adds `home.sidebar`, then (7.1) `home.left`,
+  `home.center.top`, `home.center` and `home.right`
 - `Views/Shared/_Layout.cshtml`: adds `layout.head`
 - `README.md`: Mods section mentions slots and mod static files
 
@@ -516,7 +555,7 @@ There's still no automated test project.
 
 ## 12. Mod static files (implemented)
 
-Status: **implemented** in MvcBB.App, uncommitted. Independent of the slot
+Status: **implemented** in MvcBB.App. Independent of the slot
 work above, and useful to any mod with its own CSS, scripts or images.
 
 **Why core needs it.** A Razor Class Library's usual `wwwroot` handling

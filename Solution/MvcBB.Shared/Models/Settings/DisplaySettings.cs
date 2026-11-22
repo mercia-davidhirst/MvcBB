@@ -62,5 +62,16 @@ namespace MvcBB.Shared.Models.Settings
         [Required(ErrorMessage = "Time format is required")]
         [Display(Name = "Time Format")]
         public string TimeFormat { get; set; } = "HH:mm";
+
+        /// <summary>
+        /// The forum's display time zone: an IANA id (e.g. "Europe/London")
+        /// from the admin dropdown, or blank for the web server's own local
+        /// time zone (the behaviour before this setting existed, and the
+        /// default). Timestamps are always stored in UTC and converted to this
+        /// zone only for display; see MvcBB.Shared.Services.ForumTimeZone.
+        /// </summary>
+        [StringLength(100, ErrorMessage = "Time zone id cannot exceed 100 characters")]
+        [Display(Name = "Time Zone")]
+        public string TimeZoneId { get; set; } = string.Empty;
     }
 }

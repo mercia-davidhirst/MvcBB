@@ -36,6 +36,10 @@ namespace MvcBB.App.Mods
                 new SlotDefinition(CoreSlots.PostFooter, typeof(PostSlotContext), SlotWrapper.Block),
                 new SlotDefinition(CoreSlots.ProfileSidebar, typeof(UserSlotContext), SlotWrapper.Block),
                 new SlotDefinition(CoreSlots.HomeSidebar, typeof(PageSlotContext), SlotWrapper.Block),
+                new SlotDefinition(CoreSlots.HomeLeft, typeof(PageSlotContext), SlotWrapper.Block),
+                new SlotDefinition(CoreSlots.HomeCenterTop, typeof(PageSlotContext), SlotWrapper.Block),
+                new SlotDefinition(CoreSlots.HomeCenter, typeof(PageSlotContext), SlotWrapper.Block),
+                new SlotDefinition(CoreSlots.HomeRight, typeof(PageSlotContext), SlotWrapper.Block),
                 new SlotDefinition(CoreSlots.LayoutHead, typeof(PageSlotContext), SlotWrapper.None),
             }.ToDictionary(s => s.Name, StringComparer.Ordinal);
 

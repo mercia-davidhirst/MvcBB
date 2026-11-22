@@ -9,7 +9,7 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT Id, Reason, ReporterUserId, CreatedAt, Type, ContentId, Status,
-           ModeratorNotes, ResolvedAt, ResolvedByUserId
+           ModeratorNotes, ResolvedAt, ResolvedByUserId, PageUrl
     FROM dbo.Reports
     ORDER BY CreatedAt DESC;
 END;

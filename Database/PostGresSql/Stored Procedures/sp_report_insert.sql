@@ -4,6 +4,7 @@
 -- foreign key can express that relationship.
 
 DROP PROCEDURE IF EXISTS public.sp_report_insert(varchar, integer, smallint, integer, smallint, varchar);
+DROP PROCEDURE IF EXISTS public.sp_report_insert(varchar, integer, smallint, integer, smallint, varchar, varchar);
 
 CREATE PROCEDURE public.sp_report_insert(
     p_reason VARCHAR(500),
@@ -12,6 +13,7 @@ CREATE PROCEDURE public.sp_report_insert(
     p_content_id INTEGER,
     p_status SMALLINT DEFAULT 0,
     p_moderator_notes VARCHAR(1000) DEFAULT '',
+    p_page_url VARCHAR(500) DEFAULT NULL,
     OUT p_id INTEGER
 )
 LANGUAGE plpgsql
@@ -21,8 +23,10 @@ BEGIN
         RAISE EXCEPTION 'content_id % does not exist for report type %', p_content_id, p_type;
     END IF;
 
-    INSERT INTO public.reports (reason, reporter_user_id, type, content_id, status, moderator_notes)
-    VALUES (p_reason, p_reporter_user_id, p_type, p_content_id, p_status, p_moderator_notes)
+    -- Only a site issue (type 4) carries a page address.
+    INSERT INTO public.reports (reason, reporter_user_id, type, content_id, status, moderator_notes, page_url)
+    VALUES (p_reason, p_reporter_user_id, p_type, p_content_id, p_status, p_moderator_notes,
+            CASE WHEN p_type = 4 THEN p_page_url ELSE NULL END)
     RETURNING id INTO p_id;
 END;
 $$;

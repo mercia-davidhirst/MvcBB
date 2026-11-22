@@ -36,5 +36,7 @@ namespace MvcBB.API.InMemory
         public int CountByStatus(ReportStatus status) => _store.Reports.Count(r => r.Status == status);
 
         public int CountByType(ReportType type) => _store.Reports.Count(r => r.Type == type);
+
+        public int CountOpen() => _store.Reports.Count(r => ReportTypeNames.IsOpen(r.Status));
     }
 }

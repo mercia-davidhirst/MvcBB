@@ -2,6 +2,7 @@
 @using MvcBB.ModKit
 @inject ISettingsService SettingsService
 @inject IMessageService MessageService
+@inject IReportService ReportService
 @inject IModsService ModsService
 @inject IReadOnlyList<IAppMod> DiscoveredAppMods
 @{
@@ -33,6 +34,23 @@
             // Don't let a transient API/session hiccup break every page's layout.
         }
     }
+    // Open (Pending/Investigating) report count for the moderator/admin
+    // alert badge - fetched and refreshed exactly like the unread-PM badge.
+    var canModerate = User.IsInRole("Administrator") || User.IsInRole("Moderator");
+    var openReportCount = 0;
+    if (canModerate)
+    {
+        try
+        {
+            openReportCount = await ReportService.GetOpenCountAsync();
+        }
+        catch
+        {
+            // Same as above: never break the layout over the badge.
+        }
+    }
+    // The page the member is on, offered (not forced) on the Report an issue form.
+    var currentPageUrl = Context.Request.PathBase + Context.Request.Path + Context.Request.QueryString;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -193,6 +211,22 @@
                     <ul class="navbar-nav">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
+                            if (canModerate)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-controller="Reports" asp-action="Index"
+                                       title="Open reports" aria-label="Open reports" data-bs-toggle="tooltip" data-bs-placement="bottom">
+                                        <i class="bi bi-flag"></i>
+                                        <span id="openReportBadge" class="badge rounded-pill bg-warning text-dark @(openReportCount > 0 ? "" : "d-none")">@openReportCount</span>
+                                    </a>
+                                </li>
+                            }
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Reports" asp-action="ReportIssue" asp-route-pageUrl="@currentPageUrl"
+                                   title="Report an issue" aria-label="Report an issue" data-bs-toggle="tooltip" data-bs-placement="bottom">
+                                    <i class="bi bi-bug"></i>
+                                </a>
+                            </li>
                             <li class="nav-item dropdown">
                                 <a class="nav-link text-dark dropdown-toggle" href="#" id="userDropdown" role="button" 
                                    data-bs-toggle="dropdown" aria-expanded="false">
@@ -249,7 +283,7 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; @DateTime.Now.Year - @displaySettings.SiteName
+            &copy; @((await Html.ForumNowAsync()).Year) - @displaySettings.SiteName
             @if (!string.IsNullOrEmpty(appVersionText))
             {
                 <span>@appVersionText</span>
@@ -280,6 +314,25 @@
             // messages already reflected in the navbar badge on page load.
             window.mvcbbInitialUnreadCount = @unreadMessageCount;
         </script>
+        @if (canModerate)
+        {
+            <div class="toast-container position-fixed bottom-0 start-0 p-3" style="z-index: 1080;">
+                <div id="newReportToast" class="toast align-items-center text-bg-warning border-0" role="alert" aria-live="polite" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi bi-flag-fill me-2"></i>
+                            <span id="newReportToastText">There are new reports to review.</span>
+                        </div>
+                        <a href="/Reports" class="btn btn-sm btn-light m-2">View</a>
+                        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            </div>
+            <script>
+                // Baseline for the open-reports polling in site.js.
+                window.mvcbbInitialOpenReportCount = @openReportCount;
+            </script>
+        }
     }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

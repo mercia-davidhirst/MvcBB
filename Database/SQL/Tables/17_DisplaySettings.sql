@@ -22,6 +22,9 @@ BEGIN
         RegistrationEnabled BIT            NOT NULL,
         DateFormat          NVARCHAR(20)   NOT NULL CONSTRAINT DF_DisplaySettings_DateFormat DEFAULT ('dd/MM/yyyy'),
         TimeFormat          NVARCHAR(20)   NOT NULL CONSTRAINT DF_DisplaySettings_TimeFormat DEFAULT ('HH:mm'),
+        -- Forum display time zone (IANA id, e.g. 'Europe/London'); blank =
+        -- the web server's local time zone. Added in v1.1.0.
+        TimeZoneId          NVARCHAR(100)  NOT NULL CONSTRAINT DF_DisplaySettings_TimeZoneId DEFAULT (N''),
         CONSTRAINT PK_DisplaySettings PRIMARY KEY CLUSTERED (Id)
     );
 END
@@ -41,3 +44,6 @@ BEGIN
     ALTER TABLE dbo.DisplaySettings ADD TimeFormat NVARCHAR(20) NOT NULL CONSTRAINT DF_DisplaySettings_TimeFormat DEFAULT ('HH:mm');
 END
 GO
+
+-- v1.1.0 (TimeZoneId) is applied by Upgrades/v1.1.0.sql, which install.ps1
+-- runs straight after Tables/.

@@ -12,7 +12,8 @@ CREATE PROCEDURE dbo.usp_Report_Insert
     @Type TINYINT,
     @ContentId INT,
     @Status TINYINT = 0,
-    @ModeratorNotes NVARCHAR(1000) = N''
+    @ModeratorNotes NVARCHAR(1000) = N'',
+    @PageUrl NVARCHAR(500) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -23,9 +24,14 @@ BEGIN
         RETURN;
     END
 
-    INSERT INTO dbo.Reports (Reason, ReporterUserId, CreatedAt, Type, ContentId, Status, ModeratorNotes)
+    -- Only a site issue (Type 4) carries a page address.
+    IF @Type <> 4
+        SET @PageUrl = NULL;
+
+    INSERT INTO dbo.Reports (Reason, ReporterUserId, CreatedAt, Type, ContentId, Status, ModeratorNotes, PageUrl)
     OUTPUT inserted.Id, inserted.Reason, inserted.ReporterUserId, inserted.CreatedAt, inserted.Type,
-           inserted.ContentId, inserted.Status, inserted.ModeratorNotes, inserted.ResolvedAt, inserted.ResolvedByUserId
-    VALUES (@Reason, @ReporterUserId, ISNULL(@CreatedAt, SYSUTCDATETIME()), @Type, @ContentId, @Status, @ModeratorNotes);
+           inserted.ContentId, inserted.Status, inserted.ModeratorNotes, inserted.ResolvedAt, inserted.ResolvedByUserId,
+           inserted.PageUrl
+    VALUES (@Reason, @ReporterUserId, ISNULL(@CreatedAt, SYSUTCDATETIME()), @Type, @ContentId, @Status, @ModeratorNotes, @PageUrl);
 END;
 GO

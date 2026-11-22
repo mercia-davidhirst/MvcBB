@@ -48,7 +48,11 @@
                                    class="list-group-item list-group-item-action">
                                     <div class="d-flex w-100 justify-content-between align-items-center">
                                         <h6 class="mb-1">
-                                            @report.Type: @report.ContentTitle
+                                            @if (!report.HasContent)
+                                            {
+                                                <i class="bi bi-bug me-1"></i>
+                                            }
+                                            @report.TypeName: @report.ContentTitle
                                             @if (report.Status == ReportStatus.Pending)
                                             {
                                                 <span class="badge bg-warning">New</span>
@@ -59,7 +63,10 @@
                                     <p class="mb-1">
                                         <small>
                                             Reported by @report.ReporterUsername |
-                                            Content by @report.ContentAuthorUsername |
+                                            @if (report.HasContent)
+                                            {
+                                                @:Content by @report.ContentAuthorUsername |
+                                            }
                                             Status: <span class="badge bg-@GetStatusColor(report.Status)">@report.Status</span>
                                         </small>
                                     </p>

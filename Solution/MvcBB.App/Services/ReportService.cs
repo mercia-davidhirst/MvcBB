@@ -64,5 +64,19 @@ namespace MvcBB.App.Services
             response.EnsureSuccessOrSessionExpired();
             return await response.Content.ReadFromJsonAsync<ReportResponse>() ?? throw new Exception("Failed to update report");
         }
+
+        public async Task<int> GetOpenCountAsync()
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
+            var response = await _httpClient.GetAsync("api/reports/open-count");
+            response.EnsureSuccessOrSessionExpired();
+            var result = await response.Content.ReadFromJsonAsync<OpenCountResponse>();
+            return result?.OpenCount ?? 0;
+        }
+
+        private class OpenCountResponse
+        {
+            public int OpenCount { get; set; }
+        }
     }
 }

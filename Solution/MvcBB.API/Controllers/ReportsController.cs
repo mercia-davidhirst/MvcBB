@@ -53,7 +53,12 @@ namespace MvcBB.API.Controllers
                 return NotFound(new { message = "Report not found" });
             }
 
-            return Ok(MapToReportResponse(report));
+            // A reported private message's body is shown to moderators and
+            // administrators on the report details page only (this endpoint is
+            // already limited to those roles; checked again so the rule holds
+            // even if the attribute ever changes).
+            var includeMessageContent = User.IsInRole("Administrator") || User.IsInRole("Moderator");
+            return Ok(MapToReportResponses(new[] { report }, includeMessageContent).Single());
         }
 
         [HttpPost]
@@ -71,11 +76,36 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
+            if (!Enum.IsDefined(request.Type))
+            {
+                return BadRequest(new { message = "Unknown report type" });
+            }
+
+            // Private messages can only be reported by their recipient (the
+            // sender can just delete their own message, and nobody else can
+            // see it). A missing message and someone else's message get the
+            // same 404 "Message not found" the message endpoints use for a
+            // missing id, so the response can't be used to probe which
+            // message ids exist.
+            if (request.Type == ReportType.Message)
+            {
+                var message = _messageRepository.GetById(request.ContentId);
+                if (message == null || !string.Equals(message.RecipientUserId, userId, StringComparison.Ordinal))
+                {
+                    return NotFound(new { message = "Message not found" });
+                }
+            }
+
+            // A site issue isn't about any content, so it never carries a
+            // content id; only it may carry a page address, and only a
+            // site-relative one (see ReportPageUrl).
+            var isSiteIssue = request.Type == ReportType.SiteIssue;
             var report = new Report
             {
                 Reason = request.Reason,
                 Type = request.Type,
-                ContentId = request.ContentId,
+                ContentId = isSiteIssue ? 0 : request.ContentId,
+                PageUrl = isSiteIssue ? ReportPageUrl.Normalize(request.PageUrl) : null,
                 ReporterUserId = userId,
                 CreatedAt = DateTime.UtcNow,
                 Status = ReportStatus.Pending
@@ -116,6 +146,18 @@ namespace MvcBB.API.Controllers
             return Ok(MapToReportResponse(report));
         }
 
+        /// <summary>
+        /// Reports still waiting on a moderator (Pending or Investigating).
+        /// Polled by the App's navbar alert, so it's a single count query
+        /// rather than the full stats object.
+        /// </summary>
+        [HttpGet("open-count")]
+        [Authorize(Roles = "Administrator,Moderator")]
+        public ActionResult GetOpenCount()
+        {
+            return Ok(new { openCount = _reportRepository.CountOpen() });
+        }
+
         [HttpGet("stats")]
         [Authorize(Roles = "Administrator,Moderator")]
         public ActionResult GetReportStats()
@@ -131,7 +173,9 @@ namespace MvcBB.API.Controllers
                 {
                     ThreadReports = _reportRepository.CountByType(ReportType.Thread),
                     PostReports = _reportRepository.CountByType(ReportType.Post),
-                    MessageReports = _reportRepository.CountByType(ReportType.Message)
+                    MessageReports = _reportRepository.CountByType(ReportType.Message),
+                    UserReports = _reportRepository.CountByType(ReportType.User),
+                    SiteIssueReports = _reportRepository.CountByType(ReportType.SiteIssue)
                 }
             };
 
@@ -149,7 +193,11 @@ namespace MvcBB.API.Controllers
         /// (up to three per report) is resolved via a single batched call for
         /// the whole page instead of up to three GetUsername calls per report.
         /// </summary>
-        private List<ReportResponse> MapToReportResponses(IReadOnlyList<Report> reports)
+        /// <param name="includeMessageContent">
+        /// Fill MessageContent/recipient for Message reports. Only ever true for
+        /// a moderator/administrator viewing one report's details.
+        /// </param>
+        private List<ReportResponse> MapToReportResponses(IReadOnlyList<Report> reports, bool includeMessageContent = false)
         {
             if (reports.Count == 0)
             {
@@ -183,7 +231,8 @@ namespace MvcBB.API.Controllers
                     Status = r.Status,
                     ModeratorNotes = r.ModeratorNotes,
                     ResolvedAt = r.ResolvedAt,
-                    ResolvedByUserId = r.ResolvedByUserId
+                    ResolvedByUserId = r.ResolvedByUserId,
+                    PageUrl = r.PageUrl
                 };
 
                 switch (r.Type)
@@ -193,6 +242,7 @@ namespace MvcBB.API.Controllers
                         if (thread != null)
                         {
                             response.ContentTitle = thread.Title;
+                            response.ContentThreadId = thread.Id;
                             response.ContentAuthorId = thread.CreatedByUserId;
                             response.ContentCreatedAt = thread.CreatedAt;
                             Track(thread.CreatedByUserId);
@@ -205,6 +255,7 @@ namespace MvcBB.API.Controllers
                         {
                             var postThread = _threadRepository.GetById(post.ThreadId);
                             response.ContentTitle = postThread?.Title ?? $"Post #{post.Id}";
+                            response.ContentThreadId = post.ThreadId;
                             response.ContentAuthorId = post.CreatedByUserId;
                             response.ContentCreatedAt = post.CreatedAt;
                             Track(post.CreatedByUserId);
@@ -219,6 +270,12 @@ namespace MvcBB.API.Controllers
                             response.ContentAuthorId = message.SenderUserId;
                             response.ContentCreatedAt = message.CreatedAt;
                             Track(message.SenderUserId);
+                            if (includeMessageContent)
+                            {
+                                response.MessageContent = message.Content;
+                                response.MessageRecipientUserId = message.RecipientUserId;
+                                Track(message.RecipientUserId);
+                            }
                         }
                         break;
 
@@ -231,6 +288,13 @@ namespace MvcBB.API.Controllers
                             response.ContentCreatedAt = user.CreatedAt;
                             Track(response.ContentAuthorId);
                         }
+                        break;
+
+                    case ReportType.SiteIssue:
+                        // Nothing to look up: the "content" is the page the
+                        // reporter was on. ContentCreatedAt stays unset and the
+                        // views don't show it for this type.
+                        response.ContentTitle = string.IsNullOrEmpty(r.PageUrl) ? "Site issue" : r.PageUrl;
                         break;
                 }
 
@@ -248,6 +312,7 @@ namespace MvcBB.API.Controllers
                 response.ReporterUsername = Resolve(response.ReporterUserId);
                 response.ResolvedByUsername = Resolve(response.ResolvedByUserId);
                 response.ContentAuthorUsername = Resolve(response.ContentAuthorId);
+                response.MessageRecipientUsername = Resolve(response.MessageRecipientUserId);
             }
 
             return responses;

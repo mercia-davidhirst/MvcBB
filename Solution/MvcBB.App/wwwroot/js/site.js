@@ -94,6 +94,74 @@
     setInterval(poll, POLL_INTERVAL_MS);
 })();
 
+// Open-reports alert for moderators and administrators. Same approach as the
+// new-PM alert above: _Layout renders the current count into the navbar
+// badge and sets a baseline, then this polls a small JSON endpoint and
+// updates the badge, toasting when the count goes up (a new report came in).
+(function () {
+    if (typeof window.mvcbbInitialOpenReportCount === 'undefined') {
+        return; // Not a moderator/administrator - _Layout never set this.
+    }
+
+    var POLL_INTERVAL_MS = 30000;
+    var lastKnownCount = window.mvcbbInitialOpenReportCount;
+
+    function updateBadge(count) {
+        var badge = document.getElementById('openReportBadge');
+        if (!badge) {
+            return;
+        }
+        badge.textContent = count;
+        badge.classList.toggle('d-none', count === 0);
+    }
+
+    function showToast(count) {
+        var toastEl = document.getElementById('newReportToast');
+        var textEl = document.getElementById('newReportToastText');
+        if (!toastEl || !window.bootstrap) {
+            return;
+        }
+        if (textEl) {
+            textEl.textContent = count === 1
+                ? 'There is 1 open report to review.'
+                : 'There are ' + count + ' open reports to review.';
+        }
+        window.bootstrap.Toast.getOrCreateInstance(toastEl).show();
+    }
+
+    function poll() {
+        fetch('/Reports/OpenCount', { headers: { 'Accept': 'application/json' } })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (data) {
+                if (!data) {
+                    return;
+                }
+                updateBadge(data.count);
+                if (data.count > lastKnownCount) {
+                    showToast(data.count);
+                }
+                lastKnownCount = data.count;
+            })
+            .catch(function () {
+                // Transient network/API hiccup - just skip this tick, next poll retries.
+            });
+    }
+
+    setInterval(poll, POLL_INTERVAL_MS);
+})();
+
+// Bootstrap tooltips for any element marked data-bs-toggle="tooltip" (e.g.
+// the navbar's "Report an issue" and "Open reports" icons). The title
+// attribute still works as a plain tooltip if Bootstrap's JS isn't loaded.
+document.addEventListener('DOMContentLoaded', function () {
+    if (!window.bootstrap || !window.bootstrap.Tooltip) {
+        return;
+    }
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+        window.bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+});
+
 // Board listing: category collapse state, persisted client-side the same way
 // as the dark/light theme toggle above - a JSON map of categoryId -> collapsed,
 // applied directly (no animation) on load, then kept in sync with Bootstrap's

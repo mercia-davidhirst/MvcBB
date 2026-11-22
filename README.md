@@ -106,6 +106,14 @@ can run any community.
   role colour (red/green/blue/grey) is consistent across the member
   directory and profile pages.
 - Content reporting (posts, threads, users) with an admin review queue.
+- **Report an issue**: a bug icon next to the user menu lets any signed-in
+  member report a problem with the site itself, optionally with the page
+  they were on. These arrive in the same review queue as a "Site issue"
+  report and follow the same status/notes workflow.
+- **Open reports alert**: moderators and administrators get a navbar flag
+  with a live count of reports still Pending or Investigating, plus an
+  on-screen toast when a new one arrives (refreshed the same way as the
+  unread PM badge).
 - Site-wide search across threads, posts and members.
 - Admin-managed **word filter**: a censor list applied to post content and
   thread titles at write time (so stored data is already clean, not filtered
@@ -118,8 +126,12 @@ can run any community.
 - **Announcements**: site-wide banners shown on every page, each with an
   active flag, sort order and optional start/end dates.
 - Display settings: site name/title/logo, welcome message, threads-per-page,
-  site-wide date/time display format, an optional centered footer
-  disclaimer, and whether public registration is open.
+  site-wide date/time display format, the forum's time zone, an optional
+  centered footer disclaimer, and whether public registration is open.
+- **Forum time zone**: every timestamp is stored in UTC and shown in the
+  time zone chosen in the admin settings (daylight saving included).
+  Admin-entered dates (announcement start/end, account locks) are typed in
+  that zone too.
 - **Password policy**: admin-set minimum length and required character
   classes (upper/lower case, digit, special character), applied to
   registrations, admin-created accounts, password changes and resets, plus a
@@ -150,6 +162,10 @@ can run any community.
   Slot contexts carry every member and post id on the page, so a mod can load
   data for a whole thread in one call. A disabled mod's slots render nothing,
   and a failing one is logged and skipped. See `docs/ModKit-ViewSlots.md`.
+- **Portal home page slots** let a mod add a widget to any column of the
+  home page: `home.left`, `home.center.top` (above Latest Discussions),
+  `home.center` (below it) and `home.right`. `home.sidebar` still works and
+  still renders under Quick Links.
 - A mod can embed static files (CSS, images) in its App-side DLL; they're
   served at `/_mods/{modId}/...` while the mod is enabled.
 
@@ -226,6 +242,93 @@ Change the placeholder JWT key and client secret before deploying anywhere
 public.
 
 ## Release history
+
+### v1.1.0
+
+New features:
+
+- **Report an issue.** Signed-in members get a bug icon (tooltip "Report an
+  issue") next to the user menu in the navbar. It opens a short form for a
+  description, with a tick box to include the page they were on. The report
+  goes into the existing admin report queue as a new **Site issue** report
+  type (`ReportType.SiteIssue`, stored as type `4`) with no post, thread,
+  message or member behind it, and is handled with the same status, notes
+  and resolve workflow as any other report. The report list and details show
+  it as "Site issue" with a link to the page (if included) instead of a
+  content link. Only site-relative page addresses are stored.
+- **Open reports alert.** Moderators and administrators see a flag icon in
+  the navbar with a badge counting reports that are still Pending or
+  Investigating, linking to the report queue. Like the unread PM badge, it's
+  rendered with the page, polled every 30 seconds, and shows a toast when
+  the count goes up. New API endpoint: `GET api/reports/open-count`
+  (Moderator/Administrator only); `GET api/reports/stats` now also counts
+  user and site issue reports.
+- **Forum time zone.** New **Time Zone** setting under Admin > Settings,
+  listing every time zone the server knows. The choice is stored as an IANA
+  id (e.g. `Europe/London`), which works on Windows and Linux hosts. Every
+  date on the site is converted from UTC to that zone for display (one
+  shared helper, `DateFormatHtmlHelperExtensions`, backed by
+  `MvcBB.Shared.Services.ForumTimeZone`), and announcement start/end dates
+  and account lock times are entered in it and converted to UTC before
+  they're saved. **Default: blank, meaning the web server's own local time
+  zone**, which is how dates were shown before, so an upgraded forum looks
+  the same until an admin picks a zone.
+- **Portal home page slots.** Four new ModKit view slots on the home page:
+  `home.left` (left column, under Quick Links), `home.center.top` (centre,
+  above Latest Discussions), `home.center` (centre, below it) and
+  `home.right` (right column, under Statistics/Newest Members), all with
+  `PageSlotContext`. The existing `home.sidebar` slot is unchanged and still
+  renders under Quick Links, just before `home.left`. Empty slots render no
+  markup, so the page is unchanged without mods. See section 7.1 of
+  `docs/ModKit-ViewSlots.md`. Existing mods load and run unchanged.
+
+Fixes and changes:
+
+- **Post report links**: on the report details page, a reported post now
+  opens its thread at that post. Previously the post's id was used as a
+  thread id, opening the wrong thread or none. A thread or post that no
+  longer exists is shown as unavailable instead of a broken link.
+- **Message report links**: message reports no longer link to the message
+  page, which only the sender and recipient can open.
+- **Reported message text**: moderators and administrators can read the
+  text of a reported private message on the report details page (and only
+  there), with a note that it's shown because the message was reported.
+  Normal message privacy is unchanged: the message itself still only opens
+  for its sender and recipient.
+- **Who can report a message**: only the recipient of a private message can
+  report it. The Report button shows only for them; anyone else gets "not
+  found", so message ids can't be probed.
+- **User reports on SQL Server and PostgreSQL**: reports about a member
+  (type `3`) were rejected because the reports table's check constraint and
+  content-exists function only knew types 0 to 2. Both now accept types 0
+  to 4.
+
+Settings and data:
+
+- `DisplaySettings` gains `TimeZoneId` (blank = server local time).
+- Reports gain `PageUrl` (site issue reports only).
+- Timestamps were already written in UTC by every provider (`DateTime.UtcNow`
+  in the API, `SYSUTCDATETIME()` on SQL Server, `timestamptz` on
+  PostgreSQL), so **existing data needs no migration** and none is
+  rewritten. The one exception is dates typed into admin forms before
+  v1.1.0 (announcement start/end dates and account "locked until" times):
+  those were saved exactly as typed and are now read as UTC, so on a server
+  that isn't on UTC they'll show shifted by the zone's offset. Check any
+  scheduled announcements and timed locks after upgrading and re-save them
+  if needed.
+
+Upgrading from v1.0.0:
+
+1. Stop the App and API, deploy the new build of both (and any mods).
+2. **SQL Server / PostgreSQL**: re-run `install.ps1` in `Database/SQL` or
+   `Database/PostGresSql` against the existing database. It now runs the
+   guarded `Upgrades/v1.1.0.sql` straight after the table scripts (adds the
+   new columns and widens the report type check), then recreates the
+   functions and procedures. It's safe to re-run and never drops data. The
+   upgrade script can also be run on its own first (see its header).
+   **InMemory**: nothing to do.
+3. Start the API, then the App, and pick a time zone under Admin > Settings
+   if the server's local zone isn't the one the forum should use.
 
 ### v1.0.0
 

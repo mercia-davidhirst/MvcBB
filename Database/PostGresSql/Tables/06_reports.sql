@@ -3,7 +3,10 @@
     Purpose: Backing store for MvcBB.Shared.Models.Report.Report /
              IReportRepository.
     Notes:
-      - type mirrors ReportType: 0 = Thread, 1 = Post, 2 = Message.
+      - type mirrors ReportType: 0 = Thread, 1 = Post, 2 = Message, 3 = User,
+        4 = SiteIssue (v1.1.0: a problem with the site itself, raised from
+        the navbar's "Report an issue" button; content_id is always 0 and
+        page_url holds the page the reporter was on, if they included it).
       - status mirrors ReportStatus: 0 = Pending, 1 = Investigating,
         2 = Resolved, 3 = Dismissed.
       - content_id is a polymorphic reference (its meaning depends on type),
@@ -23,7 +26,8 @@ CREATE TABLE IF NOT EXISTS public.reports
     moderator_notes         VARCHAR(1000)   NOT NULL DEFAULT '',
     resolved_at             TIMESTAMPTZ     NULL,
     resolved_by_user_id     INTEGER         NULL REFERENCES public.users (id),
-    CONSTRAINT ck_reports_type CHECK (type IN (0, 1, 2)),
+    page_url                VARCHAR(500)    NULL,
+    CONSTRAINT ck_reports_type CHECK (type IN (0, 1, 2, 3, 4)),
     CONSTRAINT ck_reports_status CHECK (status IN (0, 1, 2, 3))
 );
 
@@ -34,5 +38,5 @@ CREATE INDEX IF NOT EXISTS ix_reports_type ON public.reports (type);
 -- Schema changes for a database that already has an older version of this
 -- table (a fresh install gets the up-to-date shape directly from
 -- CREATE TABLE above, so these only ever run against an existing table):
--- none pending yet - add guarded ALTER TABLE statements here, e.g.:
---   ALTER TABLE public.reports ADD COLUMN IF NOT EXISTS new_column ...;
+-- v1.1.0 (page_url column, type 3/4 allowed by ck_reports_type) is applied
+-- by Upgrades/v1.1.0.sql, which install.ps1 runs straight after Tables/.

@@ -38,7 +38,8 @@ namespace MvcBB.API.SQL
                 settings.FooterDisclaimer,
                 settings.RegistrationEnabled,
                 settings.DateFormat,
-                settings.TimeFormat
+                settings.TimeFormat,
+                settings.TimeZoneId
             }, commandType: CommandType.StoredProcedure);
         }
     }

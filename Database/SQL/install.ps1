@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Deploys the MvcBB SQL Server schema (Database/SQL) in dependency order:
-    Tables -> Functions -> Views -> Stored Procedures -> Seed Data.
+    Tables -> Upgrades -> Functions -> Views -> Stored Procedures -> Seed Data.
 
 .DESCRIPTION
     Runs every .sql script under this folder through sqlcmd, in the order
@@ -13,7 +13,12 @@
     script under Tables/ only creates its table when it doesn't exist yet
     (IF OBJECT_ID(...) IS NULL) and applies later column changes with
     guarded ALTER TABLE statements, so existing rows are never dropped or
-    truncated. Functions/, Views/ and Stored Procedures/ are dropped and
+    truncated. Upgrades/ holds one guarded script per release (e.g.
+    v1.1.0.sql) that brings an older database's tables up to the current
+    shape; each only adds what's missing, so it's a no-op on a fresh or
+    already-upgraded database. Upgrade scripts run in version order, after
+    Tables/ and before anything that depends on the new columns.
+    Functions/, Views/ and Stored Procedures/ are dropped and
     recreated each run (they're just code, not data), and Seed Data/
     scripts only insert when their target table is empty. Re-running this
     script is therefore the normal way to bring an existing database up to
@@ -113,6 +118,15 @@ try {
     Write-Host "`n1) Tables"
     Get-ChildItem -Path (Join-Path $root "Tables") -Filter *.sql | Sort-Object Name | ForEach-Object {
         Invoke-SqlFile -Path $_.FullName -TargetDatabase $Database
+    }
+
+    Write-Host "`n1b) Upgrades"
+    $upgradesPath = Join-Path $root "Upgrades"
+    if (Test-Path $upgradesPath) {
+        # Sorted by version (v1.1.0, v1.2.0, v1.10.0...) rather than by name.
+        Get-ChildItem -Path $upgradesPath -Filter "v*.sql" |
+            Sort-Object { [Version]($_.BaseName.TrimStart('v')) } |
+            ForEach-Object { Invoke-SqlFile -Path $_.FullName -TargetDatabase $Database }
     }
 
     Write-Host "`n2) Functions"

@@ -39,7 +39,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             var newId = connection.QuerySingle<int>(
-                "CALL public.sp_report_insert(@Reason, @ReporterUserId, @Type, @ContentId, @Status, @ModeratorNotes, NULL)",
+                "CALL public.sp_report_insert(@Reason, @ReporterUserId, @Type, @ContentId, @Status, @ModeratorNotes, @PageUrl, NULL)",
                 new
                 {
                     report.Reason,
@@ -47,7 +47,8 @@ namespace MvcBB.API.PostgreSql
                     Type = (short)report.Type,
                     report.ContentId,
                     Status = (short)report.Status,
-                    report.ModeratorNotes
+                    report.ModeratorNotes,
+                    report.PageUrl
                 });
 
             var row = connection.QuerySingle<ReportRow>("SELECT * FROM public.fn_report_get_by_id(@Id)", new { Id = newId });
@@ -87,6 +88,12 @@ namespace MvcBB.API.PostgreSql
             return connection.QuerySingle<int>("SELECT public.fn_report_count_by_type(@Type)", new { Type = (short)type });
         }
 
+        public int CountOpen()
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            return connection.QuerySingle<int>("SELECT public.fn_report_count_open()");
+        }
+
         private static int? ParseUserId(string? userId) => int.TryParse(userId, out var id) ? id : null;
 
         private static Report MapToReport(ReportRow row) => new()
@@ -100,7 +107,8 @@ namespace MvcBB.API.PostgreSql
             Status = (ReportStatus)row.Status,
             ModeratorNotes = row.ModeratorNotes,
             ResolvedAt = row.ResolvedAt,
-            ResolvedByUserId = row.ResolvedByUserId?.ToString() ?? string.Empty
+            ResolvedByUserId = row.ResolvedByUserId?.ToString() ?? string.Empty,
+            PageUrl = row.PageUrl
         };
 
         /// <summary>
@@ -121,6 +129,7 @@ namespace MvcBB.API.PostgreSql
             public string ModeratorNotes { get; set; } = string.Empty;
             public DateTime? ResolvedAt { get; set; }
             public int? ResolvedByUserId { get; set; }
+            public string? PageUrl { get; set; }
         }
     }
 }

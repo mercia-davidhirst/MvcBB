@@ -1,4 +1,6 @@
+@using MvcBB.Shared.Interfaces
 @model ReportResponse
+@inject IBBCodeService BBCodeService
 @{
     ViewData["Title"] = $"Report #{Model.Id}";
     Layout = "_AdminLayout";
@@ -19,30 +21,59 @@
                     <h4 class="mb-0">Report Details</h4>
                 </div>
                 <div class="card-body">
+                    @if (!Model.HasContent)
+                    {
+                        <div class="mb-4">
+                            <h5>Site Issue</h5>
+                            <dl class="row">
+                                <dt class="col-sm-3">Type</dt>
+                                <dd class="col-sm-9"><i class="bi bi-bug me-1"></i>@Model.TypeName</dd>
+
+                                <dt class="col-sm-3">Page</dt>
+                                <dd class="col-sm-9">
+                                    @if (!string.IsNullOrEmpty(Model.PageUrl) && Url.IsLocalUrl(Model.PageUrl))
+                                    {
+                                        <a href="@Model.PageUrl" class="text-break">@Model.PageUrl</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not included</span>
+                                    }
+                                </dd>
+                            </dl>
+                        </div>
+                    }
+                    else
+                    {
                     <div class="mb-4">
                         <h5>Reported Content</h5>
                         <dl class="row">
                             <dt class="col-sm-3">Type</dt>
-                            <dd class="col-sm-9">@Model.Type</dd>
+                            <dd class="col-sm-9">@Model.TypeName</dd>
 
                             <dt class="col-sm-3">Content</dt>
                             <dd class="col-sm-9">
                                 @switch (Model.Type)
                                 {
-                                    case ReportType.Thread:
-                                        <a asp-controller="Threads" asp-action="Details" asp-route-id="@Model.ContentId">
+                                    case ReportType.Thread when Model.ContentThreadId.HasValue:
+                                        <a asp-controller="Threads" asp-action="Details" asp-route-id="@Model.ContentThreadId">
                                             @Model.ContentTitle
                                         </a>
                                         break;
-                                    case ReportType.Post:
-                                        <a asp-controller="Threads" asp-action="Details" asp-route-id="@Model.ContentId">
-                                            @Model.ContentTitle
+                                    case ReportType.Post when Model.ContentThreadId.HasValue:
+                                        @* ContentId is the post's id: link to its thread, anchored at the post. *@
+                                        <a asp-controller="Threads" asp-action="Details" asp-route-id="@Model.ContentThreadId" asp-fragment="post-@Model.ContentId">
+                                            @Model.ContentTitle (post #@Model.ContentId)
                                         </a>
+                                        break;
+                                    case ReportType.Thread:
+                                    case ReportType.Post:
+                                        <span class="text-muted">This @Model.TypeName.ToLower() no longer exists (#@Model.ContentId).</span>
                                         break;
                                     case ReportType.Message:
-                                        <a asp-controller="Messages" asp-action="Details" asp-route-id="@Model.ContentId">
-                                            @Model.ContentTitle
-                                        </a>
+                                        @* No link: the message page only opens for its sender and recipient.
+                                           The reported text is shown below instead. *@
+                                        @(string.IsNullOrEmpty(Model.ContentTitle) ? $"Private message #{Model.ContentId}" : Model.ContentTitle)
                                         break;
                                     case ReportType.User:
                                         <a asp-controller="Account" asp-action="Profile" asp-route-username="@Model.ContentTitle">
@@ -58,7 +89,31 @@
                             <dt class="col-sm-3">Content Created</dt>
                             <dd class="col-sm-9">@(await Html.FormatDateTimeAsync(Model.ContentCreatedAt))</dd>
                         </dl>
+
+                        @if (Model.Type == ReportType.Message)
+                        {
+                            @if (Model.MessageContent != null)
+                            {
+                                <dl class="row mb-2">
+                                    <dt class="col-sm-3">Sent To</dt>
+                                    <dd class="col-sm-9">@Model.MessageRecipientUsername</dd>
+                                </dl>
+                                <div class="card">
+                                    <div class="card-header small text-muted">
+                                        <i class="bi bi-shield-lock me-1"></i>Shown to moderators because this message was reported.
+                                    </div>
+                                    <div class="card-body message-content">
+                                        @Html.Raw(BBCodeService.ParseBBCode(Model.MessageContent, ViewData["Smilies"] as Dictionary<string, string>))
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted mb-0">The message's text isn't available. It may have been deleted.</p>
+                            }
+                        }
                     </div>
+                    }
 
                     <div class="mb-4">
                         <h5>Report Information</h5>
@@ -74,7 +129,7 @@
                                 <span class="badge bg-@GetStatusColor(Model.Status)">@Model.Status</span>
                             </dd>
 
-                            <dt class="col-sm-3">Reason</dt>
+                            <dt class="col-sm-3">@(Model.HasContent ? "Reason" : "Description")</dt>
                             <dd class="col-sm-9">@Model.Reason</dd>
 
                             @if (Model.ResolvedAt.HasValue)

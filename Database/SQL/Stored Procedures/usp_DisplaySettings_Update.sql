@@ -12,7 +12,8 @@ CREATE PROCEDURE dbo.usp_DisplaySettings_Update
     @FooterDisclaimer NVARCHAR(500) = NULL,
     @RegistrationEnabled BIT,
     @DateFormat NVARCHAR(20),
-    @TimeFormat NVARCHAR(20)
+    @TimeFormat NVARCHAR(20),
+    @TimeZoneId NVARCHAR(100) = N''
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -26,7 +27,8 @@ BEGIN
         FooterDisclaimer = @FooterDisclaimer,
         RegistrationEnabled = @RegistrationEnabled,
         DateFormat = @DateFormat,
-        TimeFormat = @TimeFormat
+        TimeFormat = @TimeFormat,
+        TimeZoneId = ISNULL(@TimeZoneId, N'')
     WHERE Id = 1;
 END;
 GO

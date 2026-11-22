@@ -3,7 +3,10 @@
     Purpose: Backing store for MvcBB.Shared.Models.Report.Report /
              IReportRepository.
     Notes:
-      - Type mirrors ReportType: 0 = Thread, 1 = Post, 2 = Message.
+      - Type mirrors ReportType: 0 = Thread, 1 = Post, 2 = Message, 3 = User,
+        4 = SiteIssue (v1.1.0: a problem with the site itself, raised from
+        the navbar's "Report an issue" button; ContentId is always 0 and
+        PageUrl holds the page the reporter was on, if they included it).
       - Status mirrors ReportStatus: 0 = Pending, 1 = Investigating,
         2 = Resolved, 3 = Dismissed.
       - ContentId is a polymorphic reference (its meaning depends on Type), so
@@ -25,10 +28,11 @@ BEGIN
         ModeratorNotes      NVARCHAR(1000)     NOT NULL CONSTRAINT DF_Reports_ModeratorNotes DEFAULT (N''),
         ResolvedAt          DATETIME2(3)       NULL,
         ResolvedByUserId    INT                NULL,
+        PageUrl             NVARCHAR(500)      NULL,
         CONSTRAINT PK_Reports PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_Reports_ReporterUser FOREIGN KEY (ReporterUserId) REFERENCES dbo.Users (Id),
         CONSTRAINT FK_Reports_ResolvedByUser FOREIGN KEY (ResolvedByUserId) REFERENCES dbo.Users (Id),
-        CONSTRAINT CK_Reports_Type CHECK (Type IN (0, 1, 2)),
+        CONSTRAINT CK_Reports_Type CHECK (Type IN (0, 1, 2, 3, 4)),
         CONSTRAINT CK_Reports_Status CHECK (Status IN (0, 1, 2, 3))
     );
 
@@ -41,9 +45,5 @@ GO
 -- Schema changes for a database that already has an older version of this
 -- table (a fresh install gets the up-to-date shape directly from
 -- CREATE TABLE above, so these only ever run against an existing table):
--- none pending yet - add guarded ALTER TABLE statements here, e.g.:
---   IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Reports') AND name = 'NewColumn')
---   BEGIN
---       ALTER TABLE dbo.Reports ADD NewColumn ...;
---   END
---   GO
+-- v1.1.0 (PageUrl column, Type 3/4 allowed by CK_Reports_Type) is applied
+-- by Upgrades/v1.1.0.sql, which install.ps1 runs straight after Tables/.
