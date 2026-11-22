@@ -142,6 +142,16 @@ can run any community.
   controllers, precompiled views and navbar links. A disabled or
   incompatible mod's pages and nav links are switched off without being
   removed.
+- **View slots** (ModKit 1.1.0) let an App-side mod render its own view
+  components into named places on core pages: under each post's author
+  (`post.author`), at the foot of each post (`post.footer`), under the avatar
+  on a profile (`profile.sidebar`), under Quick Links on the home page
+  (`home.sidebar`), and in the page `<head>` for stylesheets (`layout.head`).
+  Slot contexts carry every member and post id on the page, so a mod can load
+  data for a whole thread in one call. A disabled mod's slots render nothing,
+  and a failing one is logged and skipped. See `docs/ModKit-ViewSlots.md`.
+- A mod can embed static files (CSS, images) in its App-side DLL; they're
+  served at `/_mods/{modId}/...` while the mod is enabled.
 
 ### Appearance
 - Light and dark theme, toggled from the navbar and remembered per-browser

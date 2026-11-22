@@ -8,6 +8,17 @@
     var smilies = ViewData["Smilies"] as Dictionary<string, string>;
     var isMod = User.IsInRole("Administrator") || User.IsInRole("Moderator");
     var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+    // Every member and post shown on this page, built once and shared by
+    // every post's slot context, so mods can load data for all of them in
+    // one call (see docs/ModKit-ViewSlots.md).
+    var slotPage = posts == null
+        ? SlotPage.Empty
+        : new SlotPage
+        {
+            UserIds = posts.Select(p => p.CreatedByUserId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList(),
+            PostIds = posts.Select(p => p.Id).ToList()
+        };
 }
 
 <div class="container mt-4">
@@ -186,6 +197,16 @@
         <div class="thread-posts mb-4">
             @foreach (var post in posts)
             {
+                var postSlot = new PostSlotContext
+                {
+                    PostId = post.Id,
+                    ThreadId = Model.Id,
+                    BoardId = Model.BoardId,
+                    AuthorUserId = post.CreatedByUserId,
+                    AuthorUsername = post.CreatedByUsername,
+                    ViewerUserId = currentUserId,
+                    Page = slotPage
+                };
                 <div class="card" id="post-@post.Id">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
@@ -225,6 +246,7 @@
                                         <span class="text-muted">@post.CreatedByRankTitle</span>
                                     </small>
                                 }
+                                <mod-slot name="@CoreSlots.PostAuthor" context="@postSlot" />
                                 <small class="text-muted d-block">
                                     posted @(await Html.FormatDateTimeAsync(post.CreatedAt))
                                     @if (post.IsEdited)
@@ -302,6 +324,7 @@
                                 <img src="@post.ImageUrl" alt="Attached image" class="img-fluid rounded" />
                             </div>
                         }
+                        <mod-slot name="@CoreSlots.PostFooter" context="@postSlot" />
                         @if (!string.IsNullOrEmpty(post.CreatedBySignature))
                         {
                             <hr class="my-3" />

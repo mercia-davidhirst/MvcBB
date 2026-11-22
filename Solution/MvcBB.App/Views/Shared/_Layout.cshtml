@@ -60,6 +60,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/MvcBB.App.styles.css" asp-append-version="true" />
+    <mod-slot name="@CoreSlots.LayoutHead" context="@(new PageSlotContext { ViewerUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value })" />
 </head>
 <body>
     <header>

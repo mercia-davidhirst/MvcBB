@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using MvcBB.App.Extensions;
 using MvcBB.App.Filters;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Services;
 using MvcBB.App.Middleware;
+using MvcBB.App.Mods;
 using MvcBB.ModKit;
 using MvcBB.Shared.Interfaces;
 using MvcBB.Shared.Services;
@@ -66,6 +68,11 @@ mvcBuilder.ConfigureApplicationPartManager(apm =>
 // Nav rendering (see _Layout.cshtml) needs to know which mods are physically
 // present, separately from which ones are currently enabled.
 builder.Services.AddSingleton<IReadOnlyList<IAppMod>>(appMods);
+// View slots: which mod view components render into which core view slot -
+// see Mods/ModSlotRegistry.cs and docs/ModKit-ViewSlots.md. Built (and each
+// contribution checked) once, straight after the app is built below.
+builder.Services.AddSingleton(sp =>
+    ModSlotRegistry.Build(appMods, sp.GetRequiredService<ILogger<ModSlotRegistry>>()));
 
 // Add session support
 builder.Services.AddDistributedMemoryCache();
@@ -165,6 +172,10 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
+// Build the slot registry now, so a broken mod contribution is logged at
+// startup rather than on the first page view.
+app.Services.GetRequiredService<ModSlotRegistry>();
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -182,6 +193,10 @@ app.UseMiddleware<SecurityHeadersMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+// Static files a mod embeds in its own DLL, at /_mods/{modId}/... - see
+// Extensions/ModStaticFilesExtensions.cs. Placed with the other static
+// files so they get the same security headers and skip auth/routing.
+app.UseModStaticFiles(appMods);
 app.UseSession();
 app.UseCors("DefaultPolicy");
 

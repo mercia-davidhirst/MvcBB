@@ -29,5 +29,17 @@ namespace MvcBB.ModKit
         /// nav items are simply skipped.
         /// </summary>
         IEnumerable<ModNavItem> GetNavItems();
+
+        /// <summary>
+        /// View components this mod renders into core view slots (see
+        /// <see cref="CoreSlots"/>). Filtered by the enabled-mod set at render
+        /// time, exactly like <see cref="GetNavItems"/>: a disabled mod's
+        /// components aren't invoked at all. Read once, at startup.
+        /// </summary>
+        /// <remarks>
+        /// Has a default body (added in ModKit 1.1.0) so mods compiled against
+        /// 1.0.0 still load unchanged and simply contribute nothing.
+        /// </remarks>
+        IEnumerable<ModSlotContribution> GetSlotContributions() => Array.Empty<ModSlotContribution>();
     }
 }

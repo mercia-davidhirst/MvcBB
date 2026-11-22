@@ -47,6 +47,8 @@
                     </div>
                 </div>
             </div>
+
+            <mod-slot name="@CoreSlots.HomeSidebar" context="@(new PageSlotContext { ViewerUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value })" />
         </div>
 
         <!-- Center Panel (70%) -->
