@@ -25,7 +25,7 @@ namespace MvcBB.API.Controllers
             return Ok(_displaySettingsService.GetDisplaySettings());
         }
 
-        [Authorize(Roles = "Administrator,ApiClient")]
+        [Authorize(Roles = "Administrator")]
         [HttpPut("display")]
         public ActionResult PutDisplaySettings([FromBody] DisplaySettings settings)
         {
@@ -38,7 +38,7 @@ namespace MvcBB.API.Controllers
             return NoContent();
         }
 
-        // Public (not just Administrator/ApiClient) - a password form (register,
+        // Public (not just Administrator) - a password form (register,
         // change password, etc.) needs to show the current requirements to an
         // ordinary signed-out visitor, not just an admin.
         [AllowAnonymous]
@@ -48,7 +48,7 @@ namespace MvcBB.API.Controllers
             return Ok(_passwordPolicyService.GetPasswordPolicy());
         }
 
-        [Authorize(Roles = "Administrator,ApiClient")]
+        [Authorize(Roles = "Administrator")]
         [HttpPut("password-policy")]
         public ActionResult PutPasswordPolicy([FromBody] PasswordPolicy policy)
         {

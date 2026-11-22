@@ -1,27 +1,26 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using MvcBB.App.Exceptions;
+using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.Shared.Models.Settings;
-using MvcBB.Shared.Models.Authorization;
 
 namespace MvcBB.App.Services
 {
     public class SettingsService : ISettingsService
     {
         private readonly HttpClient _httpClient;
-        private readonly IAuthService _authService;
-        private readonly IConfiguration _configuration;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        public SettingsService(IHttpClientFactory httpClientFactory, IAuthService authService, IConfiguration configuration)
+        public SettingsService(IHttpClientFactory httpClientFactory, IHttpContextAccessor httpContextAccessor)
         {
             _httpClient = httpClientFactory.CreateClient("MvcBBApi");
-            _authService = authService;
-            _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<DisplaySettings> GetDisplaySettingsAsync()
@@ -36,14 +35,13 @@ namespace MvcBB.App.Services
 
         public async Task UpdateDisplaySettingsAsync(DisplaySettings settings)
         {
-            var token = await GetTokenAsync();
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
 
             var json = JsonSerializer.Serialize(settings);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PutAsync("api/settings/display", content);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
         public async Task<PasswordPolicy> GetPasswordPolicyAsync()
@@ -58,25 +56,21 @@ namespace MvcBB.App.Services
 
         public async Task UpdatePasswordPolicyAsync(PasswordPolicy policy)
         {
-            var token = await GetTokenAsync();
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetCurrentUserToken());
 
             var json = JsonSerializer.Serialize(policy);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PutAsync("api/settings/password-policy", content);
-            response.EnsureSuccessStatusCode();
+            response.EnsureSuccessOrSessionExpired();
         }
 
-        private async Task<string> GetTokenAsync()
+        // Changing settings needs the signed-in admin's own token - the shared
+        // service token is read-only and the API refuses it here.
+        private string GetCurrentUserToken()
         {
-            var credentials = new ApiCredentials
-            {
-                ClientId = _configuration["Api:ClientId"] ?? string.Empty,
-                ClientSecret = _configuration["Api:ClientSecret"] ?? string.Empty
-            };
-            var response = await _authService.GetTokenAsync(credentials);
-            return response.Token;
+            return _httpContextAccessor.HttpContext?.User.FindFirst("api_token")?.Value
+                ?? throw new SessionExpiredException();
         }
     }
 }

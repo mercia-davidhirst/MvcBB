@@ -17,7 +17,12 @@ namespace MvcBB.App.Interfaces
         Task<UserAuthResponse> LoginAsync(UserLoginRequest request);
         Task<MemberResponse> GetMembersAsync(MemberRequest request);
         Task UpdateProfileAsync(int userId, UpdateUserRequest request);
-        Task ChangePasswordAsync(int userId, ChangePasswordRequest request);
+        /// <summary>
+        /// Changes the signed-in member's password. Returns the fresh API token
+        /// the API issues with it (the old one stops working, as do the
+        /// member's other sessions), or null if the API didn't send one.
+        /// </summary>
+        Task<string?> ChangePasswordAsync(int userId, ChangePasswordRequest request);
         Task UpdateUserRoleAsync(int userId, UserRole newRole);
 
         /// <summary>Admin-only. Null or empty clears the override and falls back to the computed rank.</summary>

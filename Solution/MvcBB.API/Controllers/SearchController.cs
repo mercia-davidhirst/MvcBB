@@ -23,15 +23,18 @@ namespace MvcBB.API.Controllers
         private readonly IForumThreadRepository _threadRepository;
         private readonly IPostRepository _postRepository;
         private readonly IUserRepository _userRepository;
+        private readonly MvcBB.API.Services.IContentVisibilityService _visibility;
 
         public SearchController(
             IForumThreadRepository threadRepository,
             IPostRepository postRepository,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            MvcBB.API.Services.IContentVisibilityService visibility)
         {
             _threadRepository = threadRepository;
             _postRepository = postRepository;
             _userRepository = userRepository;
+            _visibility = visibility;
         }
 
         [AllowAnonymous]
@@ -113,8 +116,10 @@ namespace MvcBB.API.Controllers
             TotalPages = (int)Math.Ceiling(totalResults / (double)pageSize)
         };
 
-        private static IEnumerable<SearchResult> MapThreads(IReadOnlyList<ForumThread> threads) =>
-            threads.Select(t => new SearchResult
+        // The data layer already leaves out private boards for guests; this
+        // also drops results from boards an admin has deactivated.
+        private IEnumerable<SearchResult> MapThreads(IReadOnlyList<ForumThread> threads) =>
+            threads.Where(_visibility.CanSeeThread).Select(t => new SearchResult
             {
                 Type = "thread",
                 Id = t.Id,
@@ -140,7 +145,9 @@ namespace MvcBB.API.Controllers
 
             var threads = _threadRepository.GetByIds(posts.Select(p => p.ThreadId).Distinct());
 
-            return posts.Select(p =>
+            // Deleted posts, and posts in boards the caller can't see (such as
+            // an inactive board), never show up in search results.
+            return posts.Where(p => !p.IsDeleted && threads.TryGetValue(p.ThreadId, out var t) && _visibility.CanSeeThread(t)).Select(p =>
             {
                 threads.TryGetValue(p.ThreadId, out var thread);
                 return new SearchResult

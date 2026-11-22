@@ -13,10 +13,12 @@ namespace MvcBB.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IConfiguration _configuration;
+        private readonly MvcBB.API.Services.JwtTokenService _jwtTokenService;
 
-        public AuthController(IConfiguration configuration)
+        public AuthController(IConfiguration configuration, MvcBB.API.Services.JwtTokenService jwtTokenService)
         {
             _configuration = configuration;
+            _jwtTokenService = jwtTokenService;
         }
 
         [AllowAnonymous]
@@ -34,36 +36,27 @@ namespace MvcBB.API.Controllers
             };
 
             if (string.IsNullOrEmpty(client.ClientId) ||
-                request.Username != client.ClientId ||
-                client.ClientSecret != request.Password)
+                string.IsNullOrEmpty(client.ClientSecret) ||
+                !FixedTimeEquals(request.Username, client.ClientId) ||
+                !FixedTimeEquals(request.Password, client.ClientSecret))
             {
                 return Unauthorized();
             }
 
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_configuration["Jwt:SecretKey"]);
-            
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new[]
-                {
-                    new Claim(ClaimTypes.Name, client.ClientId),
-                    new Claim(ClaimTypes.Role, "ApiClient")
-                }),
-                Expires = DateTime.UtcNow.AddHours(1),
-                SigningCredentials = new SigningCredentials(
-                    new SymmetricSecurityKey(key),
-                    SecurityAlgorithms.HmacSha256Signature)
-            };
-
-            var token = tokenHandler.CreateToken(tokenDescriptor);
+            // Signed with the service key, for the service audience - see JwtTokenService.
+            var (token, expiresAt) = _jwtTokenService.CreateServiceToken(client.ClientId);
 
             return new LoginResponse
             {
-                Token = tokenHandler.WriteToken(token),
+                Token = token,
                 Username = client.ClientId,
-                ExpiresAt = tokenDescriptor.Expires.Value
+                ExpiresAt = expiresAt
             };
         }
+
+        // Compares without leaking, through timing, how much of the value matched.
+        private static bool FixedTimeEquals(string? a, string b) =>
+            a != null && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(a), Encoding.UTF8.GetBytes(b));
     }
 } 

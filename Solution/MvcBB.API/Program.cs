@@ -23,6 +23,9 @@ var mvcBuilder = builder.Services.AddControllers(options =>
     // Soft-disable enforcement for mod controllers - see ModEnabledFilter.
     // No-op for every core controller (none carry [Mod]).
     options.Filters.Add<ModEnabledFilter>();
+    // The App's shared service token can read but never change anything -
+    // see ServiceTokenReadOnlyFilter.
+    options.Filters.Add<ServiceTokenReadOnlyFilter>();
 });
 builder.Services.AddMemoryCache();
 
@@ -87,27 +90,37 @@ else
 // DI container.
 builder.Services.AddScoped<MvcBB.API.Services.IDisplaySettingsService, MvcBB.API.Services.DisplaySettingsService>();
 builder.Services.AddScoped<MvcBB.API.Services.IPasswordPolicyService, MvcBB.API.Services.PasswordPolicyService>();
+// One shared rule for who can see which boards, threads and posts - see
+// ContentVisibilityService.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<MvcBB.API.Services.IContentVisibilityService, MvcBB.API.Services.ContentVisibilityService>();
 
-// Configure JWT Authentication
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] 
+// Configure JWT Authentication - issuing and validating both go through
+// JwtTokenService (issuer/audience checks, UTF-8 key, separate user and
+// service signing keys).
+_ = builder.Configuration["Jwt:SecretKey"]
     ?? throw new InvalidOperationException("JWT secret key is not configured");
-
-if (string.IsNullOrWhiteSpace(jwtSecretKey) || jwtSecretKey.Length < 32)
-{
-    throw new InvalidOperationException("JWT secret key must be at least 32 characters long");
-}
+var jwtTokenService = new MvcBB.API.Services.JwtTokenService(builder.Configuration);
+builder.Services.AddSingleton(jwtTokenService);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        options.TokenValidationParameters = jwtTokenService.CreateValidationParameters();
+        options.Events = new JwtBearerEvents
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.ASCII.GetBytes(jwtSecretKey)),
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ClockSkew = TimeSpan.Zero
+            OnTokenValidated = context =>
+            {
+                // Right kind of token for its key and audience, and - for a
+                // user token - the session hasn't been ended by a password
+                // change, demotion or lock since it was issued.
+                var error = jwtTokenService.CheckTokenKind(context) ?? jwtTokenService.CheckUserSession(context);
+                if (error != null)
+                {
+                    context.Fail(error);
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -207,6 +220,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// The API only returns JSON (plus the bare status page), so it never needs
+// to be framed, and responses must never be content-sniffed into HTML.
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["X-Frame-Options"] = "DENY";
+        context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'none'";
+        return Task.CompletedTask;
+    });
+    await next();
+});
 
 app.UseHttpsRedirection();
 

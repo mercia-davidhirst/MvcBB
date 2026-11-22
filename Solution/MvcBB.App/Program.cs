@@ -132,6 +132,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Account/AccessDenied";
         options.ExpireTimeSpan = TimeSpan.FromHours(1);
         options.SlidingExpiration = true;
+        // Re-check the session with the API on every request, so locking,
+        // demoting or a password change ends it straight away - see
+        // CookieSessionValidator.
+        options.Events.OnValidatePrincipal = CookieSessionValidator.ValidateAsync;
     });
 
 // Add authorization policies
@@ -172,6 +176,9 @@ else
 {
     app.UseDeveloperExceptionPage();
 }
+
+// Before static files, so uploaded images get nosniff and the CSP too.
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();

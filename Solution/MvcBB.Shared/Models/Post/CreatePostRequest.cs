@@ -13,6 +13,7 @@ namespace MvcBB.Shared.Models.Post
 
         public int? QuotedPostId { get; set; }
 
+        [RegularExpression(MvcBB.Shared.Services.ImagePaths.PostImagePattern, ErrorMessage = "Invalid image path.")]
         public string? ImageUrl { get; set; }
     }
 }

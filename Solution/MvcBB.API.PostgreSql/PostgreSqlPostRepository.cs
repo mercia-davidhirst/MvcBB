@@ -126,12 +126,12 @@ namespace MvcBB.API.PostgreSql
             return (rows.Select(MapToPost).ToList(), (int)totalCount);
         }
 
-        public IReadOnlyList<Post> GetByUserId(int userId, int take)
+        public IReadOnlyList<Post> GetByUserId(int userId, int take, bool includePrivateBoards, bool includeInactiveBoards)
         {
             using var connection = _connectionFactory.CreateConnection();
             var rows = connection.Query<PostRow>(
-                $"SELECT {SelectColumns} FROM public.fn_post_get_by_user_id(@UserId, @Take)",
-                new { UserId = userId, Take = take });
+                $"SELECT {SelectColumns} FROM public.fn_post_get_by_user_id(@UserId, @Take, @IncludePrivateBoards, @IncludeInactiveBoards)",
+                new { UserId = userId, Take = take, IncludePrivateBoards = includePrivateBoards, IncludeInactiveBoards = includeInactiveBoards });
             return rows.Select(MapToPost).ToList();
         }
 

@@ -669,6 +669,10 @@ namespace MvcBB.App.Controllers
                 await _settingsService.UpdateDisplaySettingsAsync(model);
                 TempData["Success"] = "Settings saved successfully.";
             }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
             catch (ServiceException ex)
             {
                 ModelState.AddModelError("", ex.Message);
@@ -696,6 +700,10 @@ namespace MvcBB.App.Controllers
             {
                 await _settingsService.UpdatePasswordPolicyAsync(model);
                 TempData["Success"] = "Password policy saved successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch
             {

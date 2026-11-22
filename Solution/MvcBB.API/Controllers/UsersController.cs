@@ -25,6 +25,7 @@ namespace MvcBB.API.Controllers
         private readonly IRankRepository _rankRepository;
         private readonly IDisplaySettingsService _displaySettingsService;
         private readonly IPasswordPolicyService _passwordPolicyService;
+        private readonly JwtTokenService _jwtTokenService;
 
         public UsersController(
             IConfiguration configuration,
@@ -33,7 +34,8 @@ namespace MvcBB.API.Controllers
             IEmailSender emailSender,
             IRankRepository rankRepository,
             IDisplaySettingsService displaySettingsService,
-            IPasswordPolicyService passwordPolicyService)
+            IPasswordPolicyService passwordPolicyService,
+            JwtTokenService jwtTokenService)
         {
             _configuration = configuration;
             _userRepository = userRepository;
@@ -42,6 +44,7 @@ namespace MvcBB.API.Controllers
             _rankRepository = rankRepository;
             _displaySettingsService = displaySettingsService;
             _passwordPolicyService = passwordPolicyService;
+            _jwtTokenService = jwtTokenService;
         }
 
         private bool TryValidatePasswordPolicy(string password, string fieldKey, out ActionResult? errorResult)
@@ -72,31 +75,8 @@ namespace MvcBB.API.Controllers
             return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
         }
 
-        private string GenerateJwtToken(User user)
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_configuration["Jwt:SecretKey"] ??
-                throw new InvalidOperationException("JWT secret key is not configured"));
-            var tokenExpirationHours = _configuration.GetValue<int>("Jwt:TokenExpirationHours");
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new[]
-                {
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                    new Claim(ClaimTypes.Name, user.Username),
-                    new Claim(ClaimTypes.Email, user.Email),
-                    new Claim(ClaimTypes.Role, user.Role.ToString())
-                }),
-                Expires = DateTime.UtcNow.AddHours(tokenExpirationHours),
-                SigningCredentials = new SigningCredentials(
-                    new SymmetricSecurityKey(key),
-                    SecurityAlgorithms.HmacSha256Signature)
-            };
-
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
-        }
+        // Signed with the user key, for the user audience - see JwtTokenService.
+        private string GenerateJwtToken(User user) => _jwtTokenService.CreateUserToken(user);
 
         [AllowAnonymous]
         [HttpPost("register")]
@@ -140,7 +120,7 @@ namespace MvcBB.API.Controllers
             user = _userRepository.Add(user);
 
             var token = GenerateJwtToken(user);
-            var expiresAt = DateTime.UtcNow.AddHours(1);
+            var expiresAt = DateTime.UtcNow.Add(_jwtTokenService.UserTokenLifetime);
 
             return new UserAuthResponse
             {
@@ -185,7 +165,7 @@ namespace MvcBB.API.Controllers
             _userRepository.Update(user);
 
             var token = GenerateJwtToken(user);
-            var expiresAt = DateTime.UtcNow.AddHours(1);
+            var expiresAt = DateTime.UtcNow.Add(_jwtTokenService.UserTokenLifetime);
 
             return new UserAuthResponse
             {
@@ -381,6 +361,17 @@ namespace MvcBB.API.Controllers
             });
         }
 
+        // Lets MvcBB.App confirm, on each request, that a signed-in member's
+        // session is still valid. The real check happens while the token is
+        // authenticated (JwtTokenService.CheckUserSession); getting here at
+        // all means it passed.
+        [Authorize]
+        [HttpGet("session")]
+        public ActionResult CheckSession()
+        {
+            return User.FindFirst(ClaimTypes.NameIdentifier) == null ? Unauthorized() : NoContent();
+        }
+
         [Authorize]
         [HttpGet("profile")]
         public ActionResult<UserResponse> GetProfile()
@@ -405,13 +396,14 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            if (!User.IsInRole("ApiClient"))
+            // Only ever the caller's own account. There is deliberately no
+            // exception for the ApiClient service token (it has no user id, so
+            // it can't pass this): admin changes to other accounts go through
+            // the Administrator-only endpoints below.
+            var currentUserId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedUserId) ? parsedUserId : 0;
+            if (currentUserId == 0 || userId != currentUserId)
             {
-                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                if (userId != currentUserId)
-                {
-                    return Forbid();
-                }
+                return Forbid();
             }
 
             var user = _userRepository.GetById(userId);
@@ -426,8 +418,14 @@ namespace MvcBB.API.Controllers
                 return BadRequest(new { message = "Username is already taken" });
             }
 
-            if (!user.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase) &&
-                _userRepository.ExistsWithEmail(request.Email, userId))
+            var emailChanged = !user.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase);
+            if (emailChanged &&
+                (string.IsNullOrEmpty(request.CurrentPassword) || !VerifyPassword(request.CurrentPassword, user.PasswordHash)))
+            {
+                return BadRequest(new { message = "Enter your current password to change your email address." });
+            }
+
+            if (emailChanged && _userRepository.ExistsWithEmail(request.Email, userId))
             {
                 return BadRequest(new { message = "Email is already registered" });
             }
@@ -452,13 +450,14 @@ namespace MvcBB.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            if (!User.IsInRole("ApiClient"))
+            // Only ever the caller's own account. There is deliberately no
+            // exception for the ApiClient service token (it has no user id, so
+            // it can't pass this): admin changes to other accounts go through
+            // the Administrator-only endpoints below.
+            var currentUserId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedUserId) ? parsedUserId : 0;
+            if (currentUserId == 0 || userId != currentUserId)
             {
-                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                if (userId != currentUserId)
-                {
-                    return Forbid();
-                }
+                return Forbid();
             }
 
             var user = _userRepository.GetById(userId);
@@ -480,7 +479,14 @@ namespace MvcBB.API.Controllers
             user.PasswordHash = HashPassword(request.NewPassword);
             user.MustChangePassword = false;
             _userRepository.Update(user);
-            return NoContent();
+
+            // The new password ends every existing session, including the one
+            // making this request, so hand back a fresh token for it to carry on.
+            return Ok(new
+            {
+                token = GenerateJwtToken(user),
+                expiresAt = DateTime.UtcNow.Add(_jwtTokenService.UserTokenLifetime)
+            });
         }
 
         [Authorize(Roles = "Administrator")]

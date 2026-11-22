@@ -47,11 +47,17 @@ namespace MvcBB.API.InMemory
             return _store.Posts.Where(p => idSet.Contains(p.Id)).Select(Hydrate).ToDictionary(p => p.Id);
         }
 
-        public IReadOnlyList<Post> GetByUserId(int userId, int take)
+        public IReadOnlyList<Post> GetByUserId(int userId, int take, bool includePrivateBoards, bool includeInactiveBoards)
         {
             var idString = userId.ToString();
+            var boardIdByThreadId = _store.Threads.ToDictionary(t => t.Id, t => t.BoardId);
+            var visibleBoardIds = _store.Boards
+                .Where(b => (includePrivateBoards || !b.IsPrivate) && (includeInactiveBoards || b.IsActive))
+                .Select(b => b.Id)
+                .ToHashSet();
             return _store.Posts
                 .Where(p => !p.IsDeleted && p.CreatedByUserId == idString)
+                .Where(p => boardIdByThreadId.TryGetValue(p.ThreadId, out var boardId) && visibleBoardIds.Contains(boardId))
                 .Select(Hydrate)
                 .OrderByDescending(p => p.CreatedAt)
                 .Take(take)

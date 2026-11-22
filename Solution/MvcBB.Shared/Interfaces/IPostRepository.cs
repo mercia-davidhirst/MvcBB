@@ -33,8 +33,11 @@ namespace MvcBB.Shared.Interfaces
         /// A user's most recent non-deleted posts (newest first, capped at
         /// take) - filtered, sorted and limited in the data layer instead of
         /// loading every post in the table to find one user's handful of
-        /// recent ones. Used by a member's profile page.
+        /// recent ones. Used by a member's profile page. Posts from private
+        /// boards are only included when includePrivateBoards is true (a
+        /// signed-in caller), and posts from inactive boards only when
+        /// includeInactiveBoards is true (an administrator).
         /// </summary>
-        IReadOnlyList<Post> GetByUserId(int userId, int take);
+        IReadOnlyList<Post> GetByUserId(int userId, int take, bool includePrivateBoards, bool includeInactiveBoards);
     }
 }

@@ -19,8 +19,17 @@ namespace MvcBB.Shared.Models.User
         public string? Bio { get; set; }
 
         [StringLength(200)]
+        [RegularExpression(MvcBB.Shared.Services.ImagePaths.AvatarPattern, ErrorMessage = "Invalid avatar path.")]
         public string? AvatarUrl { get; set; }
 
         public bool ShowEmail { get; set; }
+
+        /// <summary>
+        /// Only needed when Email changes - the API refuses an email change
+        /// without the account's current password, so a hijacked session
+        /// can't quietly redirect password resets to someone else's inbox.
+        /// </summary>
+        [StringLength(200)]
+        public string? CurrentPassword { get; set; }
     }
 } 

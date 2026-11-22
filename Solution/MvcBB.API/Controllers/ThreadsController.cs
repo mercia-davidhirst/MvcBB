@@ -23,6 +23,7 @@ namespace MvcBB.API.Controllers
         private readonly IWordFilterRepository _wordFilterRepository;
         private readonly IThreadSubscriptionRepository _subscriptionRepository;
         private readonly MvcBB.API.Services.IDisplaySettingsService _displaySettingsService;
+        private readonly MvcBB.API.Services.IContentVisibilityService _visibility;
 
         public ThreadsController(
             IForumThreadRepository threadRepository,
@@ -32,7 +33,8 @@ namespace MvcBB.API.Controllers
             IPollRepository pollRepository,
             IWordFilterRepository wordFilterRepository,
             IThreadSubscriptionRepository subscriptionRepository,
-            MvcBB.API.Services.IDisplaySettingsService displaySettingsService)
+            MvcBB.API.Services.IDisplaySettingsService displaySettingsService,
+            MvcBB.API.Services.IContentVisibilityService visibility)
         {
             _threadRepository = threadRepository;
             _boardRepository = boardRepository;
@@ -42,6 +44,7 @@ namespace MvcBB.API.Controllers
             _wordFilterRepository = wordFilterRepository;
             _subscriptionRepository = subscriptionRepository;
             _displaySettingsService = displaySettingsService;
+            _visibility = visibility;
         }
 
         [AllowAnonymous]
@@ -58,9 +61,13 @@ namespace MvcBB.API.Controllers
             var (pageOfThreads, totalThreads) = _threadRepository.GetPage(skip, effectivePageSize, isAuthenticated);
             var totalPages = totalThreads == 0 ? 1 : (int)Math.Ceiling(totalThreads / (double)effectivePageSize);
 
+            // The data layer already leaves out private boards for guests; this
+            // also drops threads from boards an admin has deactivated.
+            var visibleThreads = pageOfThreads.Where(_visibility.CanSeeThread).ToList();
+
             return Ok(new ThreadListResponse
             {
-                Threads = MapToThreadResponses(pageOfThreads),
+                Threads = MapToThreadResponses(visibleThreads),
                 TotalThreads = totalThreads,
                 Page = page,
                 PageSize = effectivePageSize,
@@ -74,7 +81,7 @@ namespace MvcBB.API.Controllers
         {
             var board = _boardRepository.GetById(boardId);
             var isAuthenticated = User.Identity?.IsAuthenticated == true;
-            if (board == null || !board.IsVisibleTo(isAuthenticated, User.IsInRole("Administrator")))
+            if (!_visibility.CanSeeBoard(board))
             {
                 return NotFound(new { message = "Board not found" });
             }
@@ -103,7 +110,7 @@ namespace MvcBB.API.Controllers
         public ActionResult<ThreadResponse> GetThread(int id)
         {
             var thread = _threadRepository.GetById(id);
-            if (thread == null || !IsThreadVisible(thread, User.Identity?.IsAuthenticated == true))
+            if (!_visibility.CanSeeThread(thread))
             {
                 return NotFound(new { message = "Thread not found" });
             }
@@ -113,9 +120,6 @@ namespace MvcBB.API.Controllers
 
             return Ok(MapToThreadResponses(new[] { thread }).Single());
         }
-
-        private static bool IsThreadVisible(ForumThread thread, bool isAuthenticated) =>
-            isAuthenticated || !thread.BoardIsPrivate;
 
         [HttpPost]
         [Authorize]
@@ -127,7 +131,7 @@ namespace MvcBB.API.Controllers
             }
 
             var board = _boardRepository.GetById(request.BoardId);
-            if (board == null)
+            if (board == null || !_visibility.CanSeeBoard(board))
             {
                 return NotFound(new { message = "Board not found" });
             }
@@ -196,7 +200,7 @@ namespace MvcBB.API.Controllers
             }
 
             var thread = _threadRepository.GetById(id);
-            if (thread == null)
+            if (!_visibility.CanSeeThread(thread))
             {
                 return NotFound(new { message = "Thread not found" });
             }
@@ -253,7 +257,7 @@ namespace MvcBB.API.Controllers
         public ActionResult SubscribeToThread(int id, SubscribeToThreadRequest request)
         {
             var thread = _threadRepository.GetById(id);
-            if (thread == null)
+            if (!_visibility.CanSeeThread(thread))
             {
                 return NotFound(new { message = "Thread not found" });
             }
@@ -328,8 +332,16 @@ namespace MvcBB.API.Controllers
             }
 
             thread.Title = request.Title;
-            thread.IsSticky = request.IsSticky;
-            thread.IsLocked = request.IsLocked;
+
+            // Only staff can pin or lock a thread. A thread's author can still
+            // rename it, but whatever they send for these two flags is ignored,
+            // so they can't undo a moderator's lock or pin their own thread.
+            if (User.IsInRole("Administrator") || User.IsInRole("Moderator"))
+            {
+                thread.IsSticky = request.IsSticky;
+                thread.IsLocked = request.IsLocked;
+            }
+
             thread.UpdatedAt = DateTime.UtcNow;
             _threadRepository.Update(thread);
 

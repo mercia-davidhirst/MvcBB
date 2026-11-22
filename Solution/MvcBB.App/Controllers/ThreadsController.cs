@@ -183,10 +183,11 @@ namespace MvcBB.App.Controllers
 
             try
             {
-                if (imageFile != null)
-                {
-                    request.ImageUrl = await _imageUploadService.SaveImageAsync(imageFile, "posts");
-                }
+                // The image URL only ever comes from a file uploaded here - never
+                // from the posted form, where it could be any path.
+                request.ImageUrl = imageFile != null
+                    ? await _imageUploadService.SaveImageAsync(imageFile, "posts")
+                    : null;
 
                 await _threadService.CreatePostAsync(threadId, request);
                 TempData["Success"] = "Reply posted successfully.";

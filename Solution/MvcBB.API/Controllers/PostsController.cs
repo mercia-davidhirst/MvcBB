@@ -25,6 +25,7 @@ namespace MvcBB.API.Controllers
         private readonly IThreadSubscriptionRepository _subscriptionRepository;
         private readonly IMessageRepository _messageRepository;
         private readonly IEmailSender _emailSender;
+        private readonly IContentVisibilityService _visibility;
 
         public PostsController(
             IPostRepository postRepository,
@@ -36,7 +37,8 @@ namespace MvcBB.API.Controllers
             IWordFilterRepository wordFilterRepository,
             IThreadSubscriptionRepository subscriptionRepository,
             IMessageRepository messageRepository,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            IContentVisibilityService visibility)
         {
             _postRepository = postRepository;
             _threadRepository = threadRepository;
@@ -48,6 +50,7 @@ namespace MvcBB.API.Controllers
             _subscriptionRepository = subscriptionRepository;
             _messageRepository = messageRepository;
             _emailSender = emailSender;
+            _visibility = visibility;
         }
 
         [AllowAnonymous]
@@ -55,7 +58,7 @@ namespace MvcBB.API.Controllers
         public ActionResult<IEnumerable<PostResponse>> GetThreadPosts(int threadId)
         {
             var thread = _threadRepository.GetById(threadId);
-            if (thread == null || !IsThreadVisible(thread.BoardId, User.Identity?.IsAuthenticated == true))
+            if (!_visibility.CanSeeThread(thread))
             {
                 return NotFound(new { message = "Thread not found" });
             }
@@ -70,9 +73,16 @@ namespace MvcBB.API.Controllers
         public ActionResult<IEnumerable<PostResponse>> GetPostsByUser(int userId, [FromQuery] int take = 5)
         {
             take = Math.Clamp(take, 1, 50);
-            var posts = _postRepository.GetByUserId(userId, take);
 
-            return Ok(MapToPostResponses(posts));
+            // Same board rules as everywhere else: guests don't get posts from
+            // private boards, and only admins get posts from inactive boards.
+            var posts = _postRepository.GetByUserId(
+                userId,
+                take,
+                includePrivateBoards: User.Identity?.IsAuthenticated == true,
+                includeInactiveBoards: User.IsInRole("Administrator"));
+
+            return Ok(MapToPostResponses(posts.Where(p => _visibility.CanSeeThread(p.ThreadId)).ToList()));
         }
 
         [AllowAnonymous]
@@ -80,8 +90,7 @@ namespace MvcBB.API.Controllers
         public ActionResult<PostResponse> GetPost(int id)
         {
             var post = _postRepository.GetById(id);
-            var thread = post != null ? _threadRepository.GetById(post.ThreadId) : null;
-            if (post == null || thread == null || !IsThreadVisible(thread.BoardId, User.Identity?.IsAuthenticated == true))
+            if (post == null || !_visibility.CanSeeThread(post.ThreadId))
             {
                 return NotFound(new { message = "Post not found" });
             }
@@ -89,19 +98,19 @@ namespace MvcBB.API.Controllers
             return Ok(MapToPostResponse(post));
         }
 
-        private bool IsThreadVisible(int boardId, bool isAuthenticated)
-        {
-            var board = _boardRepository.GetById(boardId);
-            return board == null || board.IsVisibleTo(isAuthenticated, User.IsInRole("Administrator"));
-        }
-
         [AllowAnonymous]
         [HttpGet("{id}/quote")]
         public ActionResult<string> GetQuoteContent(int id)
         {
             var post = _postRepository.GetById(id);
-            var thread = post != null ? _threadRepository.GetById(post.ThreadId) : null;
-            if (post == null || thread == null || !IsThreadVisible(thread.BoardId, User.Identity?.IsAuthenticated == true))
+            if (post == null || !_visibility.CanSeeThread(post.ThreadId))
+            {
+                return NotFound();
+            }
+
+            // A deleted post can't be quoted (its content would leak back out
+            // through the reply form) unless the caller is staff.
+            if (!_visibility.CanSeePostContent(post))
             {
                 return NotFound();
             }
@@ -115,8 +124,7 @@ namespace MvcBB.API.Controllers
         public ActionResult ToggleLike(int id)
         {
             var post = _postRepository.GetById(id);
-            var thread = post != null ? _threadRepository.GetById(post.ThreadId) : null;
-            if (post == null || thread == null || !IsThreadVisible(thread.BoardId, User.Identity?.IsAuthenticated == true))
+            if (post == null || !_visibility.CanSeeThread(post.ThreadId))
             {
                 return NotFound(new { message = "Post not found" });
             }
@@ -152,12 +160,24 @@ namespace MvcBB.API.Controllers
             }
 
             var thread = _threadRepository.GetById(request.ThreadId);
-            if (thread == null)
+            if (!_visibility.CanSeeThread(thread))
             {
                 return NotFound(new { message = "Thread not found" });
             }
 
-            if (thread.IsLocked)
+            // A quote has to be a post the caller can actually see, and from
+            // this same thread - otherwise quoting could copy a deleted post,
+            // or a post from a private board, into a public thread.
+            if (request.QuotedPostId.HasValue)
+            {
+                var quoted = _postRepository.GetById(request.QuotedPostId.Value);
+                if (quoted == null || quoted.ThreadId != thread!.Id || !_visibility.CanSeePostContent(quoted))
+                {
+                    return BadRequest(new { message = "The quoted post isn't available." });
+                }
+            }
+
+            if (thread!.IsLocked)
             {
                 return BadRequest(new { message = "Thread is locked" });
             }
@@ -261,7 +281,7 @@ namespace MvcBB.API.Controllers
             }
 
             var post = _postRepository.GetById(id);
-            if (post == null)
+            if (post == null || !_visibility.CanSeeThread(post.ThreadId))
             {
                 return NotFound(new { message = "Post not found" });
             }
@@ -270,6 +290,12 @@ namespace MvcBB.API.Controllers
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new { message = "User not found" });
+            }
+
+            // A deleted post stays deleted - only staff can still edit it.
+            if (post.IsDeleted && !_visibility.IsStaff)
+            {
+                return NotFound(new { message = "Post not found" });
             }
 
             if (post.CreatedByUserId != userId &&
@@ -366,13 +392,17 @@ namespace MvcBB.API.Controllers
                 PostResponse? quotedResponse = null;
                 if (p.QuotedPostId.HasValue && quotedPosts.TryGetValue(p.QuotedPostId.Value, out var quoted))
                 {
-                    quotedResponse = MapQuotedPost(quoted);
+                    quotedResponse = MapQuotedPost(quoted, _visibility.CanSeePostContent(quoted));
                 }
+
+                // A deleted post keeps its place in the thread, but only staff
+                // get its content back.
+                var showContent = !p.IsDeleted || _visibility.IsStaff;
 
                 return new PostResponse
                 {
                     Id = p.Id,
-                    Content = p.Content,
+                    Content = showContent ? p.Content : string.Empty,
                     ThreadId = p.ThreadId,
                     CreatedByUserId = p.CreatedByUserId,
                     CreatedByUsername = p.CreatedByUsername,
@@ -388,7 +418,7 @@ namespace MvcBB.API.Controllers
                     DeleteReason = p.DeleteReason,
                     IsEdited = p.IsEdited,
                     EditReason = p.EditReason ?? string.Empty,
-                    ImageUrl = p.ImageUrl,
+                    ImageUrl = showContent ? p.ImageUrl : null,
                     QuotedPostId = p.QuotedPostId,
                     QuotedPost = quotedResponse,
                     IsImportedData = p.IsImportedData,
@@ -430,7 +460,10 @@ namespace MvcBB.API.Controllers
 
         // One level deep only - avoids re-resolving the quoted post's own quote
         // chain and the infinite recursion that would invite.
-        private static PostResponse? MapQuotedPost(Post? p)
+        // showContent is false when the quoted post has since been deleted or
+        // sits somewhere the caller can't see - the quote box then stays, but
+        // empty, instead of echoing the hidden text.
+        private static PostResponse? MapQuotedPost(Post? p, bool showContent)
         {
             if (p == null)
             {
@@ -440,7 +473,7 @@ namespace MvcBB.API.Controllers
             return new PostResponse
             {
                 Id = p.Id,
-                Content = p.Content,
+                Content = showContent ? p.Content : string.Empty,
                 ThreadId = p.ThreadId,
                 CreatedByUserId = p.CreatedByUserId,
                 CreatedByUsername = p.CreatedByUsername,

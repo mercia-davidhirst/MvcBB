@@ -255,25 +255,32 @@ namespace MvcBB.App.Controllers
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateProfile(int userId, UpdateUserRequest request, IFormFile? avatarFile, bool removeAvatar = false)
+        public async Task<IActionResult> UpdateProfile(UpdateUserRequest request, IFormFile? avatarFile, bool removeAvatar = false)
         {
             if (!ModelState.IsValid)
             {
                 return RedirectToAction(nameof(Profile));
             }
 
+            // Always the signed-in member's own account - never an id taken
+            // from the posted form, which a member could change to anyone's.
+            if (!TryGetCurrentUserId(out var userId))
+            {
+                return await this.RedirectToSessionExpired();
+            }
+
             try
             {
                 var currentProfile = await _userService.GetUserByIdAsync(userId);
+                string? newAvatarUrl = null;
 
                 if (avatarFile != null)
                 {
-                    request.AvatarUrl = await _imageUploadService.SaveImageAsync(avatarFile, "avatars");
-                    _imageUploadService.DeleteImage(currentProfile?.AvatarUrl);
+                    newAvatarUrl = await _imageUploadService.SaveImageAsync(avatarFile, "avatars");
+                    request.AvatarUrl = newAvatarUrl;
                 }
                 else if (removeAvatar)
                 {
-                    _imageUploadService.DeleteImage(currentProfile?.AvatarUrl);
                     request.AvatarUrl = null;
                 }
                 else
@@ -281,8 +288,29 @@ namespace MvcBB.App.Controllers
                     request.AvatarUrl = currentProfile?.AvatarUrl;
                 }
 
-                await _userService.UpdateProfileAsync(userId, request);
+                try
+                {
+                    await _userService.UpdateProfileAsync(userId, request);
+                }
+                catch
+                {
+                    // The save was refused (for example a wrong current
+                    // password), so keep the old avatar and drop the new upload.
+                    _imageUploadService.DeleteImage(newAvatarUrl);
+                    throw;
+                }
+
+                // Only remove the old avatar file once the profile no longer points at it.
+                if (avatarFile != null || removeAvatar)
+                {
+                    _imageUploadService.DeleteImage(currentProfile?.AvatarUrl);
+                }
+
                 TempData["Success"] = "Profile updated successfully.";
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
             }
             catch (ServiceException ex)
             {
@@ -299,16 +327,25 @@ namespace MvcBB.App.Controllers
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ChangePassword(int userId, ChangePasswordRequest request)
+        public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
         {
             if (!ModelState.IsValid)
             {
                 return RedirectToAction(nameof(Profile));
             }
 
+            if (!TryGetCurrentUserId(out var userId))
+            {
+                return await this.RedirectToSessionExpired();
+            }
+
             try
             {
-                await _userService.ChangePasswordAsync(userId, request);
+                var newToken = await _userService.ChangePasswordAsync(userId, request);
+
+                // Changing the password signs the member out everywhere else;
+                // swap in the fresh token so this session carries on.
+                await RefreshSessionAsync(newToken);
                 TempData["Success"] = "Password changed successfully.";
             }
             catch (SessionExpiredException)
@@ -617,20 +654,20 @@ namespace MvcBB.App.Controllers
                 return View(request);
             }
 
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (!TryGetCurrentUserId(out var userId))
+            {
+                return await this.RedirectToSessionExpired();
+            }
 
             try
             {
-                await _userService.ChangePasswordAsync(userId, request);
+                var newToken = await _userService.ChangePasswordAsync(userId, request);
 
                 // The cookie's "must_change_password" claim was set at login and
-                // won't disappear on its own - re-sign-in with the same claims
-                // (and the same expiry/persistence) minus that one so the
-                // requirement is actually lifted this session.
-                var authResult = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                var remainingClaims = User.Claims.Where(c => c.Type != "must_change_password");
-                var identity = new ClaimsIdentity(remainingClaims, CookieAuthenticationDefaults.AuthenticationScheme);
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), authResult.Properties);
+                // won't disappear on its own - re-sign-in without it so the
+                // requirement is actually lifted this session, carrying the
+                // fresh API token (the old one stopped working with the change).
+                await RefreshSessionAsync(newToken, removeMustChangePassword: true);
 
                 TempData["Success"] = "Password changed successfully.";
                 return RedirectToLocal(returnUrl);
@@ -675,6 +712,33 @@ namespace MvcBB.App.Controllers
                     ExpiresUtc = response.ExpiresAt
                 });
         }
+
+        // Re-issues the cookie with the same claims, expiry and persistence,
+        // swapping in a new API token and optionally dropping the
+        // must_change_password flag.
+        private async Task RefreshSessionAsync(string? newApiToken, bool removeMustChangePassword = false)
+        {
+            if (newApiToken == null && !removeMustChangePassword)
+            {
+                return;
+            }
+
+            var authResult = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            var claims = User.Claims
+                .Where(c => !(removeMustChangePassword && c.Type == "must_change_password"))
+                .Where(c => !(newApiToken != null && c.Type == "api_token"))
+                .ToList();
+            if (newApiToken != null)
+            {
+                claims.Add(new Claim("api_token", newApiToken));
+            }
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), authResult.Properties);
+        }
+
+        private bool TryGetCurrentUserId(out int userId) =>
+            int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out userId) && userId > 0;
 
         private IActionResult RedirectToLocal(string? returnUrl)
         {

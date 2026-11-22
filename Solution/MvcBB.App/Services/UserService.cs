@@ -192,21 +192,24 @@ namespace MvcBB.App.Services
             return JsonSerializer.Deserialize<UserAuthResponse>(responseContent, _jsonOptions) ?? throw new Exception("Failed to deserialize auth response");
         }
 
+        // Both of these act on the member's own account, so they go out with the
+        // member's own token - the API only lets a caller change their own
+        // profile/password. The shared service token must never be used here.
         public async Task UpdateProfileAsync(int userId, UpdateUserRequest request)
         {
-            var token = await GetTokenAsync();
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             
             var response = await _httpClient.PutAsync($"api/users/{userId}", content);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessOrThrowAsync(response);
         }
 
-        public async Task ChangePasswordAsync(int userId, ChangePasswordRequest request)
+        public async Task<string?> ChangePasswordAsync(int userId, ChangePasswordRequest request)
         {
-            var token = await GetTokenAsync();
+            var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var json = JsonSerializer.Serialize(request);
@@ -214,6 +217,17 @@ namespace MvcBB.App.Services
             
             var response = await _httpClient.PostAsync($"api/users/{userId}/change-password", content);
             await EnsureSuccessOrThrowAsync(response);
+
+            var body = await response.Content.ReadAsStringAsync();
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                return null;
+            }
+
+            using var document = JsonDocument.Parse(body);
+            return document.RootElement.TryGetProperty("token", out var tokenProp) && tokenProp.ValueKind == JsonValueKind.String
+                ? tokenProp.GetString()
+                : null;
         }
 
         private async Task<string> GetTokenAsync()

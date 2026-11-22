@@ -291,6 +291,10 @@
                                 </footer>
                             </blockquote>
                         }
+                        @if (post.IsDeleted)
+                        {
+                            <p class="text-muted fst-italic mb-2"><i class="bi bi-trash"></i> This post has been deleted.</p>
+                        }
                         @Html.Raw(BBCodeService.ParseBBCode(post.Content, smilies))
                         @if (!string.IsNullOrEmpty(post.ImageUrl))
                         {

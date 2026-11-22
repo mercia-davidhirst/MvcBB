@@ -22,20 +22,14 @@
          re-running won't resurrect rows an admin has since edited or
          deleted.
 
-    WARNING - this is NOT safe to re-run against a database that already
-    holds real data. Every script under Tables/ does "DROP TABLE IF EXISTS
-    ... CASCADE" then "CREATE TABLE" UNCONDITIONALLY, every single run -
-    that deletes every row in that table, every time this script runs, with
-    no prompt and no way back. Functions/, Views/ and Stored Procedures/ are
-    genuinely safe to re-run any time (they're just code, not data), and
-    Seed Data/ scripts only insert when their target table is empty - but
-    Tables/ is not, despite that having been claimed here previously. To add
-    new schema (new tables/functions/procedures/views) to a database that
-    already has data in it, do NOT run this whole script - run only the
-    specific new files you need (psql against each one directly), or
-    everything under the Functions/Views/Stored Procedures/Seed Data steps
-    plus just the brand new Tables/*.sql files that don't exist in that
-    database yet.
+    Safe to re-run against a database that already holds data. Every
+    script under Tables/ uses CREATE TABLE IF NOT EXISTS and applies later
+    column changes with ALTER TABLE ... ADD COLUMN IF NOT EXISTS, so
+    existing rows are never dropped or truncated. Functions/, Views/ and
+    Stored Procedures/ are dropped and recreated each run (they're just
+    code, not data), and Seed Data/ scripts only insert when their target
+    table is empty. Re-running this script is therefore the normal way to
+    bring an existing database up to date with the current schema.
 
 .PARAMETER HostName
     PostgreSQL server host, e.g. "localhost".
