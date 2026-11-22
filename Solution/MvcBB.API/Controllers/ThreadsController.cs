@@ -110,7 +110,7 @@ namespace MvcBB.API.Controllers
         public ActionResult<ThreadResponse> GetThread(int id)
         {
             var thread = _threadRepository.GetById(id);
-            if (!_visibility.CanSeeThread(thread))
+            if (thread == null || !_visibility.CanSeeThread(thread))
             {
                 return NotFound(new { message = "Thread not found" });
             }
@@ -441,7 +441,9 @@ namespace MvcBB.API.Controllers
                     IsLocked = t.IsLocked,
                     IsImportedData = t.IsImportedData,
                     ViewCount = t.ViewCount,
-                    ReplyCount = t.PostCount,
+                    // PostCount includes the thread's opening post, so replies
+                    // are every post after the first.
+                    ReplyCount = Math.Max(0, t.PostCount - 1),
                     LastPostAt = t.LastPostAt,
                     LastPostByUserId = t.LastPostByUserId,
                     LastPostByUsername = t.LastPostByUsername,
