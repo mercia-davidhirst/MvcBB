@@ -14,7 +14,7 @@
         <div class="col">
             <div class="jumbotron bg-light p-5 rounded">
                 <h1 class="display-4">@Model.SiteTitle</h1>
-                <p class="lead">@Model.WelcomeMessage</p>
+                <p class="lead text-preserve-lines">@Model.WelcomeMessage</p>
                 @if (!User.Identity?.IsAuthenticated == true)
                 {
                     <hr class="my-4">

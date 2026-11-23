@@ -130,7 +130,7 @@
                             </dd>
 
                             <dt class="col-sm-3">@(Model.HasContent ? "Reason" : "Description")</dt>
-                            <dd class="col-sm-9">@Model.Reason</dd>
+                            <dd class="col-sm-9 text-preserve-lines">@Model.Reason</dd>
 
                             @if (Model.ResolvedAt.HasValue)
                             {
@@ -148,9 +148,7 @@
                         <div class="mb-4">
                             <h5>Moderator Notes</h5>
                             <div class="card bg-light">
-                                <div class="card-body">
-                                    @Model.ModeratorNotes
-                                </div>
+                                <div class="card-body text-preserve-lines">@Model.ModeratorNotes</div>
                             </div>
                         </div>
                     }

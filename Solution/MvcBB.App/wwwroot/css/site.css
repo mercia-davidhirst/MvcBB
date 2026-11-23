@@ -128,6 +128,13 @@ pre code {
     white-space: pre-wrap;
 }
 
+/* Plain-text (non-BBCode) user input such as report reasons and moderator
+   notes: keep the user's line breaks. Keep the Razor expression on the same
+   line as its tags, or the template's own indentation becomes visible. */
+.text-preserve-lines {
+    white-space: pre-line;
+}
+
 /* MvcBB Light theme */
 
 body {

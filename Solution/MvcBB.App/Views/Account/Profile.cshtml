@@ -126,7 +126,7 @@
                             {
                                 <a asp-controller="Threads" asp-action="Details" asp-route-id="@post.ThreadId" asp-fragment="post-@post.Id"
                                    class="list-group-item list-group-item-action">
-                                    <p class="mb-1 text-truncate">@Html.Raw(BBCodeService.ParseBBCode(post.Content, smilies))</p>
+                                    <p class="mb-1 text-truncate">@BBCodeService.StripBBCode(post.Content)</p>
                                     <small class="text-muted">@(await Html.FormatDateTimeAsync(post.CreatedAt))</small>
                                 </a>
                             }

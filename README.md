@@ -243,6 +243,28 @@ public.
 
 ## Release history
 
+### v1.1.1
+
+Fixes and changes:
+
+- **Line breaks in posts and messages**: line breaks and blank lines typed
+  into a text box were lost on display, so paragraphs ran together into one
+  block. The BBCode renderer (`CoreBBCodeService.ParseBBCode`) now turns
+  each line break into `<br />`, which covers posts, quotes, private
+  messages, signatures, bios, announcements, reported message text, the
+  editor preview and any mod that renders through `IBBCodeService`. Text in
+  `[code]` blocks keeps its own line breaks as before, and a single line
+  break right next to a `[quote]`, `[code]`, `[center]` or `[right]` tag is
+  dropped, so tags written on their own lines don't add blank lines.
+- **Line breaks in plain-text fields**: report reasons, moderator notes, the
+  welcome message and the footer disclaimer, which aren't BBCode, now keep
+  their line breaks too (new `.text-preserve-lines` CSS class).
+- **Profile recent posts**: the one-line post preview on a member's profile
+  now shows the post as plain text, without BBCode formatting.
+
+Upgrading from v1.1.0: deploy the new build of the App and API (and
+rebuild any mods). No database or settings changes.
+
 ### v1.1.0
 
 New features:

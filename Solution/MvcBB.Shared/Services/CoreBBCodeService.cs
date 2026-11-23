@@ -34,7 +34,9 @@ namespace MvcBB.Shared.Services
             // pattern below still matches the encoded text, and every piece of
             // HTML in the result is built by this method alone. Anything that
             // fails validation stays as (already encoded) plain text.
-            var output = WebUtility.HtmlEncode(input);
+            // Normalise line endings up front so the line-break pass below only
+            // has to deal with "\n" (browsers submit textareas with "\r\n").
+            var output = WebUtility.HtmlEncode(input.Replace("\r\n", "\n").Replace('\r', '\n'));
 
             // Multiple passes let innermost tags resolve first, so nested tags
             // (e.g. [b][i]text[/i][/b]) still match once the inner tag's content
@@ -84,12 +86,49 @@ namespace MvcBB.Shared.Services
                 });
             } while (output != previous && ++pass < 10);
 
+            output = ConvertLineBreaks(output);
+
             if (smilies != null && smilies.Count > 0)
             {
                 output = ReplaceSmilies(output, smilies);
             }
 
             return output;
+        }
+
+        // A single newline hugging a block-level tag we generate (quote, code,
+        // center/right) is just how people lay the tags out on their own lines;
+        // turning it into a <br /> as well would add a stray blank line.
+        private static readonly Regex BlockTagNewlinePattern = new(
+            @"\n?(</?(?:blockquote|pre|div)\b[^>]*>)\n?",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex PreBlockPattern = new(
+            @"(<pre\b[^>]*>.*?</pre>)",
+            RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Turns the user's line breaks into &lt;br /&gt; so paragraphs survive
+        /// HTML rendering (where raw newlines collapse into a single space).
+        /// [code] blocks are left alone: they keep their newlines verbatim and
+        /// rely on white-space: pre-wrap instead. Each newline is replaced rather
+        /// than kept alongside the &lt;br /&gt;, so a container that itself uses
+        /// white-space: pre-wrap/pre-line doesn't render every break twice.
+        /// </summary>
+        private static string ConvertLineBreaks(string html)
+        {
+            if (html.IndexOf('\n') < 0)
+                return html;
+
+            html = BlockTagNewlinePattern.Replace(html, "$1");
+
+            var parts = PreBlockPattern.Split(html);
+            for (var i = 0; i < parts.Length; i++)
+            {
+                if (!parts[i].StartsWith("<pre", StringComparison.OrdinalIgnoreCase))
+                    parts[i] = parts[i].Replace("\n", "<br />");
+            }
+
+            return string.Concat(parts);
         }
 
         /// <summary>
