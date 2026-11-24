@@ -30,8 +30,7 @@ can run any community.
   Server and PostgreSQL implementations are written for architectural
   completeness and call stored procedures/functions that live in
   `Database/SQL` and `Database/PostGresSql` (see those folders' install
-  scripts) — they haven't been exercised against a live PostgreSQL
-  instance beyond schema/proc smoke tests.
+  scripts).
 
 ## Functionality
 
