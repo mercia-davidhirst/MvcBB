@@ -12,6 +12,8 @@
         2 = Completed, 3 = CompletedWithErrors, 4 = Interrupted.
       - sent_by_user_id has no foreign key so the log survives an account
         being removed; sent_by_username keeps the name as it was when sent.
+      - paused_until is set while sending waits for AdminEmail:MaxPerHour /
+        MaxPerDay, to when it expects to carry on; NULL otherwise.
 */
 
 CREATE TABLE IF NOT EXISTS public.admin_emails
@@ -35,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.admin_emails
     recipient_count     INTEGER         NOT NULL DEFAULT 0,
     sent_count          INTEGER         NOT NULL DEFAULT 0,
     failed_count        INTEGER         NOT NULL DEFAULT 0,
+    paused_until        TIMESTAMPTZ     NULL,
     CONSTRAINT ck_admin_emails_audience CHECK (audience IN (0, 1, 2)),
     CONSTRAINT ck_admin_emails_sender_mode CHECK (sender_mode IN (0, 1)),
     CONSTRAINT ck_admin_emails_status CHECK (status IN (0, 1, 2, 3, 4))

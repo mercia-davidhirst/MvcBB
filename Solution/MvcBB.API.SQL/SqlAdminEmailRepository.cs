@@ -53,7 +53,8 @@ namespace MvcBB.API.SQL
                 email.RecipientCount,
                 email.SentCount,
                 email.FailedCount,
-                email.CompletedAt
+                email.CompletedAt,
+                email.PausedUntil
             }, commandType: CommandType.StoredProcedure);
         }
 
@@ -73,6 +74,43 @@ namespace MvcBB.API.SQL
         {
             using var connection = _connectionFactory.CreateConnection();
             return connection.QuerySingle<int>("dbo.usp_AdminEmail_MarkUnfinishedInterrupted", commandType: CommandType.StoredProcedure);
+        }
+
+        public void AddFailure(AdminEmailFailure failure)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            connection.Execute("dbo.usp_AdminEmailFailure_Insert", new
+            {
+                failure.AdminEmailId,
+                failure.UserId,
+                failure.Username,
+                failure.Email,
+                failure.Reason,
+                FailedAt = failure.FailedAt == default ? (DateTime?)null : failure.FailedAt
+            }, commandType: CommandType.StoredProcedure);
+        }
+
+        public IReadOnlyList<AdminEmailFailure> GetFailures(int adminEmailId)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            return connection.Query<AdminEmailFailure>("dbo.usp_AdminEmailFailure_GetByAdminEmail", new { AdminEmailId = adminEmailId }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public void AddDelivery(int adminEmailId, int userId, DateTime sentAt)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            connection.Execute("dbo.usp_AdminEmailDelivery_Insert", new
+            {
+                AdminEmailId = adminEmailId,
+                UserId = userId,
+                SentAt = sentAt == default ? (DateTime?)null : sentAt
+            }, commandType: CommandType.StoredProcedure);
+        }
+
+        public IReadOnlyList<int> GetDeliveredUserIds(int adminEmailId)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            return connection.Query<int>("dbo.usp_AdminEmailDelivery_GetUserIds", new { AdminEmailId = adminEmailId }, commandType: CommandType.StoredProcedure).ToList();
         }
 
         public bool IsOptedOut(int userId)

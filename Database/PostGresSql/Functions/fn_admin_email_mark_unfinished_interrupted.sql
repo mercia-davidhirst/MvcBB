@@ -14,7 +14,8 @@ DECLARE
 BEGIN
     UPDATE public.admin_emails
     SET status = 4,
-        completed_at = now()
+        completed_at = now(),
+        paused_until = NULL
     WHERE status IN (0, 1);
 
     GET DIAGNOSTICS v_count = ROW_COUNT;

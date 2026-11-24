@@ -5,7 +5,9 @@ using Microsoft.Extensions.Options;
 using MvcBB.API.Services;
 using MvcBB.Shared.Interfaces;
 using MvcBB.Shared.Models.AdminEmail;
+using MvcBB.Shared.Models.Settings;
 using MvcBB.Shared.Models.User;
+using MvcBB.Shared.Services;
 
 namespace MvcBB.API.Controllers
 {
@@ -30,6 +32,9 @@ namespace MvcBB.API.Controllers
         private readonly AdminEmailQueue _queue;
         private readonly IConfiguration _configuration;
         private readonly AdminEmailOptions _options;
+        private readonly IEmailSendLogRepository _sendLog;
+        private readonly EmailSendCounter _sendCounter;
+        private readonly TimeProvider _timeProvider;
 
         public AdminEmailsController(
             IAdminEmailRepository adminEmailRepository,
@@ -38,7 +43,10 @@ namespace MvcBB.API.Controllers
             IEmailSender emailSender,
             AdminEmailQueue queue,
             IConfiguration configuration,
-            IOptionsSnapshot<AdminEmailOptions> options)
+            IOptionsSnapshot<AdminEmailOptions> options,
+            IEmailSendLogRepository sendLog,
+            EmailSendCounter sendCounter,
+            TimeProvider timeProvider)
         {
             _adminEmailRepository = adminEmailRepository;
             _userRepository = userRepository;
@@ -47,7 +55,37 @@ namespace MvcBB.API.Controllers
             _queue = queue;
             _configuration = configuration;
             _options = options.Value;
+            _sendLog = sendLog;
+            _sendCounter = sendCounter;
+            _timeProvider = timeProvider;
         }
+
+        /// <summary>Emails sent in the last hour and day against the host's sending limits, and how many admin emails could go now.</summary>
+        [HttpGet("usage")]
+        public ActionResult<EmailSendUsage> GetUsage()
+        {
+            return Ok(CurrentUsage(_displaySettingsService.GetDisplaySettings()));
+        }
+
+        /// <summary>
+        /// Emails sent over a period, for the Sending activity chart: range
+        /// "24h" (hourly bars plus a rolling 60-minute line), "7d" or "30d"
+        /// (daily bars), in the forum's time zone, plus current usage.
+        /// </summary>
+        [HttpGet("activity")]
+        public ActionResult<EmailActivity> GetActivity([FromQuery] string? range = null)
+        {
+            var settings = _displaySettingsService.GetDisplaySettings();
+            return Ok(EmailActivityBuilder.Build(
+                range,
+                _sendLog,
+                CurrentUsage(settings),
+                ForumTimeZone.Resolve(settings.TimeZoneId),
+                _timeProvider.GetUtcNow().UtcDateTime));
+        }
+
+        private EmailSendUsage CurrentUsage(DisplaySettings settings) =>
+            AdminEmailRateLimit.Usage(SendLimits.Resolve(_options, settings), _sendCounter, _timeProvider.GetUtcNow().UtcDateTime);
 
         /// <summary>What sending would do - recipient count, opt-outs left out, From/Reply-To - without sending.</summary>
         [HttpPost("preview")]
@@ -59,7 +97,12 @@ namespace MvcBB.API.Controllers
             }
 
             var (total, optedOut) = _adminEmailRepository.CountRecipients(TargetRole(request), TargetUserId(request));
-            var siteName = _displaySettingsService.GetDisplaySettings().SiteName;
+            var settings = _displaySettingsService.GetDisplaySettings();
+            var siteName = settings.SiteName;
+            var limits = SendLimits.Resolve(_options, settings);
+            var now = _timeProvider.GetUtcNow().UtcDateTime;
+            var estimate = AdminEmailRateLimit.Estimate(
+                limits, _sendCounter.SentSince(now - AdminEmailRateLimit.Day), now, request.IsImportant ? total : total - optedOut);
 
             return new AdminEmailPreview
             {
@@ -69,7 +112,12 @@ namespace MvcBB.API.Controllers
                 ReplyTo = sender.ReplyToAddress,
                 AdminAddressMovedToReplyTo = sender.AdminAddressMovedToReplyTo,
                 SingleUserName = request.Audience == AdminEmailAudience.SingleUser ? _userRepository.GetById(request.UserId!.Value)?.Username : null,
-                Footer = AdminEmailComposer.BuildFooter(siteName, AdminEmailLinks.ProfileUrl(_configuration), request.IsImportant)
+                Footer = AdminEmailComposer.BuildFooter(siteName, AdminEmailLinks.ProfileUrl(_configuration), request.IsImportant),
+                MaxPerHour = limits.PerHour,
+                MaxPerDay = limits.PerDay,
+                EstimatedHours = estimate.Hours,
+                CanSendNow = estimate.CanSendNow,
+                Usage = AdminEmailRateLimit.Usage(limits, _sendCounter, now)
             };
         }
 
@@ -164,6 +212,83 @@ namespace MvcBB.API.Controllers
         {
             var email = _adminEmailRepository.GetById(id);
             return email == null ? NotFound(new { message = "Email not found" }) : email;
+        }
+
+        /// <summary>
+        /// The members the email couldn't be sent to and still hasn't reached,
+        /// with the latest reason for each, oldest first - the same members
+        /// FailedCount counts. Anyone a resume reached since is left out.
+        /// </summary>
+        [HttpGet("{id:int}/failures")]
+        public ActionResult<IEnumerable<AdminEmailFailure>> GetFailures(int id)
+        {
+            if (_adminEmailRepository.GetById(id) == null)
+            {
+                return NotFound(new { message = "Email not found" });
+            }
+
+            var delivered = _adminEmailRepository.GetDeliveredUserIds(id).ToHashSet();
+            var failures = _adminEmailRepository.GetFailures(id)
+                .Where(f => !delivered.Contains(f.UserId))
+                .GroupBy(f => f.UserId)
+                .Select(g => g.Last())
+                .OrderBy(f => f.FailedAt).ThenBy(f => f.Id)
+                .ToList();
+            return Ok(failures);
+        }
+
+        /// <summary>For an Interrupted email: how many members a resume would send it to (the audience now, less those it already reached).</summary>
+        [HttpGet("{id:int}/resume")]
+        public ActionResult<int> GetResumeCount(int id)
+        {
+            var email = _adminEmailRepository.GetById(id);
+            if (email == null)
+            {
+                return NotFound(new { message = "Email not found" });
+            }
+
+            return Ok(RemainingRecipientCount(email));
+        }
+
+        /// <summary>
+        /// Queues an Interrupted email again. It goes only to members in its
+        /// audience it hasn't reached yet, worked out when sending starts -
+        /// members who joined since are included, and those who opted out since
+        /// are left out (unless it's an important alert).
+        /// </summary>
+        [HttpPost("{id:int}/resume")]
+        public ActionResult<AdminEmail> Resume(int id)
+        {
+            var email = _adminEmailRepository.GetById(id);
+            if (email == null)
+            {
+                return NotFound(new { message = "Email not found" });
+            }
+
+            if (email.Status != AdminEmailStatus.Interrupted)
+            {
+                return BadRequest(new { message = "Only an email whose sending was interrupted can be resumed." });
+            }
+
+            if (RemainingRecipientCount(email) == 0)
+            {
+                return BadRequest(new { message = "Everyone this email is for has already had it." });
+            }
+
+            email.Status = AdminEmailStatus.Queued;
+            email.CompletedAt = null;
+            email.PausedUntil = null;
+            _adminEmailRepository.UpdateProgress(email);
+            _queue.Enqueue(email.Id);
+
+            return Ok(email);
+        }
+
+        private int RemainingRecipientCount(AdminEmail email)
+        {
+            var delivered = _adminEmailRepository.GetDeliveredUserIds(email.Id).ToHashSet();
+            return _adminEmailRepository.GetRecipients(email.Role, email.UserId, includeOptedOut: email.IsImportant)
+                .Count(r => !delivered.Contains(r.UserId));
         }
 
         private static UserRole? TargetRole(SendAdminEmailRequest request) =>

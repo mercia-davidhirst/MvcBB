@@ -73,5 +73,20 @@ namespace MvcBB.Shared.Models.Settings
         [StringLength(100, ErrorMessage = "Time zone id cannot exceed 100 characters")]
         [Display(Name = "Time Zone")]
         public string TimeZoneId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The most emails the host lets the site send in any rolling hour
+        /// (e.g. 250). 0 = use AdminEmail:MaxPerHour from the API's
+        /// appsettings.json (itself 0 = no limit). Admin emails wait to stay
+        /// under it; every email the site sends counts towards it.
+        /// </summary>
+        [Range(0, 1000000, ErrorMessage = "The hourly sending limit must be 0 or more")]
+        [Display(Name = "Host sending limit per hour")]
+        public int MaxEmailsPerHour { get; set; }
+
+        /// <summary>The same as MaxEmailsPerHour for any rolling 24 hours. 0 = use AdminEmail:MaxPerDay.</summary>
+        [Range(0, 10000000, ErrorMessage = "The daily sending limit must be 0 or more")]
+        [Display(Name = "Host sending limit per day")]
+        public int MaxEmailsPerDay { get; set; }
     }
 }

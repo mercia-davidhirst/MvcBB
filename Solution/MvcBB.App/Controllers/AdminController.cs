@@ -23,6 +23,7 @@ namespace MvcBB.App.Controllers
         private readonly IWordFilterService _wordFilterService;
         private readonly IAnnouncementService _announcementService;
         private readonly IUserService _userService;
+        private readonly IAdminEmailService _adminEmailService;
 
         public AdminController(
             IMvcBBCodeService bbCodeService,
@@ -32,7 +33,8 @@ namespace MvcBB.App.Controllers
             IRankService rankService,
             IWordFilterService wordFilterService,
             IAnnouncementService announcementService,
-            IUserService userService)
+            IUserService userService,
+            IAdminEmailService adminEmailService)
         {
             _bbCodeService = bbCodeService;
             _settingsService = settingsService;
@@ -42,10 +44,25 @@ namespace MvcBB.App.Controllers
             _wordFilterService = wordFilterService;
             _announcementService = announcementService;
             _userService = userService;
+            _adminEmailService = adminEmailService;
         }
 
-        public IActionResult Dashboard()
+        public async Task<IActionResult> Dashboard()
         {
+            // The last hour's email sending on the Email Users card. Not worth
+            // failing the dashboard over, so it's just left off if unavailable.
+            try
+            {
+                ViewData["EmailUsage"] = await _adminEmailService.GetUsageAsync();
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (Exception)
+            {
+            }
+
             return View();
         }
 
@@ -772,6 +789,8 @@ namespace MvcBB.App.Controllers
             DateFormat = settings.DateFormat,
             TimeFormat = settings.TimeFormat,
             TimeZoneId = settings.TimeZoneId ?? string.Empty,
+            MaxEmailsPerHour = settings.MaxEmailsPerHour,
+            MaxEmailsPerDay = settings.MaxEmailsPerDay,
             PasswordPolicy = passwordPolicy
         };
     }

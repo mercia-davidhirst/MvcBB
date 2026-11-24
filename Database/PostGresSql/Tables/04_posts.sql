@@ -54,5 +54,13 @@ ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS is_imported_data BOOLEAN NOT N
 -- One-time backfill from the data this column replaces - matches what
 -- fn_post_like_get_count used to compute with COUNT(*) on every read. Cheap
 -- to run again on an already-backfilled database (every row already matches).
-UPDATE public.posts AS p
-SET like_count = (SELECT COUNT(*) FROM public.post_likes AS pl WHERE pl.post_id = p.id);
+-- Skipped on a fresh install, where post_likes (16_) doesn't exist yet and
+-- there are no posts to backfill anyway.
+DO $$
+BEGIN
+    IF to_regclass('public.post_likes') IS NOT NULL THEN
+        UPDATE public.posts AS p
+        SET like_count = (SELECT COUNT(*) FROM public.post_likes AS pl WHERE pl.post_id = p.id);
+    END IF;
+END
+$$;

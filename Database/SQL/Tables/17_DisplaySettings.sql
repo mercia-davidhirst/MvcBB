@@ -25,6 +25,10 @@ BEGIN
         -- Forum display time zone (IANA id, e.g. 'Europe/London'); blank =
         -- the web server's local time zone. Added in v1.1.0.
         TimeZoneId          NVARCHAR(100)  NOT NULL CONSTRAINT DF_DisplaySettings_TimeZoneId DEFAULT (N''),
+        -- Host sending limits (Admin > Settings); 0 = use the API's
+        -- AdminEmail:MaxPerHour / MaxPerDay. Added in v1.3.0.
+        MaxEmailsPerHour    INT            NOT NULL CONSTRAINT DF_DisplaySettings_MaxEmailsPerHour DEFAULT (0),
+        MaxEmailsPerDay     INT            NOT NULL CONSTRAINT DF_DisplaySettings_MaxEmailsPerDay DEFAULT (0),
         CONSTRAINT PK_DisplaySettings PRIMARY KEY CLUSTERED (Id)
     );
 END
@@ -45,5 +49,6 @@ BEGIN
 END
 GO
 
--- v1.1.0 (TimeZoneId) is applied by Upgrades/v1.1.0.sql, which install.ps1
--- runs straight after Tables/.
+-- v1.1.0 (TimeZoneId) and v1.3.0 (MaxEmailsPerHour/MaxEmailsPerDay) are
+-- applied by Upgrades/v1.1.0.sql and v1.3.0.sql, which install.ps1 runs
+-- straight after Tables/.

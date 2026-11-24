@@ -42,16 +42,24 @@ ALTER TABLE public.threads ADD COLUMN IF NOT EXISTS is_imported_data BOOLEAN NOT
 -- One-time backfill from the data these columns replace - matches what
 -- ThreadsController.MapToThreadResponses used to compute on the fly. Cheap
 -- to run again on an already-backfilled database (every row already matches).
-UPDATE public.threads AS t
-SET total_likes = (
-    SELECT COUNT(*)
-    FROM public.posts AS p
-    INNER JOIN public.post_likes AS pl ON pl.post_id = p.id
-    WHERE p.thread_id = t.id
-);
-UPDATE public.threads AS t
-SET participant_count = (
-    SELECT COUNT(DISTINCT p.created_by_user_id)
-    FROM public.posts AS p
-    WHERE p.thread_id = t.id
-);
+-- Skipped on a fresh install, where posts/post_likes (04_, 16_) don't exist
+-- yet and there are no threads to backfill anyway.
+DO $$
+BEGIN
+    IF to_regclass('public.posts') IS NOT NULL AND to_regclass('public.post_likes') IS NOT NULL THEN
+        UPDATE public.threads AS t
+        SET total_likes = (
+            SELECT COUNT(*)
+            FROM public.posts AS p
+            INNER JOIN public.post_likes AS pl ON pl.post_id = p.id
+            WHERE p.thread_id = t.id
+        );
+        UPDATE public.threads AS t
+        SET participant_count = (
+            SELECT COUNT(DISTINCT p.created_by_user_id)
+            FROM public.posts AS p
+            WHERE p.thread_id = t.id
+        );
+    END IF;
+END
+$$;

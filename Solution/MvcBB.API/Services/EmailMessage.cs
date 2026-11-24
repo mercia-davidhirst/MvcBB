@@ -1,3 +1,5 @@
+using MvcBB.Shared.Models.AdminEmail;
+
 namespace MvcBB.API.Services
 {
     /// <summary>
@@ -17,5 +19,8 @@ namespace MvcBB.API.Services
         public string? FromName { get; set; }
         public string? ReplyToAddress { get; set; }
         public string? ReplyToName { get; set; }
+
+        /// <summary>What it's for, as recorded in the send log. Only admin emails ever wait for the host's sending limits.</summary>
+        public EmailKind Kind { get; set; } = EmailKind.Other;
     }
 }

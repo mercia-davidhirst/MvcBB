@@ -74,6 +74,61 @@ namespace MvcBB.App.Services
             return await response.Content.ReadFromJsonAsync<AdminEmail>();
         }
 
+        public async Task<IEnumerable<AdminEmailFailure>> GetFailuresAsync(int id)
+        {
+            Authorize();
+            var response = await _httpClient.GetAsync($"api/admin-emails/{id}/failures");
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return Array.Empty<AdminEmailFailure>();
+            }
+
+            response.EnsureSuccessOrSessionExpired();
+            return await response.Content.ReadFromJsonAsync<IEnumerable<AdminEmailFailure>>() ?? Array.Empty<AdminEmailFailure>();
+        }
+
+        public async Task<int> GetResumeCountAsync(int id)
+        {
+            Authorize();
+            var response = await _httpClient.GetAsync($"api/admin-emails/{id}/resume");
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return 0;
+            }
+
+            response.EnsureSuccessOrSessionExpired();
+            return await response.Content.ReadFromJsonAsync<int>();
+        }
+
+        public async Task<AdminEmail> ResumeAsync(int id)
+        {
+            Authorize();
+            var response = await _httpClient.PostAsync($"api/admin-emails/{id}/resume", null);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                throw new ServiceException("Email not found.");
+            }
+
+            await EnsureSuccessOrThrowAsync(response);
+            return await response.Content.ReadFromJsonAsync<AdminEmail>() ?? throw new Exception("Failed to read the resumed email");
+        }
+
+        public async Task<EmailSendUsage> GetUsageAsync()
+        {
+            Authorize();
+            var response = await _httpClient.GetAsync("api/admin-emails/usage");
+            response.EnsureSuccessOrSessionExpired();
+            return await response.Content.ReadFromJsonAsync<EmailSendUsage>() ?? new EmailSendUsage();
+        }
+
+        public async Task<EmailActivity> GetActivityAsync(string range)
+        {
+            Authorize();
+            var response = await _httpClient.GetAsync($"api/admin-emails/activity?range={Uri.EscapeDataString(range)}");
+            response.EnsureSuccessOrSessionExpired();
+            return await response.Content.ReadFromJsonAsync<EmailActivity>() ?? new EmailActivity();
+        }
+
         // A 400 carries a specific reason ("Choose a role to send to.", or the
         // model validation errors) - surface it as a ServiceException the
         // controller can show, instead of a generic failure.

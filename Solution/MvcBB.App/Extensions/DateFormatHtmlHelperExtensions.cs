@@ -34,6 +34,13 @@ public static class DateFormatHtmlHelperExtensions
         return ToForumTime(utcDateTime, settings).ToString(settings.DateFormat);
     }
 
+    /// <summary>Formats a UTC time (time portion only) in the forum's time zone, e.g. "16:30".</summary>
+    public static async Task<string> FormatTimeAsync(this IHtmlHelper html, DateTime utcDateTime)
+    {
+        var settings = await html.ViewContext.HttpContext.GetDisplaySettingsForDatesAsync();
+        return ToForumTime(utcDateTime, settings).ToString(settings.TimeFormat);
+    }
+
     /// <summary>
     /// A UTC timestamp converted to forum wall-clock time, for views that need
     /// their own format string. Prefer <see cref="FormatDateTimeAsync"/>.

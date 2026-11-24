@@ -144,8 +144,13 @@ can run any community.
   (maintenance notices, news, alerts), from their own address or the site's
   no-reply address, with a confirmation step showing the recipient count
   and From line, a "send a test to me" button, and a send log with
-  progress. Members can turn these emails off on their profile; an
-  "Important service alert" still reaches them.
+  progress and the reason for any email that couldn't be sent. Sending
+  keeps under your host's hourly/daily email limits (set in Settings), a
+  Sending activity chart shows every email the site has sent against those
+  limits, and an email cut off by a restart can be resumed for the members
+  who haven't had it. Members
+  can turn these emails off on their profile; an "Important service alert"
+  still reaches them.
 - **Mods** page: lists every mod found on disk with its version and
   compatibility status, and lets an admin enable or disable it.
 
@@ -250,6 +255,22 @@ direct database access and calls the API over HTTP. With the default
   your SMTP relay is allowed to send for the admins' email domains (SPF and
   DKIM set up for it), or receiving servers will reject the mail or mark it
   as spam under DMARC, which is near certain for Gmail or Outlook addresses.
+- Host sending limits, for hosts that cap how many emails a site may send
+  (e.g. 250 an hour): set "Host sending limit per hour" and "per day" in
+  Admin > Settings, a little below your host's limits. Each one left at 0
+  there falls back to `AdminEmail:MaxPerHour` / `AdminEmail:MaxPerDay` in the
+  API's appsettings.json (default 0 = no limit), so Settings wins whenever
+  it's set. The limits count every email the API sends (password resets,
+  notifications and the rest), not just admin emails. Admin emails wait when
+  they would go over, and 5% of each limit (at least 1) is kept back so a
+  big admin email never uses it all up and stops password resets; other
+  emails are never held up. The count is kept in memory and refilled from
+  the send log's last 24 hours when the API starts, so a restart doesn't
+  hand out the limit again. If the API runs on more than one server, each
+  counts only its own emails, so divide the limits between them.
+- `AdminEmail:SendLogRetentionDays` (API, default 30): how many days of the
+  email send log (times and kinds of email only, no addresses or subjects)
+  are kept for Sending activity. Older rows are deleted daily.
 - `MvcBB.App/appsettings.json`: `Api:BaseUrl`, the matching `Api` client
   id/secret, and optional `Turnstile` keys.
 - For SQL Server or PostgreSQL, deploy the schema first with the
@@ -259,6 +280,82 @@ Change the placeholder JWT key and client secret before deploying anywhere
 public.
 
 ## Release history
+
+### v1.3.0
+
+New features:
+
+- **Failed recipients.** An admin email's details page lists the members it
+  couldn't be sent to, with the reason for each (the mail server's message)
+  and when it happened, instead of pointing at the API log.
+- **Host sending limits.** For hosts that cap how many emails a site may
+  send (e.g. 250 an hour), set "Host sending limit per hour" and "per day"
+  in Admin > Settings, or `AdminEmail:MaxPerHour` / `AdminEmail:MaxPerDay`
+  in the API's appsettings.json (Settings wins when set). Every email the
+  site sends counts, but only admin emails wait for them, and 5% of each
+  limit (at least 1) is kept back for password resets and other site
+  emails. A waiting email's details page shows when sending carries on. The
+  confirmation step shows the last hour's usage and, for a large email, how
+  many can go now and roughly how long the rest will take, counting what's
+  already been sent recently.
+- **Resume interrupted emails.** Each member an email reaches is recorded.
+  An email cut off by an API restart is still marked *Interrupted* and isn't
+  restarted on its own, but its details page now has a "Resume sending"
+  button that sends it only to the members who haven't had it yet,
+  retrying any it failed for. Who that is gets worked out again when it
+  resumes: members who joined since are included, and members who opted
+  out since are left out (unless it's an important alert).
+- **Sending activity** (Admin > Email Users > Sending activity). A chart of
+  every email the site has sent over the last 24 hours, 7 days or 30 days,
+  coloured by kind (Email Users, notifications, password resets,
+  registration, other), with the host limit drawn across it as a ruler and
+  a dotted line where admin emails stop. Bars over the limit are shown in
+  red, and the 24-hour view adds a rolling 60-minute line, since hosts
+  usually count any 60 minutes rather than clock hours. Above it, bars show
+  how much of the hourly and daily limit is used and how many admin emails
+  could go now, or when the next one can. The admin Dashboard's Email Users
+  card shows the last hour's usage. Each send is logged with just its time
+  and kind (no addresses or subjects) and kept for
+  `AdminEmail:SendLogRetentionDays` (default 30). After an API restart the
+  sending limits pick up from this log.
+- New API endpoints: `api/admin-emails/{id}/failures`,
+  `api/admin-emails/{id}/resume` (GET for the count, POST to resume),
+  `api/admin-emails/usage` and `api/admin-emails/activity` (Administrator
+  only).
+
+Fixes:
+
+- **Email preview spacing**: the email body on the confirmation step and an
+  email's details page now shows blank lines and runs of spaces exactly as
+  they'll be sent.
+- **PostgreSQL**:
+  - `install.ps1 -CreateDatabase` now creates the database when it doesn't
+    exist; before, it skipped the create and failed on the first script.
+  - A fresh install no longer fails on `03_threads.sql` / `04_posts.sql`,
+    whose one-time backfills read tables that aren't created until later.
+  - `install.ps1` runs on Windows PowerShell 5.1 as well as PowerShell 7.
+  - The insert procedures that return a new id no longer give their other
+    parameters defaults, which PostgreSQL rejects, so they install again;
+    creating a post, which left out the id placeholder, works again too.
+  - Re-running `install.ps1` on an existing database works:
+    `fn_role_name` is replaced in place rather than dropped, which failed
+    because `vw_post_details` depends on it.
+  - Registering, logging in and the other username/email lookups work: the
+    API now passes those values as `citext`, which the lookup functions
+    expect.
+
+Upgrading from v1.2.0: deploy the new build of the App and API (and
+rebuild any mods), then re-run `install.ps1` for your database. It creates
+the three new tables (`AdminEmailFailures`, `AdminEmailDeliveries`,
+`EmailSendLog` / `admin_email_failures`, `admin_email_deliveries`,
+`email_send_log`) and their procedures, and `Upgrades/v1.3.0.sql` adds
+`AdminEmails.PausedUntil` and two columns to the display settings table
+(`MaxEmailsPerHour`, `MaxEmailsPerDay`, both 0) / `admin_emails.paused_until`,
+`max_emails_per_hour`, `max_emails_per_day`. Existing rows aren't touched.
+On PostgreSQL this also installs the fixed procedures and functions above.
+New API settings, all optional: `AdminEmail:MaxPerHour`,
+`AdminEmail:MaxPerDay` (default 0 = no limit) and
+`AdminEmail:SendLogRetentionDays` (default 30); see Configuration.
 
 ### v1.2.0
 

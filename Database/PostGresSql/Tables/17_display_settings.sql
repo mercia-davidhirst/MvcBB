@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS public.display_settings
     -- Forum display time zone (IANA id, e.g. 'Europe/London'); blank = the
     -- web server's local time zone. Added in v1.1.0.
     time_zone_id         VARCHAR(100)    NOT NULL DEFAULT '',
+    -- Host sending limits (Admin > Settings); 0 = use the API's
+    -- AdminEmail:MaxPerHour / MaxPerDay. Added in v1.3.0.
+    max_emails_per_hour  INTEGER         NOT NULL DEFAULT 0,
+    max_emails_per_day   INTEGER         NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
 );
 
@@ -32,5 +36,6 @@ CREATE TABLE IF NOT EXISTS public.display_settings
 ALTER TABLE public.display_settings ADD COLUMN IF NOT EXISTS date_format VARCHAR(20) NOT NULL DEFAULT 'dd/MM/yyyy';
 ALTER TABLE public.display_settings ADD COLUMN IF NOT EXISTS time_format VARCHAR(20) NOT NULL DEFAULT 'HH:mm';
 
--- v1.1.0 (time_zone_id) is applied by Upgrades/v1.1.0.sql, which install.ps1
--- runs straight after Tables/.
+-- v1.1.0 (time_zone_id) and v1.3.0 (max_emails_per_hour/max_emails_per_day)
+-- are applied by Upgrades/v1.1.0.sql and v1.3.0.sql, which install.ps1 runs
+-- straight after Tables/.

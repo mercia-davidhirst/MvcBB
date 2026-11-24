@@ -1,13 +1,15 @@
 -- Matches IBBCodeManagementService.AddSmilie(SmilieModel model)
+-- No parameter defaults: PostgreSQL won't accept OUT p_id after parameters
+-- with defaults, so callers pass every argument (NULL for p_id).
 
 DROP PROCEDURE IF EXISTS public.sp_smilie_insert(varchar, varchar, varchar, boolean, integer);
 
 CREATE PROCEDURE public.sp_smilie_insert(
     p_code VARCHAR(20),
-    p_description VARCHAR(200) DEFAULT '',
-    p_image_path VARCHAR(500) DEFAULT '',
-    p_is_active BOOLEAN DEFAULT TRUE,
-    p_sort_order INTEGER DEFAULT 0,
+    p_description VARCHAR(200),
+    p_image_path VARCHAR(500),
+    p_is_active BOOLEAN,
+    p_sort_order INTEGER,
     OUT p_id INTEGER
 )
 LANGUAGE plpgsql

@@ -1,15 +1,17 @@
 -- Matches IAnnouncementManagementService.AddAnnouncement(AnnouncementModel model)
+-- No parameter defaults: PostgreSQL won't accept OUT p_id after parameters
+-- with defaults, so callers pass every argument (NULL for p_id).
 
 DROP PROCEDURE IF EXISTS public.sp_announcement_insert(varchar, text, boolean, integer, timestamptz, timestamptz, timestamptz);
 
 CREATE PROCEDURE public.sp_announcement_insert(
     p_title VARCHAR(200),
     p_content TEXT,
-    p_is_active BOOLEAN DEFAULT TRUE,
-    p_sort_order INTEGER DEFAULT 0,
-    p_start_date TIMESTAMPTZ DEFAULT NULL,
-    p_end_date TIMESTAMPTZ DEFAULT NULL,
-    p_created_at TIMESTAMPTZ DEFAULT now(),
+    p_is_active BOOLEAN,
+    p_sort_order INTEGER,
+    p_start_date TIMESTAMPTZ,
+    p_end_date TIMESTAMPTZ,
+    p_created_at TIMESTAMPTZ,
     OUT p_id INTEGER
 )
 LANGUAGE plpgsql

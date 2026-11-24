@@ -1,4 +1,6 @@
 -- Matches IReportRepository.Add(Report report)
+-- No parameter defaults: PostgreSQL won't accept OUT p_id after parameters
+-- with defaults, so callers pass every argument (NULL for p_id).
 -- Validates the polymorphic content_id/type pair via
 -- public.fn_report_content_exists before inserting, since no ordinary
 -- foreign key can express that relationship.
@@ -11,9 +13,9 @@ CREATE PROCEDURE public.sp_report_insert(
     p_reporter_user_id INTEGER,
     p_type SMALLINT,
     p_content_id INTEGER,
-    p_status SMALLINT DEFAULT 0,
-    p_moderator_notes VARCHAR(1000) DEFAULT '',
-    p_page_url VARCHAR(500) DEFAULT NULL,
+    p_status SMALLINT,
+    p_moderator_notes VARCHAR(1000),
+    p_page_url VARCHAR(500),
     OUT p_id INTEGER
 )
 LANGUAGE plpgsql

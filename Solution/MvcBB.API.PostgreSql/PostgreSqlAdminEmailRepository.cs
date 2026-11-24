@@ -50,7 +50,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             connection.Execute(
-                "CALL public.sp_admin_email_update_progress(@Id, @Status, @RecipientCount, @SentCount, @FailedCount, @CompletedAt)",
+                "CALL public.sp_admin_email_update_progress(@Id, @Status, @RecipientCount, @SentCount, @FailedCount, @CompletedAt, @PausedUntil)",
                 new
                 {
                     email.Id,
@@ -58,7 +58,8 @@ namespace MvcBB.API.PostgreSql
                     email.RecipientCount,
                     email.SentCount,
                     email.FailedCount,
-                    email.CompletedAt
+                    email.CompletedAt,
+                    email.PausedUntil
                 });
         }
 
@@ -82,6 +83,51 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             return connection.QuerySingle<int>("SELECT public.fn_admin_email_mark_unfinished_interrupted()");
+        }
+
+        public void AddFailure(AdminEmailFailure failure)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            connection.Execute(
+                "CALL public.sp_admin_email_failure_insert(@AdminEmailId, @UserId, @Username, @Email, @Reason, @FailedAt)",
+                new
+                {
+                    failure.AdminEmailId,
+                    failure.UserId,
+                    failure.Username,
+                    failure.Email,
+                    failure.Reason,
+                    FailedAt = failure.FailedAt == default ? (DateTime?)null : failure.FailedAt
+                });
+        }
+
+        public IReadOnlyList<AdminEmailFailure> GetFailures(int adminEmailId)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            return connection.Query<AdminEmailFailure>(
+                "SELECT * FROM public.fn_admin_email_failure_get_by_admin_email(@AdminEmailId)",
+                new { AdminEmailId = adminEmailId }).ToList();
+        }
+
+        public void AddDelivery(int adminEmailId, int userId, DateTime sentAt)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            connection.Execute(
+                "CALL public.sp_admin_email_delivery_insert(@AdminEmailId, @UserId, @SentAt)",
+                new
+                {
+                    AdminEmailId = adminEmailId,
+                    UserId = userId,
+                    SentAt = sentAt == default ? (DateTime?)null : sentAt
+                });
+        }
+
+        public IReadOnlyList<int> GetDeliveredUserIds(int adminEmailId)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            return connection.Query<int>(
+                "SELECT * FROM public.fn_admin_email_delivery_get_user_ids(@AdminEmailId)",
+                new { AdminEmailId = adminEmailId }).ToList();
         }
 
         public bool IsOptedOut(int userId)

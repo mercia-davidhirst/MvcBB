@@ -38,6 +38,34 @@ else
         {
             @:<br />Marked as an important service alert, so it also goes to members who turned these emails off.
         }
+        @if (preview.EstimatedHours is double hours)
+        {
+            var duration = hours >= 48 ? $"{Math.Ceiling(hours / 24)} days" : hours < 1 ? "less than an hour" : hours <= 1.05 ? "an hour" : $"{Math.Ceiling(hours)} hours";
+            var limits = new List<string>();
+            if (preview.MaxPerHour > 0) { limits.Add($"{preview.MaxPerHour} an hour"); }
+            if (preview.MaxPerDay > 0) { limits.Add($"{preview.MaxPerDay} a day"); }
+            if (preview.CanSendNow > 0)
+            {
+                @:<br />@preview.CanSendNow can go now; the rest will take about @duration at your host's sending limit of @string.Join(" and ", limits).
+            }
+            else
+            {
+                @:<br />None can go right now (the limit is used up for the moment); it will take about @duration to send at your host's sending limit of @string.Join(" and ", limits).
+            }
+        }
+    </div>
+}
+
+@if (preview.RecipientCount > 0 && preview.Usage is { HasLimits: true } usage)
+{
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Sending so far</span>
+            <a asp-action="Activity" class="small">Sending activity</a>
+        </div>
+        <div class="card-body">
+            <partial name="_EmailUsage" model="usage" />
+        </div>
     </div>
 }
 
@@ -70,7 +98,7 @@ else
         }
 
         <hr />
-        <div class="text-preserve-lines text-break">@Model.Body</div>
+        <div class="text-preserve-whitespace text-break">@Model.Body</div>
         <hr />
         <div class="small text-muted text-preserve-lines">@preview.Footer</div>
     </div>

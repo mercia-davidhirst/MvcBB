@@ -42,6 +42,13 @@ namespace MvcBB.API.InMemory
         public PasswordPolicy PasswordPolicy { get; set; } = new();
         public List<ModRecord> Mods { get; } = new();
         public List<AdminEmail> AdminEmails { get; } = new();
+        public List<AdminEmailFailure> AdminEmailFailures { get; } = new();
+
+        /// <summary>Who each admin email reached, and when.</summary>
+        public List<(int AdminEmailId, int UserId, DateTime SentAt)> AdminEmailDeliveries { get; } = new();
+
+        /// <summary>When each email was sent and what kind it was.</summary>
+        public List<(DateTime SentAt, EmailKind Kind)> EmailSendLog { get; } = new();
 
         /// <summary>User ids of members who opted out of admin emails.</summary>
         public HashSet<int> AdminEmailOptOuts { get; } = new();

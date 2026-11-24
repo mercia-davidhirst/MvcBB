@@ -27,5 +27,24 @@ namespace MvcBB.Shared.Models.AdminEmail
 
         /// <summary>How the body ends for recipients (the opt-out note) - shown under the message on the confirmation step.</summary>
         public string Footer { get; set; } = string.Empty;
+
+        /// <summary>The host's hourly sending limit in force (Settings, else AdminEmail:MaxPerHour), 0 for none.</summary>
+        public int MaxPerHour { get; set; }
+
+        /// <summary>The host's daily sending limit in force (Settings, else AdminEmail:MaxPerDay), 0 for none.</summary>
+        public int MaxPerDay { get; set; }
+
+        /// <summary>Emails sent recently against those limits.</summary>
+        public EmailSendUsage? Usage { get; set; }
+
+        /// <summary>
+        /// Roughly how many hours until the last member can be sent it under
+        /// those limits, counting what's already been sent recently, or null
+        /// when it can all go now.
+        /// </summary>
+        public double? EstimatedHours { get; set; }
+
+        /// <summary>How many could go straight away under those limits (all of them when there's no limit).</summary>
+        public int CanSendNow { get; set; }
     }
 }

@@ -31,6 +31,8 @@ namespace MvcBB.API.Services
         public void UpdateDisplaySettings(DisplaySettings settings)
         {
             settings.ThreadsPerPage = Math.Clamp(settings.ThreadsPerPage, 1, 100);
+            settings.MaxEmailsPerHour = Math.Max(0, settings.MaxEmailsPerHour);
+            settings.MaxEmailsPerDay = Math.Max(0, settings.MaxEmailsPerDay);
 
             // DateFormat/TimeFormat are a fixed dropdown on the admin page,
             // not free text - a request carrying anything else (e.g. a

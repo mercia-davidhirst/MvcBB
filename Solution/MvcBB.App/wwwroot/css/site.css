@@ -135,6 +135,64 @@ pre code {
     white-space: pre-line;
 }
 
+/* Admin email bodies: show the text exactly as it will be sent, blank lines
+   and runs of spaces included. Keep the Razor expression on the same line
+   as its tags. */
+.text-preserve-whitespace {
+    white-space: pre-wrap;
+}
+
+/* Admin > Email Users > Sending activity chart (server-drawn SVG). Colours
+   are variables so the dark scheme below can swap them. */
+:root {
+    --mvcbb-chart-admin: #9966AA;
+    --mvcbb-chart-notification: #3b82c4;
+    --mvcbb-chart-reset: #2e9a6a;
+    --mvcbb-chart-registration: #d08a2c;
+    --mvcbb-chart-other: #8c8c99;
+    --mvcbb-chart-limit: #dc3545;
+    --mvcbb-chart-share: #b7791f;
+    --mvcbb-chart-rolling: #343a40;
+    --mvcbb-chart-grid: #dee2e6;
+    --mvcbb-chart-text: #6c757d;
+}
+
+.email-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-size: 11px;
+}
+
+.email-chart-admin { fill: var(--mvcbb-chart-admin); background-color: var(--mvcbb-chart-admin); }
+.email-chart-notification { fill: var(--mvcbb-chart-notification); background-color: var(--mvcbb-chart-notification); }
+.email-chart-reset { fill: var(--mvcbb-chart-reset); background-color: var(--mvcbb-chart-reset); }
+.email-chart-registration { fill: var(--mvcbb-chart-registration); background-color: var(--mvcbb-chart-registration); }
+.email-chart-other { fill: var(--mvcbb-chart-other); background-color: var(--mvcbb-chart-other); }
+.email-chart-over { fill: var(--mvcbb-chart-limit); }
+.email-chart-grid { stroke: var(--mvcbb-chart-grid); stroke-width: 1; }
+.email-chart-baseline { stroke: var(--mvcbb-chart-text); stroke-width: 1; }
+.email-chart-axis { fill: var(--mvcbb-chart-text); }
+.email-chart-limit { stroke: var(--mvcbb-chart-limit); stroke-width: 2; stroke-dasharray: 8 4; }
+.email-chart-limit-label { fill: var(--mvcbb-chart-limit); font-weight: 600; }
+.email-chart-share { stroke: var(--mvcbb-chart-share); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.email-chart-rolling { fill: none; stroke: var(--mvcbb-chart-rolling); stroke-width: 2; stroke-linejoin: round; }
+
+.email-chart-swatch {
+    display: inline-block;
+    width: .75rem;
+    height: .75rem;
+    margin-right: .25rem;
+    vertical-align: -1px;
+    border-radius: 2px;
+}
+
+.email-chart-swatch-line {
+    height: 2px;
+    vertical-align: middle;
+    background-color: var(--mvcbb-chart-rolling);
+}
+
 /* MvcBB Light theme */
 
 body {
@@ -314,6 +372,17 @@ footer.footer {
     --mvcbb-dark-border: #3c3847;
     --mvcbb-dark-text: #e7e4ee;
     --mvcbb-dark-text-muted: #a9a4b8;
+
+    --mvcbb-chart-admin: #b48ac6;
+    --mvcbb-chart-notification: #6aa9e0;
+    --mvcbb-chart-reset: #4fc08d;
+    --mvcbb-chart-registration: #e6a656;
+    --mvcbb-chart-other: #9a96a8;
+    --mvcbb-chart-limit: #ff6b78;
+    --mvcbb-chart-share: #e0b050;
+    --mvcbb-chart-rolling: #e7e4ee;
+    --mvcbb-chart-grid: #3c3847;
+    --mvcbb-chart-text: #a9a4b8;
 }
 
 :root[data-theme="dark"] body {

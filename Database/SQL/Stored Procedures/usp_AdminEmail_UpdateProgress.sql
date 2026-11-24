@@ -9,7 +9,8 @@ CREATE PROCEDURE dbo.usp_AdminEmail_UpdateProgress
     @RecipientCount INT,
     @SentCount INT,
     @FailedCount INT,
-    @CompletedAt DATETIME2(3) = NULL
+    @CompletedAt DATETIME2(3) = NULL,
+    @PausedUntil DATETIME2(3) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -19,7 +20,8 @@ BEGIN
         RecipientCount = @RecipientCount,
         SentCount = @SentCount,
         FailedCount = @FailedCount,
-        CompletedAt = @CompletedAt
+        CompletedAt = @CompletedAt,
+        PausedUntil = @PausedUntil
     WHERE Id = @Id;
 END;
 GO

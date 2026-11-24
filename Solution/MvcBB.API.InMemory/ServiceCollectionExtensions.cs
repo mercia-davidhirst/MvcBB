@@ -34,6 +34,7 @@ namespace MvcBB.API.InMemory
             services.AddSingleton<IPasswordPolicyRepository, InMemoryPasswordPolicyRepository>();
             services.AddSingleton<IModRepository, InMemoryModRepository>();
             services.AddSingleton<IAdminEmailRepository, InMemoryAdminEmailRepository>();
+            services.AddSingleton<IEmailSendLogRepository, InMemoryEmailSendLogRepository>();
             services.AddSingleton<IDatabaseHealthCheck, InMemoryDatabaseHealthCheck>();
 
             return services;

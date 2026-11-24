@@ -5,6 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using MvcBB.Shared.Models.AdminEmail;
 using MvcBB.Shared.Models.User;
 using MvcBB.Shared.Models.Member;
 using MvcBB.Shared.Models.Common;
@@ -215,10 +216,13 @@ namespace MvcBB.API.Controllers
                 var appBaseUrl = _configuration["App:BaseUrl"]?.TrimEnd('/') ?? string.Empty;
                 var resetLink = $"{appBaseUrl}/Account/ResetPassword?token={rawToken}";
 
-                await _emailSender.SendAsync(
-                    user.Email,
-                    "Reset your MvcBB password",
-                    $"Click the link below to reset your password. This link expires in {expirationMinutes} minutes.\n\n{resetLink}\n\nIf you didn't request this, you can ignore this email.");
+                await _emailSender.SendAsync(new EmailMessage
+                {
+                    To = user.Email,
+                    Subject = "Reset your MvcBB password",
+                    Body = $"Click the link below to reset your password. This link expires in {expirationMinutes} minutes.\n\n{resetLink}\n\nIf you didn't request this, you can ignore this email.",
+                    Kind = EmailKind.PasswordReset
+                });
             }
 
             return Ok(new { message = "If that email is registered, a password reset link has been sent." });

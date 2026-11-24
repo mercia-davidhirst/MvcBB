@@ -76,17 +76,27 @@ builder.Services.AddScoped<IAnnouncementManagementService, MvcBB.API.Services.An
 // Real SMTP delivery kicks in only once Smtp:Host is actually set - a fresh
 // install with nothing configured keeps logging the email instead (see
 // LoggingEmailSender) rather than failing outright.
+// Either way it's wrapped in CountingEmailSender, which counts every email
+// sent (so admin emails can keep under the host's sending limits) and writes
+// it to the send log (Admin > Email Users > Sending activity).
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<MvcBB.API.Services.EmailSendCounter>();
 if (!string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Host"]))
 {
-    builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender, MvcBB.API.Services.SmtpEmailSender>();
+    builder.Services.AddSingleton<MvcBB.API.Services.SmtpEmailSender>();
+    builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender>(sp => ActivatorUtilities.CreateInstance<MvcBB.API.Services.CountingEmailSender>(
+        sp, sp.GetRequiredService<MvcBB.API.Services.SmtpEmailSender>()));
 }
 else
 {
-    builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender, MvcBB.API.Services.LoggingEmailSender>();
+    builder.Services.AddSingleton<MvcBB.API.Services.LoggingEmailSender>();
+    builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender>(sp => ActivatorUtilities.CreateInstance<MvcBB.API.Services.CountingEmailSender>(
+        sp, sp.GetRequiredService<MvcBB.API.Services.LoggingEmailSender>()));
 }
+builder.Services.AddHostedService<MvcBB.API.Services.EmailSendLogPruner>();
 // Admin emails to members: queued by AdminEmailsController, sent in throttled
-// batches in the background by AdminEmailDispatcher (see AdminEmailOptions
-// for the AdminEmail:* settings).
+// batches in the background by AdminEmailDispatcher, keeping under the host's
+// sending limits (see AdminEmailOptions for the AdminEmail:* settings).
 builder.Services.Configure<MvcBB.API.Services.AdminEmailOptions>(builder.Configuration.GetSection(MvcBB.API.Services.AdminEmailOptions.SectionName));
 builder.Services.AddSingleton<MvcBB.API.Services.AdminEmailQueue>();
 builder.Services.AddHostedService<MvcBB.API.Services.AdminEmailDispatcher>();

@@ -12,6 +12,8 @@
         2 = Completed, 3 = CompletedWithErrors, 4 = Interrupted.
       - SentByUserId has no foreign key so the log survives an account being
         removed; SentByUsername keeps the name as it was when sent.
+      - PausedUntil is set while sending waits for AdminEmail:MaxPerHour /
+        MaxPerDay, to when it expects to carry on; NULL otherwise.
 */
 
 IF OBJECT_ID('dbo.AdminEmails') IS NULL
@@ -37,6 +39,7 @@ BEGIN
         RecipientCount  INT                NOT NULL CONSTRAINT DF_AdminEmails_RecipientCount DEFAULT (0),
         SentCount       INT                NOT NULL CONSTRAINT DF_AdminEmails_SentCount DEFAULT (0),
         FailedCount     INT                NOT NULL CONSTRAINT DF_AdminEmails_FailedCount DEFAULT (0),
+        PausedUntil     DATETIME2(3)       NULL,
         CONSTRAINT PK_AdminEmails PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT CK_AdminEmails_Audience CHECK (Audience IN (0, 1, 2)),
         CONSTRAINT CK_AdminEmails_SenderMode CHECK (SenderMode IN (0, 1)),

@@ -36,7 +36,14 @@
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-envelope me-2"></i>Email Users</h5>
                 <p class="card-text text-muted">Email members about maintenance, news or alerts, and see what's been sent.</p>
+                @if (ViewData["EmailUsage"] is MvcBB.Shared.Models.AdminEmail.EmailSendUsage emailUsage)
+                {
+                    <div class="mb-3">
+                        <partial name="~/Views/AdminEmails/_EmailUsage.cshtml" model="emailUsage" view-data='new ViewDataDictionary(ViewData) { ["Compact"] = true }' />
+                    </div>
+                }
                 <a asp-controller="AdminEmails" asp-action="Index" class="btn btn-outline-primary btn-sm">Email Users</a>
+                <a asp-controller="AdminEmails" asp-action="Activity" class="btn btn-outline-secondary btn-sm">Sending activity</a>
             </div>
         </div>
     </div>

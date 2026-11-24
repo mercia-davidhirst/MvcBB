@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using MvcBB.Shared.Models.AdminEmail;
 using MvcBB.Shared.Models.Post;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Board;
@@ -265,7 +266,7 @@ namespace MvcBB.API.Controllers
                     var recipient = _userRepository.GetById(recipientId);
                     if (recipient != null && !string.IsNullOrEmpty(recipient.Email))
                     {
-                        await _emailSender.SendAsync(recipient.Email, subject, body);
+                        await _emailSender.SendAsync(new EmailMessage { To = recipient.Email, Subject = subject, Body = body, Kind = EmailKind.Notification });
                     }
                 }
             }

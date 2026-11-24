@@ -37,10 +37,17 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminEmails" ? "active" : "")"
+                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminEmails" && ViewContext.RouteData.Values["Action"]?.ToString() != "Activity" ? "active" : "")"
                            asp-controller="AdminEmails" asp-action="Index">
                             <i class="bi bi-envelope me-2"></i>
                             Email Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link ps-4 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminEmails" && ViewContext.RouteData.Values["Action"]?.ToString() == "Activity" ? "active" : "")"
+                           asp-controller="AdminEmails" asp-action="Activity">
+                            <i class="bi bi-bar-chart me-2"></i>
+                            Sending activity
                         </a>
                     </li>
                     <li class="nav-item">

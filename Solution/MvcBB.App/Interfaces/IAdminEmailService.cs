@@ -15,5 +15,20 @@ namespace MvcBB.App.Interfaces
 
         Task<IEnumerable<AdminEmail>> GetRecentAsync(int take = 50);
         Task<AdminEmail?> GetAsync(int id);
+
+        /// <summary>The members the email couldn't be sent to, and why, oldest first (empty if the email isn't found).</summary>
+        Task<IEnumerable<AdminEmailFailure>> GetFailuresAsync(int id);
+
+        /// <summary>For an Interrupted email: how many members resuming it would send to.</summary>
+        Task<int> GetResumeCountAsync(int id);
+
+        /// <summary>Queues an Interrupted email again, for the members it hasn't reached. Throws ServiceException with the API's reason if it can't be resumed.</summary>
+        Task<AdminEmail> ResumeAsync(int id);
+
+        /// <summary>Emails sent recently against the host's sending limits.</summary>
+        Task<EmailSendUsage> GetUsageAsync();
+
+        /// <summary>Emails sent over "24h", "7d" or "30d", for the Sending activity chart.</summary>
+        Task<EmailActivity> GetActivityAsync(string range);
     }
 }

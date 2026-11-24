@@ -6,9 +6,10 @@
               public.vw_post_details.
 */
 
-DROP FUNCTION IF EXISTS public.fn_role_name(smallint);
-
-CREATE FUNCTION public.fn_role_name(p_role SMALLINT)
+-- CREATE OR REPLACE, not DROP + CREATE: vw_post_details depends on this
+-- function, so dropping it fails when install.ps1 is re-run on an existing
+-- database. Keep the signature and return type the same so this still works.
+CREATE OR REPLACE FUNCTION public.fn_role_name(p_role SMALLINT)
 RETURNS VARCHAR(20)
 LANGUAGE sql
 IMMUTABLE

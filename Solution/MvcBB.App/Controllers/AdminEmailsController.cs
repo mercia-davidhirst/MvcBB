@@ -181,6 +181,16 @@ namespace MvcBB.App.Controllers
                     ViewData["RecipientUsername"] = (await _userService.GetUserForAdminAsync(email.UserId.Value))?.Username;
                 }
 
+                if (email.FailedCount > 0)
+                {
+                    ViewData["Failures"] = (await _adminEmailService.GetFailuresAsync(id)).ToList();
+                }
+
+                if (email.Status == AdminEmailStatus.Interrupted)
+                {
+                    ViewData["ResumeCount"] = await _adminEmailService.GetResumeCountAsync(id);
+                }
+
                 return View(email);
             }
             catch (SessionExpiredException)
@@ -192,6 +202,51 @@ namespace MvcBB.App.Controllers
                 TempData["Error"] = "Failed to load the email. Please try again later.";
                 return RedirectToAction(nameof(Index));
             }
+        }
+
+        // Every email the site has sent over the last 24 hours / 7 days / 30
+        // days, against the host's sending limits.
+        public async Task<IActionResult> Activity(string range = "24h")
+        {
+            try
+            {
+                return View(await _adminEmailService.GetActivityAsync(range));
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Failed to load the sending activity. Please try again later.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Resume(int id)
+        {
+            try
+            {
+                var email = await _adminEmailService.ResumeAsync(id);
+                TempData["Success"] = "Sending has resumed for the members who haven't had this email yet.";
+                return RedirectToAction(nameof(Details), new { id = email.Id });
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (ServiceException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Failed to resume the email. Please try again.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         // The form takes a username for "one member"; the API wants the id.

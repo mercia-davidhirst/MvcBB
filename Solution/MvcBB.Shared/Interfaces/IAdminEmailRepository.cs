@@ -13,7 +13,7 @@ namespace MvcBB.Shared.Interfaces
     {
         AdminEmail Add(AdminEmail email);
 
-        /// <summary>Saves Status, RecipientCount, SentCount, FailedCount and CompletedAt.</summary>
+        /// <summary>Saves Status, RecipientCount, SentCount, FailedCount, CompletedAt and PausedUntil.</summary>
         void UpdateProgress(AdminEmail email);
 
         AdminEmail? GetById(int id);
@@ -23,6 +23,18 @@ namespace MvcBB.Shared.Interfaces
 
         /// <summary>Marks every Queued/Sending email as Interrupted - run at API startup, since nothing can still be sending them. Returns how many were changed.</summary>
         int MarkUnfinishedInterrupted();
+
+        /// <summary>Records one member an email couldn't be sent to, and why. FailedAt defaults to now when not set.</summary>
+        void AddFailure(AdminEmailFailure failure);
+
+        /// <summary>The members an email couldn't be sent to, oldest first (by FailedAt, then Id).</summary>
+        IReadOnlyList<AdminEmailFailure> GetFailures(int adminEmailId);
+
+        /// <summary>Records that an email reached one member, so resuming it skips them. Recording the same member twice is ignored.</summary>
+        void AddDelivery(int adminEmailId, int userId, DateTime sentAt);
+
+        /// <summary>The user ids an email has already reached.</summary>
+        IReadOnlyList<int> GetDeliveredUserIds(int adminEmailId);
 
         bool IsOptedOut(int userId);
         void SetOptedOut(int userId, bool optedOut);

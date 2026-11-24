@@ -4,6 +4,8 @@
     ViewData["Title"] = "Sent email";
     Layout = "_AdminLayout";
     var recipientUsername = ViewData["RecipientUsername"] as string;
+    var failures = ViewData["Failures"] as List<AdminEmailFailure> ?? new List<AdminEmailFailure>();
+    var resumeCount = ViewData["ResumeCount"] as int? ?? 0;
     var finished = AdminEmailDisplay.IsFinished(Model.Status);
     var percent = Model.RecipientCount == 0 ? 0 : (int)Math.Round(100.0 * (Model.SentCount + Model.FailedCount) / Model.RecipientCount);
 }
@@ -40,17 +42,39 @@
             </div>
         </div>
 
+        @if (Model.Status == AdminEmailStatus.Sending && Model.PausedUntil.HasValue)
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-hourglass-split"></i>
+                Waiting for the hourly or daily sending limit. Sending resumes at @(await Html.FormatDateTimeAsync(Model.PausedUntil.Value)).
+            </div>
+        }
+
         @if (Model.Status == AdminEmailStatus.Interrupted)
         {
             <div class="alert alert-warning">
-                Sending stopped part way because the site restarted. It isn't restarted automatically, so members who
-                already got it aren't emailed twice. Send a new email if the rest still need it.
+                Sending stopped part way because the site restarted. It isn't resumed automatically.
+                @if (resumeCount > 0)
+                {
+                    @:Resuming sends it only to the @resumeCount member(s) who haven't had it yet.
+                    <form asp-action="Resume" asp-route-id="@Model.Id" method="post" class="mt-2"
+                          onsubmit="return confirm('This will send the email to the @resumeCount member(s) who have not had it yet. Continue?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="bi bi-play-fill"></i> Resume sending
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    @:Everyone it's for has already had it.
+                }
             </div>
         }
         else if (Model.Status == AdminEmailStatus.CompletedWithErrors)
         {
             <div class="alert alert-warning">
-                Some emails couldn't be sent. The API log has the reason for each one.
+                Some emails couldn't be sent. The members it failed for are listed below.
             </div>
         }
 
@@ -88,9 +112,39 @@
         </dl>
 
         <hr />
-        <div class="text-preserve-lines text-break">@Model.Body</div>
+        <div class="text-preserve-whitespace text-break">@Model.Body</div>
     </div>
 </div>
+
+@if (failures.Count > 0)
+{
+    <div class="card mb-4">
+        <div class="card-header">Failed recipients (@failures.Count)</div>
+        <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Member</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Reason</th>
+                        <th scope="col">Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var failure in failures)
+                    {
+                        <tr>
+                            <td><a asp-controller="Account" asp-action="ManageUser" asp-route-id="@failure.UserId">@failure.Username</a></td>
+                            <td class="text-break">@failure.Email</td>
+                            <td class="text-break">@failure.Reason</td>
+                            <td class="text-nowrap"><small>@(await Html.FormatDateTimeAsync(failure.FailedAt))</small></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
 
 @section Scripts {
     @if (!finished)

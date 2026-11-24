@@ -8,7 +8,8 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT ThreadsPerPage, SiteTitle, WelcomeMessage, SiteName, LogoPath, FooterDisclaimer, RegistrationEnabled, DateFormat, TimeFormat, TimeZoneId
+    SELECT ThreadsPerPage, SiteTitle, WelcomeMessage, SiteName, LogoPath, FooterDisclaimer, RegistrationEnabled, DateFormat, TimeFormat, TimeZoneId,
+           MaxEmailsPerHour, MaxEmailsPerDay
     FROM dbo.DisplaySettings
     WHERE Id = 1;
 END;

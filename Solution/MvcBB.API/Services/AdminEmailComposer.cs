@@ -62,6 +62,34 @@ namespace MvcBB.API.Services
             return $"{personalised}\n\n--\n{BuildFooter(siteName, profileUrl, isImportant)}";
         }
 
+        /// <summary>Longest failure reason kept (AdminEmailFailures.Reason / admin_email_failures.reason).</summary>
+        public const int MaxFailureReasonLength = 1000;
+
+        /// <summary>
+        /// Why sending to one member failed, as shown on the details page: the
+        /// innermost exception's message (wrappers like "One or more errors
+        /// occurred" say little), trimmed and cut to MaxFailureReasonLength.
+        /// </summary>
+        public static string FailureReason(Exception error)
+        {
+            var reason = string.Empty;
+            for (var current = error; current != null; current = current.InnerException)
+            {
+                if (!string.IsNullOrWhiteSpace(current.Message))
+                {
+                    reason = current.Message;
+                }
+            }
+
+            reason = reason.Trim();
+            if (reason.Length == 0)
+            {
+                reason = error.GetType().Name;
+            }
+
+            return reason.Length > MaxFailureReasonLength ? reason[..MaxFailureReasonLength] : reason;
+        }
+
         /// <summary>The ready-to-send message for one member.</summary>
         public static EmailMessage BuildMessage(AdminEmail email, AdminEmailRecipient recipient, string siteName, string profileUrl) => new()
         {
@@ -71,7 +99,8 @@ namespace MvcBB.API.Services
             FromAddress = email.FromAddress,
             FromName = email.FromName,
             ReplyToAddress = email.ReplyToAddress,
-            ReplyToName = string.IsNullOrEmpty(email.ReplyToAddress) ? null : email.SentByUsername
+            ReplyToName = string.IsNullOrEmpty(email.ReplyToAddress) ? null : email.SentByUsername,
+            Kind = EmailKind.AdminEmail
         };
 
         /// <summary>Splits recipients into batches of at most batchSize (minimum 1).</summary>

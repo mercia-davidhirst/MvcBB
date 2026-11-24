@@ -25,5 +25,20 @@ namespace MvcBB.API.Services
 
         /// <summary>The pause between batches, so a large send doesn't trip the relay's rate limits. 0 = no pause.</summary>
         public int BatchDelaySeconds { get; set; } = 30;
+
+        /// <summary>
+        /// The most emails the API may send in any rolling hour, for hosts that
+        /// cap it (e.g. 250 an hour). Counts every email the API sends, not just
+        /// admin emails. Admin emails wait when they'd go over it; other emails
+        /// (password resets etc.) are never held up. 0 = no limit. Only used
+        /// when Admin &gt; Settings leaves its own hourly limit at 0.
+        /// </summary>
+        public int MaxPerHour { get; set; }
+
+        /// <summary>The same as MaxPerHour for any rolling 24 hours. 0 = no limit.</summary>
+        public int MaxPerDay { get; set; }
+
+        /// <summary>How many days the email send log (the Sending activity chart) keeps. At least 1.</summary>
+        public int SendLogRetentionDays { get; set; } = 30;
     }
 }

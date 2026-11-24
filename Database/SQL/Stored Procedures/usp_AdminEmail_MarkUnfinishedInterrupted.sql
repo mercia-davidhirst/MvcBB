@@ -12,7 +12,8 @@ BEGIN
 
     UPDATE dbo.AdminEmails
     SET Status = 4,
-        CompletedAt = SYSUTCDATETIME()
+        CompletedAt = SYSUTCDATETIME(),
+        PausedUntil = NULL
     WHERE Status IN (0, 1);
 
     SELECT @@ROWCOUNT;

@@ -1,12 +1,14 @@
 -- Matches IThreadSubscriptionRepository.Add(ThreadSubscriptionModel subscription)
+-- No parameter defaults: PostgreSQL won't accept OUT p_id after parameters
+-- with defaults, so callers pass every argument (NULL for p_id).
 
 DROP PROCEDURE IF EXISTS public.sp_thread_subscription_insert(integer, integer, boolean, boolean);
 
 CREATE PROCEDURE public.sp_thread_subscription_insert(
     p_thread_id INTEGER,
     p_user_id INTEGER,
-    p_notify_via_message BOOLEAN DEFAULT TRUE,
-    p_notify_via_email BOOLEAN DEFAULT FALSE,
+    p_notify_via_message BOOLEAN,
+    p_notify_via_email BOOLEAN,
     OUT p_id INTEGER
 )
 LANGUAGE plpgsql

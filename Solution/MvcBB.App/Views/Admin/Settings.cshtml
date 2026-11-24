@@ -121,6 +121,28 @@
                 <small class="form-text text-muted">Every date and time on the site is shown in this time zone, including daylight saving changes. Times are always stored in UTC, so changing this only changes how they're displayed. Announcement start/end dates and account lock times are entered in this zone too.</small>
             </div>
 
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label asp-for="MaxEmailsPerHour" class="form-label"></label>
+                    <input asp-for="MaxEmailsPerHour" class="form-control" type="number" min="0" />
+                    <span asp-validation-for="MaxEmailsPerHour" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="MaxEmailsPerDay" class="form-label"></label>
+                    <input asp-for="MaxEmailsPerDay" class="form-control" type="number" min="0" />
+                    <span asp-validation-for="MaxEmailsPerDay" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <small class="form-text text-muted">
+                        If your host only lets the site send so many emails an hour or a day (e.g. 250 an hour), enter the
+                        limits a little below theirs. Every email the site sends counts, but only emails from Email Users
+                        wait for them, and some of each limit is kept back for password resets and other site emails.
+                        0 uses the API's <code>AdminEmail:MaxPerHour</code> / <code>MaxPerDay</code> setting (normally no limit).
+                        <a asp-controller="AdminEmails" asp-action="Activity">See sending activity</a>.
+                    </small>
+                </div>
+            </div>
+
             <div class="mb-3">
                 <button type="submit" class="btn btn-primary">Save settings</button>
             </div>

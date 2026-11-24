@@ -1,0 +1,72 @@
+@using MvcBB.Shared.Models.AdminEmail
+@model EmailSendUsage
+@*
+    Emails sent recently against the host's sending limits. Used on Sending
+    activity, the Confirm step and (compact: the last hour only) the admin
+    Dashboard.
+*@
+@{
+    var compact = ViewData["Compact"] as bool? ?? false;
+
+    static (int Percent, string Css) Fill(int used, int limit)
+    {
+        var percent = limit <= 0 ? 0 : (int)Math.Min(100, Math.Round(100.0 * used / limit));
+        var css = used >= limit ? "bg-danger" : percent > 75 ? "bg-warning" : "bg-success";
+        return (percent, css);
+    }
+}
+
+@if (!Model.HasLimits)
+{
+    <p class="small mb-0">
+        Last 60 minutes: <strong>@Model.SentLastHour</strong> email(s) sent@(compact ? "." : $", last 24 hours: {Model.SentLast24Hours}.")
+        @if (!compact)
+        {
+            <br /><span class="text-muted">No host sending limit is set. If your host caps how many emails the site may send, enter it in
+            <a asp-controller="Admin" asp-action="Settings">Settings</a>.</span>
+        }
+    </p>
+}
+else
+{
+    @if (Model.LimitPerHour > 0)
+    {
+        var (percent, css) = Fill(Model.SentLastHour, Model.LimitPerHour);
+        <div class="small d-flex justify-content-between mb-1">
+            <span>Last 60 minutes: <strong>@Model.SentLastHour</strong> of @Model.LimitPerHour used</span>
+            <span class="text-muted">@percent%</span>
+        </div>
+        <div class="progress mb-2" style="height: .6rem;">
+            <div class="progress-bar @css" role="progressbar" style="width: @percent%" aria-label="Emails sent in the last 60 minutes"
+                 aria-valuenow="@Model.SentLastHour" aria-valuemin="0" aria-valuemax="@Model.LimitPerHour"></div>
+        </div>
+    }
+    @if (Model.LimitPerDay > 0 && (!compact || Model.LimitPerHour == 0))
+    {
+        var (percent, css) = Fill(Model.SentLast24Hours, Model.LimitPerDay);
+        <div class="small d-flex justify-content-between mb-1">
+            <span>Last 24 hours: <strong>@Model.SentLast24Hours</strong> of @Model.LimitPerDay used</span>
+            <span class="text-muted">@percent%</span>
+        </div>
+        <div class="progress mb-2" style="height: .6rem;">
+            <div class="progress-bar @css" role="progressbar" style="width: @percent%" aria-label="Emails sent in the last 24 hours"
+                 aria-valuenow="@Model.SentLast24Hours" aria-valuemin="0" aria-valuemax="@Model.LimitPerDay"></div>
+        </div>
+    }
+    @if (!compact)
+    {
+        <p class="small mb-0">
+            @if (Model.AdminAllowanceNow > 0)
+            {
+                @:Emails from Email Users could send <strong>@Model.AdminAllowanceNow</strong> more right now.
+            }
+            else if (Model.NextFreeAtUtc.HasValue)
+            {
+                @:Emails from Email Users are at the limit. The next free slot is at <strong>@(await Html.FormatDateTimeAsync(Model.NextFreeAtUtc.Value))</strong>.
+            }
+            <span class="text-muted">
+                @(Model.ReservePerHour > 0 || Model.ReservePerDay > 0 ? "Part of each limit is kept back for password resets and other site emails." : "")
+            </span>
+        </p>
+    }
+}

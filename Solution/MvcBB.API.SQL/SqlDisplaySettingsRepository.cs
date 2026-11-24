@@ -39,7 +39,9 @@ namespace MvcBB.API.SQL
                 settings.RegistrationEnabled,
                 settings.DateFormat,
                 settings.TimeFormat,
-                settings.TimeZoneId
+                settings.TimeZoneId,
+                settings.MaxEmailsPerHour,
+                settings.MaxEmailsPerDay
             }, commandType: CommandType.StoredProcedure);
         }
     }

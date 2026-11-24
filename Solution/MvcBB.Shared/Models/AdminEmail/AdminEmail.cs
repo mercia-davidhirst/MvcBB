@@ -45,5 +45,12 @@ namespace MvcBB.Shared.Models.AdminEmail
         public int RecipientCount { get; set; }
         public int SentCount { get; set; }
         public int FailedCount { get; set; }
+
+        /// <summary>
+        /// While Sending: set when sending is waiting for AdminEmail:MaxPerHour /
+        /// MaxPerDay to allow more, to when it expects to carry on (UTC). Null
+        /// otherwise.
+        /// </summary>
+        public DateTime? PausedUntil { get; set; }
     }
 }

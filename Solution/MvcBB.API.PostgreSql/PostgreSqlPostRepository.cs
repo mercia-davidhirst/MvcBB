@@ -56,7 +56,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             var newId = connection.QuerySingle<int>(
-                "CALL public.sp_post_insert(@Content, @ThreadId, @CreatedByUserId, @QuotedPostId, @ImageUrl)",
+                "CALL public.sp_post_insert(@Content, @ThreadId, @CreatedByUserId, @QuotedPostId, @ImageUrl, NULL)",
                 new
                 {
                     post.Content,

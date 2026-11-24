@@ -13,7 +13,9 @@ CREATE PROCEDURE dbo.usp_DisplaySettings_Update
     @RegistrationEnabled BIT,
     @DateFormat NVARCHAR(20),
     @TimeFormat NVARCHAR(20),
-    @TimeZoneId NVARCHAR(100) = N''
+    @TimeZoneId NVARCHAR(100) = N'',
+    @MaxEmailsPerHour INT = 0,
+    @MaxEmailsPerDay INT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -28,7 +30,9 @@ BEGIN
         RegistrationEnabled = @RegistrationEnabled,
         DateFormat = @DateFormat,
         TimeFormat = @TimeFormat,
-        TimeZoneId = ISNULL(@TimeZoneId, N'')
+        TimeZoneId = ISNULL(@TimeZoneId, N''),
+        MaxEmailsPerHour = ISNULL(@MaxEmailsPerHour, 0),
+        MaxEmailsPerDay = ISNULL(@MaxEmailsPerDay, 0)
     WHERE Id = 1;
 END;
 GO

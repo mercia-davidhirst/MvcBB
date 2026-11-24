@@ -1,4 +1,6 @@
 -- Matches IForumThreadRepository.Add(ForumThread thread)
+-- No parameter defaults: PostgreSQL won't accept OUT p_id after parameters
+-- with defaults, so callers pass every argument (NULL for p_id).
 
 DROP PROCEDURE IF EXISTS public.sp_thread_insert(varchar, integer, integer, boolean, boolean, integer, integer, timestamptz, integer);
 DROP PROCEDURE IF EXISTS public.sp_thread_insert(varchar, integer, integer, boolean, boolean, integer, integer, integer, timestamptz, integer);
@@ -10,13 +12,13 @@ CREATE PROCEDURE public.sp_thread_insert(
     p_title VARCHAR(200),
     p_board_id INTEGER,
     p_created_by_user_id INTEGER,
-    p_is_sticky BOOLEAN DEFAULT FALSE,
-    p_is_locked BOOLEAN DEFAULT FALSE,
-    p_view_count INTEGER DEFAULT 0,
-    p_post_count INTEGER DEFAULT 0,
-    p_participant_count INTEGER DEFAULT 0,
-    p_last_post_at TIMESTAMPTZ DEFAULT NULL,
-    p_last_post_by_user_id INTEGER DEFAULT NULL,
+    p_is_sticky BOOLEAN,
+    p_is_locked BOOLEAN,
+    p_view_count INTEGER,
+    p_post_count INTEGER,
+    p_participant_count INTEGER,
+    p_last_post_at TIMESTAMPTZ,
+    p_last_post_by_user_id INTEGER,
     OUT p_id INTEGER
 )
 LANGUAGE plpgsql

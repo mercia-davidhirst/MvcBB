@@ -39,13 +39,16 @@ namespace MvcBB.API.PostgreSql
         public User? GetByUsername(string username)
         {
             using var connection = _connectionFactory.CreateConnection();
-            return connection.QuerySingleOrDefault<User>($"SELECT {SelectColumns} FROM public.fn_user_get_by_username(@Username)", new { Username = username });
+            // ::citext on every username/email argument: Npgsql sends strings as
+            // text, and PostgreSQL won't cast text to citext when picking a
+            // function, so without it these calls fail with "function does not exist".
+            return connection.QuerySingleOrDefault<User>($"SELECT {SelectColumns} FROM public.fn_user_get_by_username(@Username::citext)", new { Username = username });
         }
 
         public User? GetByEmail(string email)
         {
             using var connection = _connectionFactory.CreateConnection();
-            return connection.QuerySingleOrDefault<User>($"SELECT {SelectColumns} FROM public.fn_user_get_by_email(@Email)", new { Email = email });
+            return connection.QuerySingleOrDefault<User>($"SELECT {SelectColumns} FROM public.fn_user_get_by_email(@Email::citext)", new { Email = email });
         }
 
         public User Add(User user)
@@ -99,25 +102,25 @@ namespace MvcBB.API.PostgreSql
         public bool ExistsWithUsername(string username, int? excludeUserId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
-            return connection.QuerySingle<bool>("SELECT public.fn_user_exists_with_username(@Username, @ExcludeUserId)", new { Username = username, ExcludeUserId = excludeUserId });
+            return connection.QuerySingle<bool>("SELECT public.fn_user_exists_with_username(@Username::citext, @ExcludeUserId)", new { Username = username, ExcludeUserId = excludeUserId });
         }
 
         public bool ExistsWithEmail(string email, int? excludeUserId = null)
         {
             using var connection = _connectionFactory.CreateConnection();
-            return connection.QuerySingle<bool>("SELECT public.fn_user_exists_with_email(@Email, @ExcludeUserId)", new { Email = email, ExcludeUserId = excludeUserId });
+            return connection.QuerySingle<bool>("SELECT public.fn_user_exists_with_email(@Email::citext, @ExcludeUserId)", new { Email = email, ExcludeUserId = excludeUserId });
         }
 
         public int CountPostsByUsername(string username)
         {
             using var connection = _connectionFactory.CreateConnection();
-            return connection.QuerySingle<int>("SELECT public.fn_user_count_posts_by_username(@Username)", new { Username = username });
+            return connection.QuerySingle<int>("SELECT public.fn_user_count_posts_by_username(@Username::citext)", new { Username = username });
         }
 
         public int CountThreadsByUsername(string username)
         {
             using var connection = _connectionFactory.CreateConnection();
-            return connection.QuerySingle<int>("SELECT public.fn_user_count_threads_by_username(@Username)", new { Username = username });
+            return connection.QuerySingle<int>("SELECT public.fn_user_count_threads_by_username(@Username::citext)", new { Username = username });
         }
 
         public IReadOnlyDictionary<int, User> GetByIds(IEnumerable<int> ids)

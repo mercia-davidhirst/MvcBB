@@ -108,7 +108,10 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to check for database '$Database' (exit code $LASTEXITCODE)"
         }
-        if ($exists -notmatch "1") {
+        # "$exists" rather than $exists: when the database doesn't exist psql
+        # prints nothing, and -notmatch on that empty result is an empty
+        # array (false), which skipped the CREATE.
+        if ("$exists".Trim() -ne "1") {
             & psql -h $HostName -p $Port -U $Username -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE `"$Database`";"
             if ($LASTEXITCODE -ne 0) {
                 throw "Failed to create database '$Database' (exit code $LASTEXITCODE)"
@@ -135,7 +138,8 @@ try {
     Write-Host "`n2) Helper functions required by the view (fn_role_name, fn_report_content_exists)"
     $helperFunctions = @("fn_role_name.sql", "fn_report_content_exists.sql")
     foreach ($name in $helperFunctions) {
-        Invoke-SqlFile -Path (Join-Path $root "Functions" $name) -TargetDatabase $Database
+        # Nested Join-Path: Windows PowerShell 5.1 only takes two parts.
+        Invoke-SqlFile -Path (Join-Path (Join-Path $root "Functions") $name) -TargetDatabase $Database
     }
 
     Write-Host "`n3) Views"
