@@ -56,6 +56,58 @@ namespace MvcBB.App.Services
             return JsonSerializer.Deserialize<IEnumerable<UserResponse>>(content, _jsonOptions) ?? Array.Empty<UserResponse>();
         }
 
+        // Same query string as GetMembersAsync, but against the admin-only
+        // endpoint (signed-in admin's own token) so the admin fields come back.
+        public async Task<MemberResponse> GetMembersForAdminAsync(MemberRequest request)
+        {
+            var token = GetCurrentUserToken();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var queryParams = new List<string>
+            {
+                $"page={request.Page}",
+                $"pageSize={request.PageSize}",
+                $"sortDirection={request.SortDirection}"
+            };
+
+            if (!string.IsNullOrEmpty(request.Search))
+            {
+                queryParams.Add($"search={Uri.EscapeDataString(request.Search)}");
+            }
+
+            if (request.Role.HasValue)
+            {
+                queryParams.Add($"role={request.Role.Value}");
+            }
+
+            if (!string.IsNullOrEmpty(request.SortBy))
+            {
+                queryParams.Add($"sortBy={Uri.EscapeDataString(request.SortBy)}");
+            }
+
+            var response = await _httpClient.GetAsync($"api/users/admin/members?{string.Join("&", queryParams)}");
+            response.EnsureSuccessOrSessionExpired();
+
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<MemberResponse>(content, _jsonOptions) ?? new MemberResponse();
+        }
+
+        public async Task<UserResponse?> GetUserForAdminAsync(int userId)
+        {
+            var token = GetCurrentUserToken();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _httpClient.GetAsync($"api/users/admin/{userId}");
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            response.EnsureSuccessOrSessionExpired();
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<UserResponse>(content, _jsonOptions);
+        }
+
         public async Task<UserStatsResponse> GetUserStatsAsync(int activeSinceDays = 7)
         {
             var token = await GetTokenAsync();
@@ -420,4 +472,4 @@ namespace MvcBB.App.Services
             response.EnsureSuccessStatusCode();
         }
     }
-} 
+} 

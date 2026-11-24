@@ -22,5 +22,17 @@ namespace MvcBB.API.Services
             _logger.LogInformation("Email to {ToEmail}: {Subject}\n{Body}", toEmail, subject, body);
             return Task.CompletedTask;
         }
+
+        public Task SendAsync(EmailMessage message)
+        {
+            _logger.LogInformation(
+                "Email to {ToEmail} from {From} (reply-to {ReplyTo}): {Subject}\n{Body}",
+                message.To,
+                message.FromAddress ?? "the default sender",
+                message.ReplyToAddress ?? "none",
+                message.Subject,
+                message.Body);
+            return Task.CompletedTask;
+        }
     }
 }

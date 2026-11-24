@@ -35,5 +35,12 @@ namespace MvcBB.Shared.Models.User
 
         /// <summary>Most recent login IP address. Only populated in the admin user list.</summary>
         public string? LastLoginIp { get; set; }
+
+        /// <summary>
+        /// Whether they get emails admins send from the admin panel (false =
+        /// opted out). Only populated on the member's own profile and the admin
+        /// per-user page; null everywhere else.
+        /// </summary>
+        public bool? AllowAdminEmails { get; set; }
     }
 }

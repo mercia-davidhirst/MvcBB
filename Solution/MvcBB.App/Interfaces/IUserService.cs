@@ -8,6 +8,12 @@ namespace MvcBB.App.Interfaces
         Task<IEnumerable<UserResponse>> GetUsersAsync();
         Task<IEnumerable<UserResponse>> GetUsersForAdminAsync();
 
+        /// <summary>Admin-only. One page of users (search, role filter, sort) including email, lock status and last IP.</summary>
+        Task<MemberResponse> GetMembersForAdminAsync(MemberRequest request);
+
+        /// <summary>Admin-only. A single user including email, lock status and last IP, or null if not found.</summary>
+        Task<UserResponse?> GetUserForAdminAsync(int userId);
+
         /// <summary>Total member count and how many have logged in within the last activeSinceDays days - for the homepage statistics panel.</summary>
         Task<UserStatsResponse> GetUserStatsAsync(int activeSinceDays = 7);
         Task<UserResponse> GetUserProfileAsync();
@@ -46,4 +52,4 @@ namespace MvcBB.App.Interfaces
         /// <summary>Admin-only. Creates a user directly (no CAPTCHA, no auto sign-in, not subject to the registration-enabled toggle).</summary>
         Task<UserResponse> AdminCreateUserAsync(AdminCreateUserRequest request);
     }
-} 
+} 

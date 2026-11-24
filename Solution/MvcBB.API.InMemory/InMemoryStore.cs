@@ -1,3 +1,4 @@
+using MvcBB.Shared.Models.AdminEmail;
 using MvcBB.Shared.Models.Announcement;
 using MvcBB.Shared.Models.BBCode;
 using MvcBB.Shared.Models.Board;
@@ -40,6 +41,10 @@ namespace MvcBB.API.InMemory
         public DisplaySettings DisplaySettings { get; set; } = new();
         public PasswordPolicy PasswordPolicy { get; set; } = new();
         public List<ModRecord> Mods { get; } = new();
+        public List<AdminEmail> AdminEmails { get; } = new();
+
+        /// <summary>User ids of members who opted out of admin emails.</summary>
+        public HashSet<int> AdminEmailOptOuts { get; } = new();
 
         public InMemoryStore()
         {

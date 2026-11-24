@@ -1,0 +1,115 @@
+@using MvcBB.Shared.Models.AdminEmail
+@model AdminEmailComposeViewModel
+@{
+    ViewData["Title"] = "Check and send";
+    Layout = "_AdminLayout";
+    var preview = Model.Preview!;
+    var audienceText = Model.Audience switch
+    {
+        AdminEmailAudience.Role => $"members with the {Model.Role} role",
+        AdminEmailAudience.SingleUser => preview.SingleUserName ?? Model.Username ?? "one member",
+        _ => "all members"
+    };
+}
+
+@if (preview.RecipientCount == 0)
+{
+    <div class="alert alert-warning">
+        @if (preview.OptedOutCount > 0)
+        {
+            @:Nobody would receive this: everyone in that audience has turned off emails from the forum team.
+            @:Go back and tick "Important service alert" only if they really need to know.
+        }
+        else
+        {
+            @:Nobody would receive this: there are no members with an email address in that audience.
+        }
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        This will be sent to <strong>@preview.RecipientCount</strong> member(s): @audienceText.
+        @if (preview.OptedOutCount > 0)
+        {
+            @:<br />@preview.OptedOutCount member(s) in that audience turned off emails from the forum team and won't get it.
+        }
+        @if (Model.IsImportant)
+        {
+            @:<br />Marked as an important service alert, so it also goes to members who turned these emails off.
+        }
+    </div>
+}
+
+<div class="card mb-4">
+    <div class="card-header">Email</div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-2">From</dt>
+            <dd class="col-sm-10 text-break">@preview.From</dd>
+
+            @if (!string.IsNullOrEmpty(preview.ReplyTo))
+            {
+                <dt class="col-sm-2">Reply-To</dt>
+                <dd class="col-sm-10 text-break">@preview.ReplyTo</dd>
+            }
+
+            <dt class="col-sm-2">Subject</dt>
+            <dd class="col-sm-10 text-break">@Model.Subject</dd>
+        </dl>
+
+        @if (preview.AdminAddressMovedToReplyTo)
+        {
+            <p class="small text-muted mt-2 mb-0">
+                <i class="bi bi-info-circle"></i>
+                Sent from the site's address with your name on it, and replies go to you. Mail servers usually reject
+                or junk mail that claims to be from an address the site's mail server isn't allowed to send for
+                (SPF/DKIM checks). Your host can switch this with the <code>AdminEmail:AllowAdminFromAddress</code>
+                setting once the mail server is set up for your address.
+            </p>
+        }
+
+        <hr />
+        <div class="text-preserve-lines text-break">@Model.Body</div>
+        <hr />
+        <div class="small text-muted text-preserve-lines">@preview.Footer</div>
+    </div>
+</div>
+
+<form method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Audience" />
+    <input type="hidden" asp-for="Role" />
+    <input type="hidden" asp-for="Username" />
+    <input type="hidden" asp-for="SenderMode" />
+    <input type="hidden" asp-for="Subject" />
+    <input type="hidden" asp-for="Body" />
+    <input type="hidden" asp-for="IsImportant" />
+
+    <div class="d-flex flex-wrap gap-2">
+        @if (preview.RecipientCount > 0)
+        {
+            <button type="submit" class="btn btn-primary" asp-action="Send" id="sendButton">
+                <i class="bi bi-send"></i> Send to @preview.RecipientCount member(s)
+            </button>
+        }
+        <button type="submit" class="btn btn-outline-secondary" asp-action="Edit" formnovalidate>
+            <i class="bi bi-pencil"></i> Back to edit
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        // One click, one email: stop a double-click queuing it twice.
+        (function () {
+            var button = document.getElementById('sendButton');
+            if (!button) return;
+            button.form.addEventListener('submit', function (e) {
+                if (e.submitter === button) {
+                    setTimeout(function () { button.disabled = true; }, 0);
+                }
+            });
+        })();
+    </script>
+}

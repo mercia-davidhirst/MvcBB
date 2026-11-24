@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Exceptions;
 using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
+using MvcBB.App.Models;
+using MvcBB.Shared.Models.Common;
+using MvcBB.Shared.Models.Member;
 using MvcBB.Shared.Models.User;
 using MvcBB.Shared.Services;
 using System.Security.Claims;
@@ -374,12 +377,33 @@ namespace MvcBB.App.Controllers
         }
 
         [Authorize(Policy = "ManageUsers")]
-        public async Task<IActionResult> Users()
+        public async Task<IActionResult> Users(string? search = null, UserRole? role = null,
+            string? sortBy = null, SortDirection sortDirection = SortDirection.Ascending, int page = 1)
         {
             try
             {
-                var users = await _userService.GetUsersForAdminAsync();
-                return View(users);
+                var response = await _userService.GetMembersForAdminAsync(new MemberRequest
+                {
+                    Search = search?.Trim() ?? string.Empty,
+                    Role = role,
+                    SortBy = sortBy ?? string.Empty,
+                    SortDirection = sortDirection,
+                    Page = Math.Max(1, page),
+                    PageSize = AdminUsersViewModel.DefaultPageSize
+                });
+
+                return View(new AdminUsersViewModel
+                {
+                    Search = search,
+                    Role = role,
+                    SortBy = sortBy,
+                    SortDirection = sortDirection,
+                    Page = response.Page,
+                    PageSize = response.PageSize,
+                    TotalUsers = response.TotalMembers,
+                    TotalPages = response.TotalPages,
+                    Users = response.Members
+                });
             }
             catch (SessionExpiredException)
             {
@@ -392,15 +416,58 @@ namespace MvcBB.App.Controllers
             }
         }
 
+        // The per-user admin page: every detail and action for one user, so
+        // the list itself can stay a narrow table with no action column.
+        [Authorize(Policy = "ManageUsers")]
+        public async Task<IActionResult> ManageUser(int id, string? returnUrl = null)
+        {
+            try
+            {
+                var user = await _userService.GetUserForAdminAsync(id);
+                if (user == null)
+                {
+                    TempData["Error"] = "User not found.";
+                    return RedirectToUserList(returnUrl);
+                }
+
+                ViewData["ReturnUrl"] = Url.IsLocalUrl(returnUrl) ? returnUrl : null;
+                return View(user);
+            }
+            catch (SessionExpiredException)
+            {
+                return await this.RedirectToSessionExpired();
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Failed to load the user. Please try again later.";
+                return RedirectToUserList(returnUrl);
+            }
+        }
+
+        // Admin actions are posted from the per-user page, so land back there
+        // (keeping the list's search/page for its "Back to users" link).
+        private IActionResult RedirectToManageUser(int userId, string? returnUrl)
+        {
+            if (userId <= 0)
+            {
+                return RedirectToUserList(returnUrl);
+            }
+
+            return RedirectToAction(nameof(ManageUser), new { id = userId, returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
+        }
+
+        private IActionResult RedirectToUserList(string? returnUrl) =>
+            Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl!) : RedirectToAction(nameof(Users));
+
         [HttpPost]
         [Authorize(Policy = "ManageUsers")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateUserRole([FromForm] UpdateUserRoleRequest request)
+        public async Task<IActionResult> UpdateUserRole([FromForm] UpdateUserRoleRequest request, string? returnUrl = null)
         {
             if (!ModelState.IsValid)
             {
                 TempData["Error"] = "Invalid request data.";
-                return RedirectToAction(nameof(Users));
+                return RedirectToManageUser(request.UserId, returnUrl);
             }
 
             try
@@ -412,21 +479,21 @@ namespace MvcBB.App.Controllers
                 if (string.IsNullOrEmpty(currentUserRole))
                 {
                     TempData["Error"] = "Current user role could not be determined.";
-                    return RedirectToAction(nameof(Users));
+                    return RedirectToManageUser(request.UserId, returnUrl);
                 }
 
                 // Parse the current user's role
                 if (!Enum.TryParse<UserRole>(currentUserRole, out var currentRole))
                 {
                     TempData["Error"] = "Invalid current user role.";
-                    return RedirectToAction(nameof(Users));
+                    return RedirectToManageUser(request.UserId, returnUrl);
                 }
 
                 // Prevent role elevation to a higher level than the current user
                 if ((int)request.NewRole > (int)currentRole)
                 {
                     TempData["Error"] = "Cannot set a role higher than your own role level.";
-                    return RedirectToAction(nameof(Users));
+                    return RedirectToManageUser(request.UserId, returnUrl);
                 }
 
                 // Get the target user to verify they exist and get their current role
@@ -434,20 +501,20 @@ namespace MvcBB.App.Controllers
                 if (targetUser == null)
                 {
                     TempData["Error"] = "User not found.";
-                    return RedirectToAction(nameof(Users));
+                    return RedirectToManageUser(request.UserId, returnUrl);
                 }
 
                 // Prevent modifying users with higher roles
                 if (!Enum.TryParse<UserRole>(targetUser.RoleName, out var targetRole))
                 {
                     TempData["Error"] = "Invalid target user role.";
-                    return RedirectToAction(nameof(Users));
+                    return RedirectToManageUser(request.UserId, returnUrl);
                 }
 
                 if ((int)targetRole > (int)currentRole)
                 {
                     TempData["Error"] = "Cannot modify users with higher role levels.";
-                    return RedirectToAction(nameof(Users));
+                    return RedirectToManageUser(request.UserId, returnUrl);
                 }
 
                 await _userService.UpdateUserRoleAsync(request.UserId, request.NewRole);
@@ -462,13 +529,13 @@ namespace MvcBB.App.Controllers
                 TempData["Error"] = "Failed to update user role.";
             }
 
-            return RedirectToAction(nameof(Users));
+            return RedirectToManageUser(request.UserId, returnUrl);
         }
 
         [HttpPost]
         [Authorize(Policy = "ManageUsers")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SetCustomTitle(int userId, string? customTitle)
+        public async Task<IActionResult> SetCustomTitle(int userId, string? customTitle, string? returnUrl = null)
         {
             try
             {
@@ -488,13 +555,13 @@ namespace MvcBB.App.Controllers
                 TempData["Error"] = "Failed to update custom title.";
             }
 
-            return RedirectToAction(nameof(Users));
+            return RedirectToManageUser(userId, returnUrl);
         }
 
         [HttpPost]
         [Authorize(Policy = "ManageUsers")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AnonymizeUser(int userId)
+        public async Task<IActionResult> AnonymizeUser(int userId, string? returnUrl = null)
         {
             try
             {
@@ -510,13 +577,13 @@ namespace MvcBB.App.Controllers
                 TempData["Error"] = "Failed to anonymize user.";
             }
 
-            return RedirectToAction(nameof(Users));
+            return RedirectToManageUser(userId, returnUrl);
         }
 
         [HttpPost]
         [Authorize(Policy = "ManageUsers")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RequirePasswordChange(int userId)
+        public async Task<IActionResult> RequirePasswordChange(int userId, string? returnUrl = null)
         {
             try
             {
@@ -532,13 +599,13 @@ namespace MvcBB.App.Controllers
                 TempData["Error"] = "Failed to flag the user for a password change.";
             }
 
-            return RedirectToAction(nameof(Users));
+            return RedirectToManageUser(userId, returnUrl);
         }
 
         [HttpPost]
         [Authorize(Policy = "ManageUsers")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateUserEmail(int userId, string email)
+        public async Task<IActionResult> UpdateUserEmail(int userId, string email, string? returnUrl = null)
         {
             try
             {
@@ -558,13 +625,13 @@ namespace MvcBB.App.Controllers
                 TempData["Error"] = "Failed to update email.";
             }
 
-            return RedirectToAction(nameof(Users));
+            return RedirectToManageUser(userId, returnUrl);
         }
 
         [HttpPost]
         [Authorize(Policy = "ManageUsers")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> LockUser(int userId, DateTime? lockedUntil)
+        public async Task<IActionResult> LockUser(int userId, DateTime? lockedUntil, string? returnUrl = null)
         {
             try
             {
@@ -586,7 +653,7 @@ namespace MvcBB.App.Controllers
                 TempData["Error"] = "Failed to update the account lock.";
             }
 
-            return RedirectToAction(nameof(Users));
+            return RedirectToManageUser(userId, returnUrl);
         }
 
         [Authorize(Policy = "ManageUsers")]
@@ -610,9 +677,11 @@ namespace MvcBB.App.Controllers
 
             try
             {
-                await _userService.AdminCreateUserAsync(request);
+                var created = await _userService.AdminCreateUserAsync(request);
                 TempData["Success"] = $"User \"{request.Username}\" created successfully.";
-                return RedirectToAction(nameof(Users));
+                return created != null && created.Id > 0
+                    ? RedirectToAction(nameof(ManageUser), new { id = created.Id })
+                    : RedirectToAction(nameof(Users));
             }
             catch (SessionExpiredException)
             {
@@ -751,4 +820,4 @@ namespace MvcBB.App.Controllers
             return RedirectToAction("Index", "Home");
         }
     }
-} 
+} 

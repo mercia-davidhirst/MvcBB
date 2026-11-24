@@ -199,6 +199,16 @@
                                 <label class="form-check-label" for="showEmail">Show email on my public profile</label>
                             </div>
 
+                            @* Checkbox first, hidden "false" second: the first value posted wins,
+                               so unticked still sends an explicit false (AllowAdminEmails is
+                               nullable, and null means "leave it as it is"). *@
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="AllowAdminEmails" value="true" class="form-check-input" id="allowAdminEmails" checked="@(Model.AllowAdminEmails != false)" />
+                                <input type="hidden" name="AllowAdminEmails" value="false" />
+                                <label class="form-check-label" for="allowAdminEmails">@MvcBB.Shared.Models.AdminEmail.AdminEmailText.OptOutLabel</label>
+                                <small class="form-text text-muted d-block">News and planned maintenance notices. Important service alerts are always sent.</small>
+                            </div>
+
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                         </form>
                     </div>

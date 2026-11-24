@@ -24,6 +24,9 @@ namespace MvcBB.Shared.Models.User
 
         public bool ShowEmail { get; set; }
 
+        /// <summary>Receive emails admins send from the admin panel. Null leaves the current choice unchanged.</summary>
+        public bool? AllowAdminEmails { get; set; }
+
         /// <summary>
         /// Only needed when Email changes - the API refuses an email change
         /// without the account's current password, so a hijacked session

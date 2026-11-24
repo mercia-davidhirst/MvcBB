@@ -128,6 +128,7 @@ builder.Services.AddScoped<IRankService, RankService>();
 builder.Services.AddScoped<IWordFilterService, WordFilterService>();
 builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
 builder.Services.AddScoped<IModsService, ModsService>();
+builder.Services.AddScoped<IAdminEmailService, AdminEmailService>();
 
 // Add authentication - the App authenticates browser sessions with a cookie;
 // the JWTs issued by MvcBB.API are only ever used for the App's own outbound

@@ -44,9 +44,11 @@ namespace MvcBB.Shared.Interfaces
         /// filter/sort/paginate in memory. TotalCount is the full filtered
         /// count, not just the page returned. sortBy recognizes "joined",
         /// "posts", "threads" and "username" (case-insensitive); anything
-        /// else falls back to username.
+        /// else falls back to username. With searchEmail, the search also
+        /// matches email addresses - only for admin callers, since the public
+        /// Members list must never let anyone probe who uses which address.
         /// </summary>
-        (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take);
+        (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take, bool searchEmail = false);
 
         /// <summary>
         /// Total user count and how many have logged in since activeSince -

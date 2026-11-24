@@ -84,6 +84,12 @@ else
 {
     builder.Services.AddSingleton<MvcBB.API.Services.IEmailSender, MvcBB.API.Services.LoggingEmailSender>();
 }
+// Admin emails to members: queued by AdminEmailsController, sent in throttled
+// batches in the background by AdminEmailDispatcher (see AdminEmailOptions
+// for the AdminEmail:* settings).
+builder.Services.Configure<MvcBB.API.Services.AdminEmailOptions>(builder.Configuration.GetSection(MvcBB.API.Services.AdminEmailOptions.SectionName));
+builder.Services.AddSingleton<MvcBB.API.Services.AdminEmailQueue>();
+builder.Services.AddHostedService<MvcBB.API.Services.AdminEmailDispatcher>();
 // Scoped, not Singleton: both now read/write through a repository that's
 // itself Scoped for the Sql/PostgreSql providers (a new connection per
 // request) - a Singleton can't depend on a Scoped service in ASP.NET Core's

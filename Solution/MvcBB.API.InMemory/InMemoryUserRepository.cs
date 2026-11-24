@@ -108,7 +108,7 @@ namespace MvcBB.API.InMemory
             return (filtered.Skip(skip).Take(take).ToList(), filtered.Count);
         }
 
-        public (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take)
+        public (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take, bool searchEmail = false)
         {
             var filtered = _store.Users.AsEnumerable();
 
@@ -120,7 +120,8 @@ namespace MvcBB.API.InMemory
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var s = search.ToLowerInvariant();
-                filtered = filtered.Where(u => u.Username.ToLowerInvariant().Contains(s));
+                filtered = filtered.Where(u => u.Username.ToLowerInvariant().Contains(s)
+                    || (searchEmail && (u.Email ?? string.Empty).ToLowerInvariant().Contains(s)));
             }
 
             var filteredUsers = filtered.ToList();

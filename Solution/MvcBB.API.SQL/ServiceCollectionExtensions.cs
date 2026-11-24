@@ -35,6 +35,7 @@ namespace MvcBB.API.SQL
             services.AddScoped<IDisplaySettingsRepository, SqlDisplaySettingsRepository>();
             services.AddScoped<IPasswordPolicyRepository, SqlPasswordPolicyRepository>();
             services.AddScoped<IModRepository, SqlModRepository>();
+            services.AddScoped<IAdminEmailRepository, SqlAdminEmailRepository>();
             services.AddSingleton<IDatabaseHealthCheck, SqlDatabaseHealthCheck>();
 
             return services;

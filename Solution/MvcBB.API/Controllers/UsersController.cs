@@ -26,6 +26,7 @@ namespace MvcBB.API.Controllers
         private readonly IDisplaySettingsService _displaySettingsService;
         private readonly IPasswordPolicyService _passwordPolicyService;
         private readonly JwtTokenService _jwtTokenService;
+        private readonly IAdminEmailRepository _adminEmailRepository;
 
         public UsersController(
             IConfiguration configuration,
@@ -35,7 +36,8 @@ namespace MvcBB.API.Controllers
             IRankRepository rankRepository,
             IDisplaySettingsService displaySettingsService,
             IPasswordPolicyService passwordPolicyService,
-            JwtTokenService jwtTokenService)
+            JwtTokenService jwtTokenService,
+            IAdminEmailRepository adminEmailRepository)
         {
             _configuration = configuration;
             _userRepository = userRepository;
@@ -45,6 +47,7 @@ namespace MvcBB.API.Controllers
             _displaySettingsService = displaySettingsService;
             _passwordPolicyService = passwordPolicyService;
             _jwtTokenService = jwtTokenService;
+            _adminEmailRepository = adminEmailRepository;
         }
 
         private bool TryValidatePasswordPolicy(string password, string fieldKey, out ActionResult? errorResult)
@@ -289,6 +292,56 @@ namespace MvcBB.API.Controllers
             return Ok(MapToUserResponses(users, includeEmail: true));
         }
 
+        // Paged, searchable, sortable listing for the admin User Management
+        // page - the same filtering as GetMembers below, but including the
+        // admin-only fields (email, lock status, last IP), so it's locked to
+        // real Administrators like GetUsersForAdmin above.
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("admin/members")]
+        public ActionResult<MemberResponse> GetMembersForAdmin([FromQuery] MemberRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var pageSize = Math.Max(1, request.PageSize);
+            var page = Math.Max(1, request.Page);
+
+            var (users, totalMembers) = _userRepository.GetMembersPage(
+                request.Role,
+                string.IsNullOrWhiteSpace(request.Search) ? null : request.Search,
+                request.SortBy,
+                request.SortDirection == SortDirection.Descending,
+                (page - 1) * pageSize,
+                pageSize,
+                searchEmail: true);
+
+            return Ok(new MemberResponse
+            {
+                Members = MapToUserResponses(users, includeEmail: true),
+                TotalMembers = totalMembers,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalMembers / (double)pageSize)
+            });
+        }
+
+        // A single user with the admin-only fields, for the admin per-user
+        // management page. GetById below stays public and leaves them out.
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("admin/{id:int}")]
+        public ActionResult<UserResponse> GetByIdForAdmin(int id)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            return WithAdminEmailPreference(MapToUserResponse(user, includeEmail: true));
+        }
+
         // Backs the homepage statistics panel - a couple of aggregate COUNTs
         // instead of the caller loading every user to total them up itself.
         [AllowAnonymous]
@@ -384,7 +437,7 @@ namespace MvcBB.API.Controllers
                 return NotFound(new { message = "User not found" });
             }
 
-            return MapToUserResponse(user, includeEmail: true);
+            return WithAdminEmailPreference(MapToUserResponse(user, includeEmail: true));
         }
 
         [Authorize]
@@ -437,6 +490,12 @@ namespace MvcBB.API.Controllers
             user.AvatarUrl = request.AvatarUrl;
             user.ShowEmail = request.ShowEmail;
             _userRepository.Update(user);
+
+            // Null (an older client that doesn't send it) leaves it as it is.
+            if (request.AllowAdminEmails.HasValue)
+            {
+                _adminEmailRepository.SetOptedOut(userId, !request.AllowAdminEmails.Value);
+            }
 
             return NoContent();
         }
@@ -697,6 +756,14 @@ namespace MvcBB.API.Controllers
             _userRepository.Update(user);
 
             return Ok(new { message = "User anonymized successfully" });
+        }
+
+        // Only the member themselves (profile) and admins (per-user page) see
+        // whether they get admin emails, so it's filled in only there.
+        private UserResponse WithAdminEmailPreference(UserResponse response)
+        {
+            response.AllowAdminEmails = !_adminEmailRepository.IsOptedOut(response.Id);
+            return response;
         }
 
         private UserResponse MapToUserResponse(User u, bool includeEmail = false) =>

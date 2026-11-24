@@ -212,15 +212,15 @@ namespace MvcBB.API.PostgreSql
             return (rows.ToList(), (int)totalCount);
         }
 
-        public (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take)
+        public (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take, bool searchEmail = false)
         {
             using var connection = _connectionFactory.CreateConnection();
             var totalCount = connection.ExecuteScalar<long>(
-                "SELECT public.fn_user_get_members_page_count(@Role, @Search)",
-                new { Role = (short?)role, Search = search });
+                "SELECT public.fn_user_get_members_page_count(@Role, @Search, @SearchEmail)",
+                new { Role = (short?)role, Search = search, SearchEmail = searchEmail });
             var rows = connection.Query<User>(
-                $"SELECT {SelectColumns} FROM public.fn_user_get_members_page(@Role, @Search, @SortBy, @SortDescending, @Skip, @Take)",
-                new { Role = (short?)role, Search = search, SortBy = sortBy, SortDescending = sortDescending, Skip = skip, Take = take });
+                $"SELECT {SelectColumns} FROM public.fn_user_get_members_page(@Role, @Search, @SearchEmail, @SortBy, @SortDescending, @Skip, @Take)",
+                new { Role = (short?)role, Search = search, SearchEmail = searchEmail, SortBy = sortBy, SortDescending = sortDescending, Skip = skip, Take = take });
             return (rows.ToList(), (int)totalCount);
         }
 

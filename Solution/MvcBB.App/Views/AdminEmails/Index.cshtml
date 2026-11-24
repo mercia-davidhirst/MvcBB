@@ -1,0 +1,170 @@
+@using MvcBB.Shared.Models.AdminEmail
+@model AdminEmailComposeViewModel
+@{
+    ViewData["Title"] = "Email Users";
+    Layout = "_AdminLayout";
+    var adminAddress = string.IsNullOrEmpty(Model.AdminEmailAddress) ? "your email address" : Model.AdminEmailAddress;
+}
+
+<p class="text-muted">
+    Email members about planned maintenance, news or alerts. You'll see who it goes to before anything is sent,
+    and it goes out in batches in the background.
+</p>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-action="Review" method="post" id="adminEmailForm">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label asp-for="Audience" class="form-label">To</label>
+                    <select asp-for="Audience" class="form-select">
+                        <option value="@AdminEmailAudience.AllUsers">All members</option>
+                        <option value="@AdminEmailAudience.Role">Members with a role</option>
+                        <option value="@AdminEmailAudience.SingleUser">One member</option>
+                    </select>
+                </div>
+                <div class="col-md-6" id="roleField">
+                    <label asp-for="Role" class="form-label">Role</label>
+                    <select asp-for="Role" class="form-select">
+                        <option value="">Choose a role&hellip;</option>
+                        <option value="@UserRole.User">User</option>
+                        <option value="@UserRole.Moderator">Moderator</option>
+                        <option value="@UserRole.Administrator">Administrator</option>
+                    </select>
+                    <span asp-validation-for="Role" class="text-danger"></span>
+                </div>
+                <div class="col-md-6" id="usernameField">
+                    <label asp-for="Username" class="form-label">Username</label>
+                    <input asp-for="Username" class="form-control" maxlength="50" autocomplete="off" />
+                    <span asp-validation-for="Username" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <span class="form-label d-block">From</span>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="SenderMode" id="senderAdmin" value="@AdminEmailSenderMode.Admin" />
+                    <label class="form-check-label" for="senderAdmin">Me (@adminAddress)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="SenderMode" id="senderNoReply" value="@AdminEmailSenderMode.NoReply" />
+                    <label class="form-check-label" for="senderNoReply">The site's no-reply address</label>
+                </div>
+                <small class="form-text text-muted">
+                    Replies to "Me" come to your address. The next step shows exactly what the From line will say.
+                </small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Subject" class="form-label"></label>
+                <input asp-for="Subject" class="form-control" maxlength="200" />
+                <span asp-validation-for="Subject" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Body" class="form-label"></label>
+                <textarea asp-for="Body" class="form-control" rows="10" maxlength="20000"></textarea>
+                <span asp-validation-for="Body" class="text-danger"></span>
+                <small class="form-text text-muted">
+                    Plain text. <code>{username}</code> is replaced with each member's username. A line explaining how to
+                    stop these emails is added at the end.
+                </small>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input asp-for="IsImportant" class="form-check-input" />
+                    <label asp-for="IsImportant" class="form-check-label"></label>
+                </div>
+                <small class="form-text text-muted">
+                    Also sends to members who've turned off emails from the forum team. Keep this for things they
+                    really need to know, such as downtime or a security issue.
+                </small>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-arrow-right-circle"></i> Review &amp; send
+                </button>
+                <button type="submit" class="btn btn-outline-secondary" asp-action="SendTest">
+                    <i class="bi bi-envelope-check"></i> Send a test to me
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<h2 class="h5 mb-3">Sent emails</h2>
+@if (ViewData["LogError"] is string logError)
+{
+    <div class="alert alert-warning">@logError</div>
+}
+else if (!Model.RecentEmails.Any())
+{
+    <p class="text-muted">No emails sent yet.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">Sent</th>
+                    <th scope="col">Subject</th>
+                    <th scope="col">To</th>
+                    <th scope="col">By</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="text-end">Delivered</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var email in Model.RecentEmails)
+                {
+                    <tr>
+                        <td class="text-nowrap"><small>@(await Html.FormatDateTimeAsync(email.CreatedAt))</small></td>
+                        <td class="text-break">
+                            <a asp-action="Details" asp-route-id="@email.Id">@email.Subject</a>
+                            @if (email.IsImportant)
+                            {
+                                <span class="badge bg-danger ms-1">Important</span>
+                            }
+                        </td>
+                        <td>@AdminEmailDisplay.Audience(email)</td>
+                        <td>@email.SentByUsername</td>
+                        <td><span class="badge @AdminEmailDisplay.StatusBadge(email.Status)">@AdminEmailDisplay.Status(email.Status)</span></td>
+                        <td class="text-end text-nowrap">
+                            @email.SentCount / @email.RecipientCount
+                            @if (email.FailedCount > 0)
+                            {
+                                <small class="text-danger d-block">@email.FailedCount failed</small>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Only show the Role / Username box that goes with the chosen audience.
+        (function () {
+            var audience = document.getElementById('Audience');
+            var roleField = document.getElementById('roleField');
+            var usernameField = document.getElementById('usernameField');
+
+            function update() {
+                roleField.classList.toggle('d-none', audience.value !== '@AdminEmailAudience.Role');
+                usernameField.classList.toggle('d-none', audience.value !== '@AdminEmailAudience.SingleUser');
+            }
+
+            audience.addEventListener('change', update);
+            update();
+        })();
+    </script>
+}

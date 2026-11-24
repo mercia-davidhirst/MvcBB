@@ -1,6 +1,7 @@
 -- Matches IUserRepository.GetMembersPage(UserRole? role, string? search,
 -- string? sortBy, bool sortDescending, int skip, int take) - filters by
--- role/username, sorts (including by post/thread count, via a correlated
+-- role/username (and email, when p_search_email - admin User Management
+-- only, never the public Members list), sorts (including by post/thread count, via a correlated
 -- subquery) and paginates entirely in SQL instead of the caller loading
 -- every user in the table first.
 --
@@ -9,11 +10,15 @@
 -- these CASE expressions is non-NULL for every row, so the others
 -- contribute no tie-break ordering at all.
 
+-- The first DROP removes the pre-email-search signature, so an upgraded
+-- database doesn't keep it around as a stale overload.
 DROP FUNCTION IF EXISTS public.fn_user_get_members_page(smallint, text, text, boolean, integer, integer);
+DROP FUNCTION IF EXISTS public.fn_user_get_members_page(smallint, text, boolean, text, boolean, integer, integer);
 
 CREATE FUNCTION public.fn_user_get_members_page(
     p_role SMALLINT,
     p_search TEXT,
+    p_search_email BOOLEAN,
     p_sort_by TEXT,
     p_sort_descending BOOLEAN,
     p_skip INTEGER,
@@ -27,7 +32,9 @@ AS $$
     FROM public.users AS u
     WHERE (p_role IS NULL OR u.role = p_role)
       AND (p_search IS NULL OR p_search = ''
-           OR u.username ILIKE '%' || REPLACE(REPLACE(REPLACE(p_search, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\')
+           OR u.username ILIKE '%' || REPLACE(REPLACE(REPLACE(p_search, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\'
+           OR (p_search_email
+               AND u.email ILIKE '%' || REPLACE(REPLACE(REPLACE(p_search, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\'))
     ORDER BY
         CASE WHEN LOWER(p_sort_by) = 'joined' AND NOT p_sort_descending THEN u.created_at END ASC NULLS LAST,
         CASE WHEN LOWER(p_sort_by) = 'joined' AND p_sort_descending THEN u.created_at END DESC NULLS LAST,

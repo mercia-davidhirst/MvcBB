@@ -25,7 +25,10 @@ namespace MvcBB.API.Services
             _configuration = configuration;
         }
 
-        public async Task SendAsync(string toEmail, string subject, string body)
+        public Task SendAsync(string toEmail, string subject, string body) =>
+            SendAsync(new EmailMessage { To = toEmail, Subject = subject, Body = body });
+
+        public async Task SendAsync(EmailMessage email)
         {
             var host = _configuration["Smtp:Host"]
                 ?? throw new InvalidOperationException("Smtp:Host is not configured");
@@ -37,11 +40,22 @@ namespace MvcBB.API.Services
                 ?? throw new InvalidOperationException("Smtp:FromEmail is not configured");
             var fromName = _configuration["Smtp:FromName"];
 
+            // Smtp:FromName only belongs with Smtp:FromEmail: an overridden From
+            // address without its own name is shown as the bare address.
+            var fromAddress = string.IsNullOrWhiteSpace(email.FromAddress) ? fromEmail : email.FromAddress;
+            var displayName = !string.IsNullOrWhiteSpace(email.FromName)
+                ? email.FromName
+                : string.IsNullOrWhiteSpace(email.FromAddress) ? fromName : null;
+
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(string.IsNullOrEmpty(fromName) ? fromEmail : fromName, fromEmail));
-            message.To.Add(MailboxAddress.Parse(toEmail));
-            message.Subject = subject;
-            message.Body = new TextPart("plain") { Text = body };
+            message.From.Add(new MailboxAddress(string.IsNullOrEmpty(displayName) ? fromAddress : displayName, fromAddress));
+            message.To.Add(MailboxAddress.Parse(email.To));
+            if (!string.IsNullOrWhiteSpace(email.ReplyToAddress))
+            {
+                message.ReplyTo.Add(new MailboxAddress(email.ReplyToName ?? string.Empty, email.ReplyToAddress));
+            }
+            message.Subject = email.Subject;
+            message.Body = new TextPart("plain") { Text = email.Body };
 
             // Port 465 is always implicit TLS (the connection is encrypted from
             // the first byte); 587/25 negotiate encryption after connecting via

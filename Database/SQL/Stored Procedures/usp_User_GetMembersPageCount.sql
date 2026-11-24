@@ -7,7 +7,8 @@ GO
 
 CREATE PROCEDURE dbo.usp_User_GetMembersPageCount
     @Role TINYINT = NULL,
-    @Search NVARCHAR(50) = NULL
+    @Search NVARCHAR(50) = NULL,
+    @SearchEmail BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -19,6 +20,7 @@ BEGIN
     SELECT COUNT(*)
     FROM dbo.Users
     WHERE (@Role IS NULL OR Role = @Role)
-      AND (@Pattern IS NULL OR LOWER(Username) LIKE @Pattern);
+      AND (@Pattern IS NULL OR LOWER(Username) LIKE @Pattern
+           OR (@SearchEmail = 1 AND LOWER(Email) LIKE @Pattern));
 END;
 GO

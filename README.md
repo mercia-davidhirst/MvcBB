@@ -122,7 +122,8 @@ can run any community.
 
 ### Site administration
 - Admin dashboard linking every management area: Announcements, BBCode,
-  Boards, Ranks, Reports, Settings, Smilies, Users, Word Filter, plus Mods.
+  Boards, Email Users, Ranks, Reports, Settings, Smilies, Users, Word
+  Filter, plus Mods.
 - **Announcements**: site-wide banners shown on every page, each with an
   active flag, sort order and optional start/end dates.
 - Display settings: site name/title/logo, welcome message, threads-per-page,
@@ -139,6 +140,12 @@ can run any community.
 - User management: create accounts, role changes, custom titles, email
   changes, timed or indefinite account locks, "must change password on next
   login", and account anonymization.
+- **Email Users**: admins email all members, one role or one member
+  (maintenance notices, news, alerts), from their own address or the site's
+  no-reply address, with a confirmation step showing the recipient count
+  and From line, a "send a test to me" button, and a send log with
+  progress. Members can turn these emails off on their profile; an
+  "Important service alert" still reaches them.
 - **Mods** page: lists every mod found on disk with its version and
   compatibility status, and lets an admin enable or disable it.
 
@@ -232,7 +239,17 @@ direct database access and calls the API over HTTP. With the default
 - `MvcBB.API/appsettings.json`: `DataProvider` (`InMemory`, `Sql` or
   `PostgreSql`) and the matching connection string, `Jwt:SecretKey`, the
   `ApiClient` id/secret, `Cors:AllowedOrigins` (the App's URLs), and
-  optional `Smtp` settings.
+  optional `Smtp` settings. `Smtp:FromEmail` is also the no-reply address
+  admin emails are sent from.
+- `AdminEmail` (API): `BatchSize` (default 50) and `BatchDelaySeconds`
+  (default 30) throttle admin emails, which go out in the background in
+  batches with a pause between them. `AllowAdminFromAddress` (default
+  `false`) decides what "from me" means. Off, the email is sent from
+  `Smtp:FromEmail` as "*admin* via *site name*", with the admin's address as
+  Reply-To. On, the admin's own address is the From. Only turn it on when
+  your SMTP relay is allowed to send for the admins' email domains (SPF and
+  DKIM set up for it), or receiving servers will reject the mail or mark it
+  as spam under DMARC, which is near certain for Gmail or Outlook addresses.
 - `MvcBB.App/appsettings.json`: `Api:BaseUrl`, the matching `Api` client
   id/secret, and optional `Turnstile` keys.
 - For SQL Server or PostgreSQL, deploy the schema first with the
@@ -242,6 +259,34 @@ Change the placeholder JWT key and client secret before deploying anywhere
 public.
 
 ## Release history
+
+### v1.2.0
+
+New features:
+
+- **Email Users** (Admin > Email Users, and "Email this user" on a user's
+  admin page). An admin writes a plain-text email (`{username}` is filled
+  in per member) to all members, members with one role, or one member,
+  and picks "from me" or "from the site's no-reply address". A
+  confirmation step shows how many members it will reach, how many are
+  left out because they opted out, and the exact From and Reply-To. Sending
+  queues it: the API sends it in the background in throttled batches
+  (`AdminEmail:BatchSize`, `AdminEmail:BatchDelaySeconds`) and records
+  progress in a send log. An email cut off by an API restart is marked
+  *Interrupted* and not resumed, so nobody gets it twice. Deleted
+  (anonymized) accounts are never emailed. New API endpoints under
+  `api/admin-emails` (Administrator only).
+- **Opt-out.** Members get a "Receive emails from the forum team" tick box
+  on their profile (on by default), and every admin email ends with a line
+  saying how to turn it off. Ticking "Important service alert" sends to
+  opted-out members too, with a line explaining why.
+
+Upgrading from v1.1.1: deploy the new build of the App and API (and
+rebuild any mods), then re-run `install.ps1` for your database. It
+creates the two new tables (`AdminEmailOptOuts`, `AdminEmails` / `admin_email_opt_outs`,
+`admin_emails`) and their procedures. Existing rows aren't touched. Set
+`Smtp:FromEmail` to a no-reply address on your own domain, and see
+`AdminEmail:AllowAdminFromAddress` under Configuration.
 
 ### v1.1.1
 

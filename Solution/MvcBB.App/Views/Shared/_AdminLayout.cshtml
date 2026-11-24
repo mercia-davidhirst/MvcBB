@@ -37,6 +37,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminEmails" ? "active" : "")"
+                           asp-controller="AdminEmails" asp-action="Index">
+                            <i class="bi bi-envelope me-2"></i>
+                            Email Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Mods" ? "active" : "")"
                            asp-controller="Mods" asp-action="Index">
                             <i class="bi bi-puzzle me-2"></i>
@@ -72,7 +79,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Account" && ViewContext.RouteData.Values["Action"]?.ToString() == "Users" ? "active" : "")"
+                        <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Account" && (ViewContext.RouteData.Values["Action"]?.ToString() is "Users" or "ManageUser" or "CreateUser") ? "active" : "")"
                            asp-controller="Account" asp-action="Users">
                             <i class="bi bi-people me-2"></i>
                             Users

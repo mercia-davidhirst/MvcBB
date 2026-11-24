@@ -210,16 +210,16 @@ namespace MvcBB.API.SQL
             return (rows.ToList(), totalCount);
         }
 
-        public (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take)
+        public (IReadOnlyList<User> Items, int TotalCount) GetMembersPage(UserRole? role, string? search, string? sortBy, bool sortDescending, int skip, int take, bool searchEmail = false)
         {
             using var connection = _connectionFactory.CreateConnection();
             var totalCount = connection.ExecuteScalar<int>(
                 "dbo.usp_User_GetMembersPageCount",
-                new { Role = role, Search = search },
+                new { Role = role, Search = search, SearchEmail = searchEmail },
                 commandType: CommandType.StoredProcedure);
             var rows = connection.Query<User>(
                 "dbo.usp_User_GetMembersPage",
-                new { Role = role, Search = search, SortBy = sortBy, SortDescending = sortDescending, Skip = skip, Take = take },
+                new { Role = role, Search = search, SearchEmail = searchEmail, SortBy = sortBy, SortDescending = sortDescending, Skip = skip, Take = take },
                 commandType: CommandType.StoredProcedure);
             return (rows.ToList(), totalCount);
         }

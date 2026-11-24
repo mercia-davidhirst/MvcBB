@@ -1,305 +1,117 @@
-@model IEnumerable<MvcBB.Shared.Models.User.UserResponse>
+@model MvcBB.App.Models.AdminUsersViewModel
 @{
     ViewData["Title"] = "User Management";
     Layout = "_AdminLayout";
+
+    // Passed to each user's page so its "Back to users" link (and the
+    // redirect after any action) returns to this exact search/page.
+    var listUrl = Context.Request.Path + Context.Request.QueryString;
 }
 
-    <div class="mb-3">
-        <a asp-action="CreateUser" class="btn btn-primary">
-            <i class="bi bi-person-plus"></i> Create User
-        </a>
-    </div>
+<div class="d-flex flex-wrap gap-2 align-items-start justify-content-between mb-3">
+    <form method="get" asp-action="Users" class="d-flex flex-wrap gap-2 flex-grow-1" style="max-width: 40rem;">
+        <input type="hidden" name="sortBy" value="@Model.SortBy" />
+        <input type="hidden" name="sortDirection" value="@Model.SortDirection" />
+        <div class="input-group flex-grow-1" style="min-width: 14rem; width: auto;">
+            <input type="search" class="form-control" name="search" value="@Model.Search"
+                   placeholder="Search by username or email" aria-label="Search by username or email" maxlength="50" />
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i> Search</button>
+        </div>
+        <select class="form-select w-auto" name="role" aria-label="Filter by role" onchange="this.form.submit()">
+            <option value="">All roles</option>
+            @foreach (UserRole role in Enum.GetValues(typeof(UserRole)))
+            {
+                <option value="@((int)role)" selected="@(Model.Role == role)">@role.ToString()</option>
+            }
+        </select>
+        @if (Model.IsFiltered)
+        {
+            <a asp-action="Users" class="btn btn-outline-secondary">Clear</a>
+        }
+    </form>
 
+    <a asp-action="CreateUser" class="btn btn-primary">
+        <i class="bi bi-person-plus"></i> Create User
+    </a>
+</div>
+
+@if (!Model.Users.Any())
+{
+    <div class="alert alert-info">
+        @(Model.IsFiltered ? "No users match your search." : "There are no users yet.")
+    </div>
+}
+else
+{
     <div class="table-responsive">
-        <table class="table table-striped">
+        <table class="table table-hover align-middle">
             <thead>
                 <tr>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Rank / Title</th>
-                    <th>Joined</th>
-                    <th>Last Login</th>
-                    <th>Last IP</th>
-                    <th>Activity</th>
-                    <th>Actions</th>
+                    <th>
+                        <a href="@Model.GetSortUrl("username", Url)" class="text-dark text-decoration-none">
+                            User <i class="bi @Model.GetSortIcon("username")"></i>
+                        </a>
+                    </th>
+                    <th>Role / status</th>
+                    <th class="d-none d-lg-table-cell">Last login</th>
+                    <th class="d-none d-md-table-cell text-end">
+                        <a href="@Model.GetSortUrl("posts", Url)" class="text-dark text-decoration-none">
+                            Posts <i class="bi @Model.GetSortIcon("posts")"></i>
+                        </a>
+                    </th>
+                    <th class="d-none d-lg-table-cell">
+                        <a href="@Model.GetSortUrl("joined", Url)" class="text-dark text-decoration-none">
+                            Joined <i class="bi @Model.GetSortIcon("joined")"></i>
+                        </a>
+                    </th>
+                    <th><span class="visually-hidden">Manage</span></th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var user in Model)
+                @foreach (var user in Model.Users)
                 {
-                    <tr>
+                    var manageUrl = Url.Action("ManageUser", "Account", new { id = user.Id, returnUrl = listUrl });
+
+                    @* The whole row opens the user's admin page (see the script below).
+                       The username stays a real link, styled as plain text rather than
+                       like the profile links elsewhere, so keyboard users, middle-click
+                       and "open in new tab" still work. *@
+                    <tr class="admin-user-row" data-href="@manageUrl">
                         <td>
-                            <a asp-controller="Account" asp-action="Profile" asp-route-username="@user.Username"
-                               target="_blank" rel="noopener">
+                            <a href="@manageUrl" class="fw-semibold text-reset text-decoration-none" title="Manage @user.Username">
                                 @user.Username
                             </a>
+                            @if (!string.IsNullOrEmpty(user.Email))
+                            {
+                                <small class="text-muted d-block text-break">@user.Email</small>
+                            }
                         </td>
-                        <td>@user.Email</td>
                         <td>
                             <span class="badge bg-@(user.Role == UserRole.Administrator ? "danger" :
                                                   user.Role == UserRole.Moderator ? "warning" :
                                                   user.Role == UserRole.Deleted ? "secondary" : "primary")">
                                 @user.RoleName
                             </span>
-                            @if (user.MustChangePassword)
-                            {
-                                <span class="badge bg-info" title="Must set a new password on next login">Password reset required</span>
-                            }
                             @if (user.IsLocked)
                             {
                                 <span class="badge bg-dark" title="Locked until @(user.LockedUntil.HasValue ? await Html.FormatDateTimeAsync(user.LockedUntil.Value) : "")">
                                     <i class="bi bi-lock"></i> Locked
                                 </span>
                             }
-                        </td>
-                        <td>
-                            @if (!string.IsNullOrEmpty(user.RankTitle))
+                            @if (user.MustChangePassword)
                             {
-                                <span>@user.RankTitle</span>
-                                @if (string.IsNullOrEmpty(user.CustomTitle))
-                                {
-                                    <small class="text-muted d-block">(computed)</small>
-                                }
-                                else
-                                {
-                                    <small class="text-muted d-block">(custom)</small>
-                                }
-                            }
-                            else
-                            {
-                                <span class="text-muted">&mdash;</span>
+                                <span class="badge bg-info" title="Must set a new password on next login">Password reset</span>
                             }
                         </td>
-                        <td>@(await Html.FormatDateTimeAsync(user.CreatedAt))</td>
-                        <td>@(user.LastLoginAt.HasValue ? await Html.FormatDateTimeAsync(user.LastLoginAt.Value) : "Never")</td>
-                        <td>@(string.IsNullOrEmpty(user.LastLoginIp) ? "—" : user.LastLoginIp)</td>
-                        <td>
-                            <small>
-                                Threads: @user.ThreadCount<br />
-                                Posts: @user.PostCount
-                            </small>
+                        <td class="d-none d-lg-table-cell">
+                            @(user.LastLoginAt.HasValue ? await Html.FormatDateTimeAsync(user.LastLoginAt.Value) : "Never")
                         </td>
-                        <td class="text-nowrap">
-                            @{
-                                var isCurrentUser = string.Equals(user.Username, User.Identity?.Name, StringComparison.OrdinalIgnoreCase);
-                            }
-                            @if (user.Role != UserRole.Deleted)
-                            {
-                                @if (isCurrentUser)
-                                {
-                                    <span class="text-muted small d-block mb-1">You can't change your own role</span>
-                                }
-                                else
-                                {
-                                    <div class="btn-group">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                                                data-bs-toggle="dropdown" aria-expanded="false">
-                                            Change Role
-                                        </button>
-                                        <ul class="dropdown-menu">
-                                            @foreach (UserRole role in Enum.GetValues(typeof(UserRole)))
-                                            {
-                                                @* Deleted is only reachable via the dedicated Anonymize action below,
-                                                   never from the normal role-escalation dropdown. *@
-                                                @if (role != user.Role && role != UserRole.Deleted)
-                                                {
-                                                    <li>
-                                                        <form asp-action="UpdateUserRole" method="post" class="d-inline">
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="userId" value="@user.Id" />
-                                                            <input type="hidden" name="newRole" value="@((int)role)" />
-                                                            <button type="submit" class="dropdown-item">
-                                                                Make @role.ToString()
-                                                            </button>
-                                                        </form>
-                                                    </li>
-                                                }
-                                            }
-                                        </ul>
-                                    </div>
-                                }
-
-                                @* Every other per-row admin action lives behind this single dropdown instead of
-                                   a row of inline buttons - that list has grown over time (title, email, force
-                                   password reset, lock, delete) and a wall of buttons was overflowing the table
-                                   on narrower screens, hiding later ones (e.g. Lock) without any visible scrollbar. *@
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                                            data-bs-toggle="dropdown" aria-expanded="false">
-                                        Actions
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li>
-                                            <button type="button" class="dropdown-item"
-                                                    data-bs-toggle="modal" data-bs-target="#customTitleModal@(user.Id)">
-                                                Set Title
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button type="button" class="dropdown-item"
-                                                    data-bs-toggle="modal" data-bs-target="#emailModal@(user.Id)">
-                                                Change Email
-                                            </button>
-                                        </li>
-                                        @if (!isCurrentUser)
-                                        {
-                                            @if (!user.MustChangePassword)
-                                            {
-                                                <li>
-                                                    <form asp-action="RequirePasswordChange" method="post">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="userId" value="@user.Id" />
-                                                        <button type="submit" class="dropdown-item">
-                                                            Force Password Reset
-                                                        </button>
-                                                    </form>
-                                                </li>
-                                            }
-                                            @if (user.IsLocked)
-                                            {
-                                                <li>
-                                                    <form asp-action="LockUser" method="post">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="userId" value="@user.Id" />
-                                                        <input type="hidden" name="lockedUntil" value="" />
-                                                        <button type="submit" class="dropdown-item">
-                                                            Unlock
-                                                        </button>
-                                                    </form>
-                                                </li>
-                                            }
-                                            else
-                                            {
-                                                <li>
-                                                    <button type="button" class="dropdown-item"
-                                                            data-bs-toggle="modal" data-bs-target="#lockModal@(user.Id)">
-                                                        Lock
-                                                    </button>
-                                                </li>
-                                            }
-                                            <li><hr class="dropdown-divider" /></li>
-                                            <li>
-                                                <button type="button" class="dropdown-item text-danger"
-                                                        data-bs-toggle="modal" data-bs-target="#anonymizeModal@(user.Id)">
-                                                    Delete
-                                                </button>
-                                            </li>
-                                        }
-                                    </ul>
-                                </div>
-
-                                <div class="modal fade" id="customTitleModal@(user.Id)" tabindex="-1">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Set Custom Title for @user.Username</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <form asp-action="SetCustomTitle" method="post">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="userId" value="@user.Id" />
-                                                <div class="modal-body">
-                                                    <label for="customTitle@(user.Id)" class="form-label">Custom title</label>
-                                                    <input type="text" name="customTitle" id="customTitle@(user.Id)"
-                                                           class="form-control" maxlength="70" value="@user.CustomTitle" />
-                                                    <small class="form-text text-muted">
-                                                        Replaces this user's computed rank everywhere it's shown. Leave blank to clear it and go back to the computed rank.
-                                                    </small>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                    <button type="submit" class="btn btn-primary">Save</button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="modal fade" id="emailModal@(user.Id)" tabindex="-1">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Change Email for @user.Username</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <form asp-action="UpdateUserEmail" method="post">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="userId" value="@user.Id" />
-                                                <div class="modal-body">
-                                                    <label for="email@(user.Id)" class="form-label">Email address</label>
-                                                    <input type="email" name="email" id="email@(user.Id)" required
-                                                           class="form-control" maxlength="100" value="@user.Email" />
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                    <button type="submit" class="btn btn-primary">Save</button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                @if (!isCurrentUser)
-                                {
-                                    @if (!user.IsLocked)
-                                    {
-                                        <div class="modal fade" id="lockModal@(user.Id)" tabindex="-1">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title">Lock Account for @user.Username</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <form asp-action="LockUser" method="post">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="userId" value="@user.Id" />
-                                                        <div class="modal-body">
-                                                            <label for="lockedUntil@(user.Id)" class="form-label">Locked until</label>
-                                                            <input type="datetime-local" name="lockedUntil" id="lockedUntil@(user.Id)"
-                                                                   required class="form-control" />
-                                                            <small class="form-text text-muted">
-                                                                The user can't log in again until this date/time.
-                                                            </small>
-                                                        </div>
-                                                        <div class="modal-footer">
-                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                            <button type="submit" class="btn btn-dark">Lock</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
-
-                                    <div class="modal fade" id="anonymizeModal@(user.Id)" tabindex="-1">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title">Delete User</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <p>Are you sure you want to delete "@user.Username"?</p>
-                                                    <p class="text-muted">
-                                                        This anonymizes the account rather than removing it: their existing
-                                                        posts and threads stay intact under a generic username, and the
-                                                        account moves to the Deleted role. This cannot be undone.
-                                                    </p>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                    <form asp-action="AnonymizeUser" method="post" class="d-inline">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="userId" value="@user.Id" />
-                                                        <button type="submit" class="btn btn-danger">Delete</button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                            }
+                        <td class="d-none d-md-table-cell text-end">@user.PostCount</td>
+                        <td class="d-none d-lg-table-cell">@(await Html.FormatDateTimeAsync(user.CreatedAt))</td>
+                        <td class="text-end text-nowrap">
+                            <span class="btn btn-sm btn-outline-secondary" aria-hidden="true">
+                                Manage <i class="bi bi-chevron-right"></i>
+                            </span>
                         </td>
                     </tr>
                 }
@@ -307,11 +119,62 @@
         </table>
     </div>
 
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+        <div class="text-muted small">
+            Showing @((Model.Page - 1) * Model.PageSize + 1)–@Math.Min(Model.Page * Model.PageSize, Model.TotalUsers)
+            of @Model.TotalUsers users
+        </div>
+
+        @if (Model.TotalPages > 1)
+        {
+            <nav aria-label="User pages">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link" href="@Model.GetPageUrl(Math.Max(1, Model.Page - 1), Url)" aria-label="Previous">&laquo;</a>
+                    </li>
+                    @foreach (var p in Model.GetPagerPages())
+                    {
+                        if (p == null)
+                        {
+                            <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                        }
+                        else
+                        {
+                            <li class="page-item @(p == Model.Page ? "active" : "")">
+                                <a class="page-link" href="@Model.GetPageUrl(p.Value, Url)">@p</a>
+                            </li>
+                        }
+                    }
+                    <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" href="@Model.GetPageUrl(Math.Min(Model.TotalPages, Model.Page + 1), Url)" aria-label="Next">&raquo;</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    </div>
+}
+
 @section Scripts {
     <script>
+        // Clicking anywhere on a user row opens that user's admin page.
+        // Ctrl/Cmd-click opens it in a new tab, like a normal link would;
+        // clicks on the row's own link, or while selecting text, are left alone.
+        document.querySelectorAll('tr.admin-user-row[data-href]').forEach(function (row) {
+            row.addEventListener('click', function (e) {
+                if (e.target.closest('a, button, input, select, label')) return;
+                if (window.getSelection && window.getSelection().toString().length > 0) return;
+                var url = row.getAttribute('data-href');
+                if (e.ctrlKey || e.metaKey) {
+                    window.open(url, '_blank');
+                } else {
+                    window.location.href = url;
+                }
+            });
+        });
+
         // Auto-close alerts after 5 seconds
         setTimeout(function () {
-            $('.alert').alert('close');
+            $('.alert-dismissible').alert('close');
         }, 5000);
     </script>
-} 
+}

@@ -466,6 +466,44 @@ footer.footer {
     border-color: var(--mvcbb-dark-border);
 }
 
+/* Admin User Management: each row opens the user's admin page. */
+.admin-user-row {
+    cursor: pointer;
+}
+
+.admin-user-row:hover .btn-outline-secondary {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+/* Pagination (Members list, admin User Management) - Bootstrap 5.1 hardcodes
+   white page links, which glared on the dark background. */
+:root[data-theme="dark"] .page-link {
+    background-color: var(--mvcbb-dark-surface);
+    border-color: var(--mvcbb-dark-border);
+    color: #b596d6;
+}
+
+:root[data-theme="dark"] .page-link:hover,
+:root[data-theme="dark"] .page-link:focus {
+    background-color: var(--mvcbb-dark-surface-alt);
+    border-color: var(--mvcbb-dark-border);
+    color: #cdb3ea;
+}
+
+:root[data-theme="dark"] .page-item.active .page-link {
+    background-color: var(--mvcbb-light-purple);
+    border-color: var(--mvcbb-light-purple);
+    color: #fff;
+}
+
+:root[data-theme="dark"] .page-item.disabled .page-link {
+    background-color: var(--mvcbb-dark-surface);
+    border-color: var(--mvcbb-dark-border);
+    color: var(--mvcbb-dark-text-muted);
+}
+
 /* Select2 (the "To" recipient picker on New Message) ships its own CSS from
    a CDN with a hardcoded light theme - none of the dark-theme rules above
    touch it since it's not a Bootstrap component. Covers both the default
@@ -504,4 +542,4 @@ footer.footer {
 :root[data-theme="dark"] .select2-container--default .select2-results__option--highlighted[aria-selected] {
     background-color: var(--mvcbb-dark-surface-alt);
     color: var(--mvcbb-dark-text);
-}
+}

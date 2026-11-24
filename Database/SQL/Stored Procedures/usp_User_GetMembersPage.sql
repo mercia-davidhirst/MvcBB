@@ -1,6 +1,7 @@
 -- Matches IUserRepository.GetMembersPage(UserRole? role, string? search,
 -- string? sortBy, bool sortDescending, int skip, int take) - filters by
--- role/username, sorts (including by post/thread count, via a correlated
+-- role/username (and email, when @SearchEmail = 1 - admin User
+-- Management only, never the public Members list), sorts (including by post/thread count, via a correlated
 -- subquery) and paginates entirely in SQL instead of the caller loading
 -- every user in the table first.
 --
@@ -15,6 +16,7 @@ GO
 CREATE PROCEDURE dbo.usp_User_GetMembersPage
     @Role TINYINT = NULL,
     @Search NVARCHAR(50) = NULL,
+    @SearchEmail BIT = 0,
     @SortBy NVARCHAR(20) = NULL,
     @SortDescending BIT = 0,
     @Skip INT,
@@ -34,7 +36,8 @@ BEGIN
            u.MustChangePassword, u.LockedUntil, u.LastLoginIp
     FROM dbo.Users AS u
     WHERE (@Role IS NULL OR u.Role = @Role)
-      AND (@Pattern IS NULL OR LOWER(u.Username) LIKE @Pattern)
+      AND (@Pattern IS NULL OR LOWER(u.Username) LIKE @Pattern
+           OR (@SearchEmail = 1 AND LOWER(u.Email) LIKE @Pattern))
     ORDER BY
         CASE WHEN @NormalizedSortBy = 'joined' AND @SortDescending = 0 THEN u.CreatedAt END ASC,
         CASE WHEN @NormalizedSortBy = 'joined' AND @SortDescending = 1 THEN u.CreatedAt END DESC,

@@ -1,0 +1,311 @@
+@model MvcBB.Shared.Models.User.UserResponse
+@{
+    ViewData["Title"] = "Manage " + Model.Username;
+    Layout = "_AdminLayout";
+
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var backUrl = returnUrl ?? Url.Action("Users", "Account");
+    var isCurrentUser = string.Equals(Model.Username, User.Identity?.Name, StringComparison.OrdinalIgnoreCase);
+    var isDeleted = Model.Role == UserRole.Deleted;
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <a href="@backUrl" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to users
+    </a>
+    <a asp-controller="Account" asp-action="Profile" asp-route-username="@Model.Username"
+       target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-box-arrow-up-right"></i> View public profile
+    </a>
+</div>
+
+<div class="d-flex align-items-center gap-3 mb-4">
+    @if (!string.IsNullOrEmpty(Model.AvatarUrl))
+    {
+        <img src="@Model.AvatarUrl" alt="" class="rounded-circle" style="width: 56px; height: 56px; object-fit: cover;" />
+    }
+    else
+    {
+        <i class="bi bi-person-circle" style="font-size: 3.5rem; line-height: 1;"></i>
+    }
+    <div>
+        <div class="h4 mb-1 text-break">@Model.Username</div>
+        <span class="badge bg-@(Model.Role == UserRole.Administrator ? "danger" :
+                              Model.Role == UserRole.Moderator ? "warning" :
+                              isDeleted ? "secondary" : "primary")">
+            @Model.RoleName
+        </span>
+        @if (Model.IsLocked)
+        {
+            <span class="badge bg-dark"><i class="bi bi-lock"></i> Locked</span>
+        }
+        @if (Model.MustChangePassword)
+        {
+            <span class="badge bg-info">Password reset required</span>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Details -->
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header">Details</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8 text-break">@(string.IsNullOrEmpty(Model.Email) ? "—" : Model.Email)</dd>
+
+                    <dt class="col-sm-4">Rank / title</dt>
+                    <dd class="col-sm-8">
+                        @if (!string.IsNullOrEmpty(Model.RankTitle))
+                        {
+                            @Model.RankTitle
+                            <small class="text-muted">(@(string.IsNullOrEmpty(Model.CustomTitle) ? "computed" : "custom"))</small>
+                        }
+                        else
+                        {
+                            <span class="text-muted">&mdash;</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-4">Joined</dt>
+                    <dd class="col-sm-8">@(await Html.FormatDateTimeAsync(Model.CreatedAt))</dd>
+
+                    <dt class="col-sm-4">Last login</dt>
+                    <dd class="col-sm-8">@(Model.LastLoginAt.HasValue ? await Html.FormatDateTimeAsync(Model.LastLoginAt.Value) : "Never")</dd>
+
+                    <dt class="col-sm-4">Last IP</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.LastLoginIp) ? "—" : Model.LastLoginIp)</dd>
+
+                    <dt class="col-sm-4">Activity</dt>
+                    <dd class="col-sm-8">
+                        <a asp-controller="Search" asp-action="Index" asp-route-q="@Model.Username" asp-route-type="threads">@Model.ThreadCount threads</a>,
+                        <a asp-controller="Search" asp-action="Index" asp-route-q="@Model.Username" asp-route-type="posts">@Model.PostCount posts</a>
+                    </dd>
+
+                    <dt class="col-sm-4">Account lock</dt>
+                    <dd class="col-sm-8 mb-0">
+                        @if (Model.IsLocked)
+                        {
+                            @:Locked until @(await Html.FormatDateTimeAsync(Model.LockedUntil!.Value))
+                        }
+                        else
+                        {
+                            @:Not locked
+                        }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        @if (isDeleted)
+        {
+            <div class="alert alert-secondary mb-0">
+                This account has been deleted (anonymized). There are no further actions for it.
+            </div>
+        }
+        else
+        {
+            <!-- Role -->
+            <div class="card mb-4">
+                <div class="card-header">Role</div>
+                <div class="card-body">
+                    @if (isCurrentUser)
+                    {
+                        <p class="text-muted mb-0">You can't change your own role.</p>
+                    }
+                    else
+                    {
+                        <form asp-action="UpdateUserRole" method="post" class="d-flex flex-wrap gap-2 align-items-center">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="userId" value="@Model.Id" />
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <label for="newRole" class="visually-hidden">New role</label>
+                            <select name="newRole" id="newRole" class="form-select w-auto">
+                                @foreach (UserRole role in Enum.GetValues(typeof(UserRole)))
+                                {
+                                    @* Deleted is only reachable via the dedicated Delete action below,
+                                       never from the normal role change. *@
+                                    @if (role != UserRole.Deleted)
+                                    {
+                                        <option value="@((int)role)" selected="@(role == Model.Role)">@role.ToString()</option>
+                                    }
+                                }
+                            </select>
+                            <button type="submit" class="btn btn-primary">Change role</button>
+                        </form>
+                    }
+                </div>
+            </div>
+
+            <!-- Title & email -->
+            <div class="card mb-4">
+                <div class="card-header">Title &amp; email</div>
+                <div class="card-body">
+                    <form asp-action="SetCustomTitle" method="post" class="mb-3">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="userId" value="@Model.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <label for="customTitle" class="form-label">Custom title</label>
+                        <div class="input-group">
+                            <input type="text" name="customTitle" id="customTitle" class="form-control"
+                                   maxlength="70" value="@Model.CustomTitle" />
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                        <small class="form-text text-muted">
+                            Replaces this user's computed rank everywhere it's shown. Leave blank to go back to the computed rank.
+                        </small>
+                    </form>
+
+                    <form asp-action="UpdateUserEmail" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="userId" value="@Model.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <label for="email" class="form-label">Email address</label>
+                        <div class="input-group">
+                            <input type="email" name="email" id="email" required class="form-control"
+                                   maxlength="100" value="@Model.Email" />
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Email this user -->
+            <div class="card mb-4">
+                <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <div class="fw-semibold">Send an email</div>
+                        <small class="text-muted">
+                            @if (Model.AllowAdminEmails == false)
+                            {
+                                @:They've turned off emails from the forum team, so only an important service alert will reach them.
+                            }
+                            else
+                            {
+                                @:Write to them from the admin panel, from your address or the site's no-reply address.
+                            }
+                        </small>
+                    </div>
+                    <a asp-controller="AdminEmails" asp-action="Index" asp-route-userId="@Model.Id" class="btn btn-outline-secondary">
+                        <i class="bi bi-envelope"></i> Email this user
+                    </a>
+                </div>
+            </div>
+
+            @if (!isCurrentUser)
+            {
+                <!-- Security -->
+                <div class="card mb-4">
+                    <div class="card-header">Security</div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pb-3 mb-3 border-bottom">
+                            <div>
+                                <div class="fw-semibold">Force password reset</div>
+                                <small class="text-muted">
+                                    @(Model.MustChangePassword
+                                        ? "Already required: they must set a new password on their next login."
+                                        : "They'll have to set a new password the next time they log in.")
+                                </small>
+                            </div>
+                            @if (!Model.MustChangePassword)
+                            {
+                                <form asp-action="RequirePasswordChange" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="userId" value="@Model.Id" />
+                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                    <button type="submit" class="btn btn-outline-secondary">Force reset</button>
+                                </form>
+                            }
+                        </div>
+
+                        <div class="fw-semibold mb-1">Lock account</div>
+                        @if (Model.IsLocked)
+                        {
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <small class="text-muted">
+                                    Locked until @(await Html.FormatDateTimeAsync(Model.LockedUntil!.Value)). They can't log in until then.
+                                </small>
+                                <form asp-action="LockUser" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="userId" value="@Model.Id" />
+                                    <input type="hidden" name="lockedUntil" value="" />
+                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                    <button type="submit" class="btn btn-outline-secondary">Unlock</button>
+                                </form>
+                            </div>
+                        }
+                        else
+                        {
+                            <form asp-action="LockUser" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="userId" value="@Model.Id" />
+                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                <label for="lockedUntil" class="form-label small text-muted mb-1">Locked until (forum time)</label>
+                                <div class="input-group" style="max-width: 24rem;">
+                                    <input type="datetime-local" name="lockedUntil" id="lockedUntil" required class="form-control" />
+                                    <button type="submit" class="btn btn-dark">Lock</button>
+                                </div>
+                            </form>
+                        }
+                    </div>
+                </div>
+
+                <!-- Danger zone -->
+                <div class="card border-danger">
+                    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <div class="fw-semibold text-danger">Delete user</div>
+                            <small class="text-muted">
+                                Anonymizes the account: posts stay under a generic username. This cannot be undone.
+                            </small>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#anonymizeModal">
+                            Delete&hellip;
+                        </button>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="anonymizeModal" tabindex="-1" aria-labelledby="anonymizeModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="anonymizeModalLabel">Delete User</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Are you sure you want to delete "@Model.Username"?</p>
+                                <p class="text-muted mb-0">
+                                    This anonymizes the account rather than removing it: their existing
+                                    posts and threads stay intact under a generic username, and the
+                                    account moves to the Deleted role. This cannot be undone.
+                                </p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <form asp-action="AnonymizeUser" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="userId" value="@Model.Id" />
+                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-close alerts after 5 seconds
+        setTimeout(function () {
+            $('.alert-dismissible').alert('close');
+        }, 5000);
+    </script>
+}
