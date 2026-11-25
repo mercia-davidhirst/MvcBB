@@ -296,6 +296,32 @@ namespace MvcBB.App.Controllers
             return RedirectToAction(nameof(Details), new { id = threadId });
         }
 
+        /// <summary>
+        /// Called from the discussion page's script as posts scroll into view,
+        /// with the newest post the member has now seen. Returns a bare status
+        /// code (no redirect) since nothing on the page waits for it.
+        /// </summary>
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkRead(int threadId, int postId)
+        {
+            try
+            {
+                await _threadService.MarkThreadReadAsync(threadId, postId);
+                return NoContent();
+            }
+            catch (SessionExpiredException)
+            {
+                return Unauthorized();
+            }
+            catch (ServiceException ex)
+            {
+                _logger.LogWarning(ex, "Failed to save read position for thread {ThreadId}, post {PostId}", threadId, postId);
+                return StatusCode(StatusCodes.Status502BadGateway);
+            }
+        }
+
         [Authorize(Policy = "ManageThreads")]
         public async Task<IActionResult> Edit(int id)
         {

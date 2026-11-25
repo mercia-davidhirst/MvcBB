@@ -298,3 +298,37 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.setAttribute('aria-label', revealing ? 'Hide password' : 'Show password');
     });
 })();
+
+// Floating "Back to top" button (in _Layout). Hidden near the top of the
+// page and fades in once the reader has scrolled more than a screen down,
+// which on a long discussion means it's there when they reach the end.
+(function () {
+    document.addEventListener('DOMContentLoaded', function () {
+        var btn = document.getElementById('backToTopBtn');
+        if (!btn) {
+            return;
+        }
+
+        btn.hidden = false;
+        var ticking = false;
+
+        function update() {
+            ticking = false;
+            btn.classList.toggle('show', window.scrollY > window.innerHeight);
+        }
+
+        window.addEventListener('scroll', function () {
+            if (!ticking) {
+                ticking = true;
+                window.requestAnimationFrame(update);
+            }
+        }, { passive: true });
+        update();
+
+        btn.addEventListener('click', function () {
+            var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+            btn.blur();
+        });
+    });
+})();

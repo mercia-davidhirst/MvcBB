@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS public.users
     must_change_password BOOLEAN    NOT NULL DEFAULT FALSE,
     locked_until    TIMESTAMPTZ     NULL,
     last_login_ip   VARCHAR(45)     NULL,
+    auto_jump_to_unread BOOLEAN     NOT NULL DEFAULT TRUE,
     CONSTRAINT uq_users_username UNIQUE (username),
     CONSTRAINT uq_users_email UNIQUE (email),
     CONSTRAINT ck_users_role CHECK (role IN (0, 1, 2, 3))

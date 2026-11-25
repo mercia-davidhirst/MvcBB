@@ -15,6 +15,10 @@ namespace MvcBB.Shared.Models.User
         public string? Bio { get; set; }
         public string? AvatarUrl { get; set; }
         public bool ShowEmail { get; set; }
+
+        /// <summary>Opening a discussion scrolls straight to the first unread post.</summary>
+        public bool AutoJumpToUnread { get; set; } = true;
+
         // Effective display title - CustomTitle if an admin set one, else the
         // computed rank (RankCalculator.GetRank). RankImagePath is only ever
         // populated for a computed rank; a custom title has no badge image.

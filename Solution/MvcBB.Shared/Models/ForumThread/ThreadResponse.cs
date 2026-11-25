@@ -51,5 +51,11 @@ namespace MvcBB.Shared.Models.ForumThread
         public bool IsSubscribed { get; set; }
         public bool NotifyViaMessage { get; set; }
         public bool NotifyViaEmail { get; set; }
+
+        /// <summary>
+        /// The signed-in viewer's read position, filled in only when a single
+        /// thread is fetched (not in thread lists). Null for guests.
+        /// </summary>
+        public MvcBB.Shared.Models.ThreadRead.ThreadReadState? ReadState { get; set; }
     }
 } 

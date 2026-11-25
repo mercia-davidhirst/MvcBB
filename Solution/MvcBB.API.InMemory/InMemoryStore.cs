@@ -37,6 +37,7 @@ namespace MvcBB.API.InMemory
         public List<RankModel> Ranks { get; } = new();
         public List<WordFilterModel> WordFilters { get; } = new();
         public List<ThreadSubscriptionModel> ThreadSubscriptions { get; } = new();
+        public List<MvcBB.Shared.Models.ThreadRead.ThreadReadModel> ThreadReads { get; } = new();
         public List<AnnouncementModel> Announcements { get; } = new();
         public DisplaySettings DisplaySettings { get; set; } = new();
         public PasswordPolicy PasswordPolicy { get; set; } = new();

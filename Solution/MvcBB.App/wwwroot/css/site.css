@@ -154,14 +154,16 @@ pre code {
     --mvcbb-chart-share: #b7791f;
     --mvcbb-chart-rolling: #343a40;
     --mvcbb-chart-grid: #dee2e6;
-    --mvcbb-chart-text: #6c757d;
+    /* Chart text (axis labels) uses the page's own text colour in each theme. */
+    --mvcbb-chart-text: #212529;
 }
 
 .email-chart {
     display: block;
     width: 100%;
     height: auto;
-    font-size: 11px;
+    /* In the chart's 800-wide viewBox, so it shrinks with the card. */
+    font-size: 13px;
 }
 
 .email-chart-admin { fill: var(--mvcbb-chart-admin); background-color: var(--mvcbb-chart-admin); }
@@ -381,8 +383,8 @@ footer.footer {
     --mvcbb-chart-limit: #ff6b78;
     --mvcbb-chart-share: #e0b050;
     --mvcbb-chart-rolling: #e7e4ee;
-    --mvcbb-chart-grid: #3c3847;
-    --mvcbb-chart-text: #a9a4b8;
+    --mvcbb-chart-grid: #4a4558;
+    --mvcbb-chart-text: #e7e4ee;
 }
 
 :root[data-theme="dark"] body {
@@ -447,6 +449,15 @@ footer.footer {
 :root[data-theme="dark"] .modal-content {
     background-color: var(--mvcbb-dark-surface);
     color: var(--mvcbb-dark-text);
+}
+
+/* Alert toasts (new PM, open reports, and any a mod adds). Bootstrap's toast
+   is a translucent white panel, which leaves the dark theme's light text
+   unreadable on it. */
+:root[data-theme="dark"] .toast {
+    background-color: var(--mvcbb-dark-surface);
+    color: var(--mvcbb-dark-text);
+    border: 1px solid var(--mvcbb-dark-border) !important;
 }
 
 /* Bootstrap's .btn-close icon is a near-black SVG with no dark-theme variant
@@ -611,4 +622,97 @@ footer.footer {
 :root[data-theme="dark"] .select2-container--default .select2-results__option--highlighted[aria-selected] {
     background-color: var(--mvcbb-dark-surface-alt);
     color: var(--mvcbb-dark-text);
+}
+
+/* ============================================================
+   Reading aids - the floating Back to top button (every page,
+   see _Layout and site.js) and the unread markers on discussion
+   pages (Threads/Details, thread-reading.js). Colours come from
+   the --mvcbb-light-* variables, so the dark scheme above
+   recolours these too.
+   ============================================================ */
+.back-to-top {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 1030;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: none;
+    border-radius: 50%;
+    background-color: var(--mvcbb-light-purple-dark);
+    color: #fff;
+    font-size: 1.25rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(0.5rem);
+    transition: opacity 0.2s, transform 0.2s, visibility 0.2s, background-color 0.15s;
+}
+
+/* display:flex above would otherwise override the hidden attribute it
+   starts with (kept until site.js has wired it up). */
+.back-to-top[hidden] {
+    display: none;
+}
+
+.back-to-top.show {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+}
+
+.back-to-top:hover,
+.back-to-top:focus-visible {
+    background-color: var(--mvcbb-light-purple);
+}
+
+.back-to-top:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -4px;
+}
+
+/* A little room above a post when the page jumps to it. */
+.thread-posts .thread-post {
+    scroll-margin-top: 1rem;
+}
+
+/* Posts the member hasn't read yet: an accent stripe down the left edge
+   and a "New" badge by the author's name. */
+.thread-posts .post-unread {
+    border-left: 4px solid var(--mvcbb-light-purple);
+}
+
+.post-new-badge {
+    background-color: var(--mvcbb-light-purple-dark);
+    color: #fff;
+    font-size: 0.7rem;
+    vertical-align: middle;
+}
+
+/* Brief highlight on the post the page just jumped to. An overlay rather
+   than the card's own background, so it fades out to whatever the light
+   or dark scheme's card colour is. */
+.thread-post.post-flash::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: var(--mvcbb-light-purple);
+    opacity: 0;
+    pointer-events: none;
+    animation: mvcbb-post-flash 2s ease-out;
+}
+
+@keyframes mvcbb-post-flash {
+    from {
+        opacity: 0.3;
+    }
+
+    to {
+        opacity: 0;
+    }
 }

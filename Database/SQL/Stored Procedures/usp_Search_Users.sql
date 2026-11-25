@@ -17,7 +17,7 @@ BEGIN
 
     SELECT Id, Username, PasswordHash, Email, CreatedAt, LastLoginAt, Role,
            Signature, Bio, AvatarUrl, ShowEmail, CustomTitle,
-           MustChangePassword, LockedUntil, LastLoginIp
+           MustChangePassword, LockedUntil, LastLoginIp, AutoJumpToUnread
     FROM dbo.Users
     WHERE LOWER(Username) LIKE @Pattern OR LOWER(Email) LIKE @Pattern
     ORDER BY CreatedAt DESC

@@ -33,7 +33,7 @@ BEGIN
 
     SELECT u.Id, u.Username, u.PasswordHash, u.Email, u.CreatedAt, u.LastLoginAt, u.Role,
            u.Signature, u.Bio, u.AvatarUrl, u.ShowEmail, u.CustomTitle,
-           u.MustChangePassword, u.LockedUntil, u.LastLoginIp
+           u.MustChangePassword, u.LockedUntil, u.LastLoginIp, u.AutoJumpToUnread
     FROM dbo.Users AS u
     WHERE (@Role IS NULL OR u.Role = @Role)
       AND (@Pattern IS NULL OR LOWER(u.Username) LIKE @Pattern

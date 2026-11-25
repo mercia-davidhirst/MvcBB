@@ -177,6 +177,10 @@ can run any community.
   home page: `home.left`, `home.center.top` (above Latest Discussions),
   `home.center` (below it) and `home.right`. `home.sidebar` still works and
   still renders under Quick Links.
+- **Alert slots** let a mod alert people the way core does for new PMs and
+  open reports: an icon with a count badge in the navbar (`layout.navbar`)
+  and a toast that stacks with core's report toast (`layout.toasts`). The
+  Feature Board mod uses them to alert Administrators to new requests.
 - A mod can embed static files (CSS, images) in its App-side DLL; they're
   served at `/_mods/{modId}/...` while the mod is enabled.
 
@@ -279,6 +283,45 @@ Change the placeholder JWT key and client secret before deploying anywhere
 public.
 
 ## Release history
+
+### v1.3.1
+
+New features:
+
+- **First unread post.** Discussions remember how far each signed-in member
+  has read, saved as posts scroll into view. On the next visit, posts added
+  since then get a "New" badge and an accent stripe, and the page opens at
+  the first of them. A new profile setting, "Open discussions at my first
+  unread post" (on by default), turns the jump off; the page then opens at
+  the top with a "Jump to first unread" button instead. A member's own posts
+  are never marked unread, and nothing is marked on a first visit. New API
+  endpoint: `PUT api/threads/{id}/read`.
+- **Back to top.** Every page gets a floating button that appears once the
+  page has scrolled down.
+- **Alert slots for mods.** Two new ModKit view slots, `layout.navbar` (an
+  icon with a count badge in the navbar) and `layout.toasts` (a toast that
+  stacks with core's open-reports toast), so a mod can alert people the way
+  core does for new PMs and open reports. Both render for signed-in members
+  only. See `docs/ModKit-ViewSlots.md`, section 7.2. Existing mods load and
+  run unchanged.
+
+Fixes and changes:
+
+- **Admin menus**: the navbar's Admin dropdown now has Sending activity, and
+  the admin Dashboard has a Mods card.
+- **Sending activity chart**: axis labels are larger and use the page's own
+  text colour, so they're readable in the dark scheme, and the grid lines
+  show up better there. The vertical axis has five steps instead of four.
+- **Dark scheme toasts**: the new-PM and open-reports toasts (and any a mod
+  adds) were a light panel with light text in the dark scheme. They now use
+  the dark scheme's colours.
+
+Upgrading from v1.3.0: deploy the new build of the App and API (and
+rebuild any mods; ModKit is now 1.2.0), then re-run `install.ps1` for your
+database. It creates the new `ThreadReads` / `thread_reads` table and its
+procedures, and `Upgrades/v1.3.1.sql` adds `Users.AutoJumpToUnread` /
+`users.auto_jump_to_unread` (on for existing members). Existing rows
+aren't touched. No settings changes.
 
 ### v1.3.0
 

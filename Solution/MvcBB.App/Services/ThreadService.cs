@@ -360,6 +360,25 @@ namespace MvcBB.App.Services
             }
         }
 
+        public async Task MarkThreadReadAsync(int threadId, int postId)
+        {
+            try
+            {
+                var token = GetCurrentUserToken();
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                var json = JsonSerializer.Serialize(new MvcBB.Shared.Models.ThreadRead.MarkThreadReadRequest { PostId = postId });
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PutAsync($"api/threads/{threadId}/read", content);
+                response.EnsureSuccessOrSessionExpired();
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ServiceException("Failed to save read position", ex);
+            }
+        }
+
         // The vote endpoint returns a plain { message } body on failure (already
         // voted, invalid option) rather than a ValidationProblemDetails payload -
         // extract it so the caller gets that specific text instead of a generic failure.

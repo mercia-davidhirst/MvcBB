@@ -160,6 +160,11 @@
                                             </a>
                                         </li>
                                         <li>
+                                            <a class="dropdown-item" asp-controller="AdminEmails" asp-action="Activity">
+                                                <i class="bi bi-bar-chart me-2"></i>Sending activity
+                                            </a>
+                                        </li>
+                                        <li>
                                             <a class="dropdown-item" asp-controller="Mods" asp-action="Index">
                                                 <i class="bi bi-puzzle me-2"></i>Mods
                                             </a>
@@ -216,6 +221,7 @@
                     <ul class="navbar-nav">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
+                            <mod-slot name="@CoreSlots.LayoutNavbar" context="@(new PageSlotContext { ViewerUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value })" />
                             if (canModerate)
                             {
                                 <li class="nav-item">
@@ -286,6 +292,11 @@
         </main>
     </div>
 
+    @* Floating "Back to top" button, shown once the page has scrolled down (see site.js). *@
+    <button type="button" id="backToTopBtn" class="back-to-top" title="Back to top" aria-label="Back to top" hidden>
+        <i class="bi bi-arrow-up"></i>
+    </button>
+
     <footer class="border-top footer text-muted">
         <div class="container">
             &copy; @((await Html.ForumNowAsync()).Year) - @displaySettings.SiteName
@@ -319,9 +330,11 @@
             // messages already reflected in the navbar badge on page load.
             window.mvcbbInitialUnreadCount = @unreadMessageCount;
         </script>
-        @if (canModerate)
-        {
-            <div class="toast-container position-fixed bottom-0 start-0 p-3" style="z-index: 1080;">
+        @* Moderation alerts. Mods add their own toasts here (layout.toasts) so
+           they stack with the open-reports one instead of overlapping it. *@
+        <div class="toast-container position-fixed bottom-0 start-0 p-3" style="z-index: 1080;">
+            @if (canModerate)
+            {
                 <div id="newReportToast" class="toast align-items-center text-bg-warning border-0" role="alert" aria-live="polite" aria-atomic="true">
                     <div class="d-flex">
                         <div class="toast-body">
@@ -332,7 +345,11 @@
                         <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                     </div>
                 </div>
-            </div>
+            }
+            <mod-slot name="@CoreSlots.LayoutToasts" context="@(new PageSlotContext { ViewerUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value })" />
+        </div>
+        @if (canModerate)
+        {
             <script>
                 // Baseline for the open-reports polling in site.js.
                 window.mvcbbInitialOpenReportCount = @openReportCount;

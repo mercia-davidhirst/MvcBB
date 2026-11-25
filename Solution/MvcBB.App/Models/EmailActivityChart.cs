@@ -67,9 +67,10 @@ namespace MvcBB.App.Models
                 highest = Math.Max(highest, activity.RollingHour.Select(p => p.Count).DefaultIfEmpty(0).Max());
             YMax = NiceCeiling(highest);
 
-            for (var i = 0; i <= 4; i++)
+            // Five steps: every YMax NiceCeiling picks (10, 20, 25, 50...) divides by 5.
+            for (var i = 0; i <= 5; i++)
             {
-                var value = YMax * i / 4;
+                var value = YMax * i / 5;
                 Ticks.Add((Y(value), value));
             }
 

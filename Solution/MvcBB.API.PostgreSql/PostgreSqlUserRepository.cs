@@ -15,7 +15,7 @@ namespace MvcBB.API.PostgreSql
     public class PostgreSqlUserRepository : IUserRepository
     {
         private const string SelectColumns =
-            "id, username::text AS username, password_hash, email::text AS email, created_at, last_login_at, role, signature, bio, avatar_url, show_email, custom_title, must_change_password, locked_until, last_login_ip";
+            "id, username::text AS username, password_hash, email::text AS email, created_at, last_login_at, role, signature, bio, avatar_url, show_email, custom_title, must_change_password, locked_until, last_login_ip, auto_jump_to_unread";
 
         private readonly IPostgreSqlConnectionFactory _connectionFactory;
 
@@ -55,7 +55,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             var newId = connection.QuerySingle<int>(
-                "CALL public.sp_user_insert(@Username, @PasswordHash, @Email, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp, NULL)",
+                "CALL public.sp_user_insert(@Username, @PasswordHash, @Email, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp, @AutoJumpToUnread, NULL)",
                 new
                 {
                     user.Username,
@@ -69,7 +69,8 @@ namespace MvcBB.API.PostgreSql
                     user.CustomTitle,
                     user.MustChangePassword,
                     user.LockedUntil,
-                    user.LastLoginIp
+                    user.LastLoginIp,
+                    user.AutoJumpToUnread
                 });
 
             return connection.QuerySingle<User>($"SELECT {SelectColumns} FROM public.fn_user_get_by_id(@Id)", new { Id = newId });
@@ -79,7 +80,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             connection.Execute(
-                "CALL public.sp_user_update(@Id, @Username, @PasswordHash, @Email, @LastLoginAt, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp)",
+                "CALL public.sp_user_update(@Id, @Username, @PasswordHash, @Email, @LastLoginAt, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp, @AutoJumpToUnread)",
                 new
                 {
                     user.Id,
@@ -95,7 +96,8 @@ namespace MvcBB.API.PostgreSql
                     user.CustomTitle,
                     user.MustChangePassword,
                     user.LockedUntil,
-                    user.LastLoginIp
+                    user.LastLoginIp,
+                    user.AutoJumpToUnread
                 });
         }
 

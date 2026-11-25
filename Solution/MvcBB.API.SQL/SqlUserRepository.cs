@@ -60,7 +60,8 @@ namespace MvcBB.API.SQL
                 user.CustomTitle,
                 user.MustChangePassword,
                 user.LockedUntil,
-                user.LastLoginIp
+                user.LastLoginIp,
+                user.AutoJumpToUnread
             }, commandType: CommandType.StoredProcedure);
         }
 
@@ -82,7 +83,8 @@ namespace MvcBB.API.SQL
                 user.CustomTitle,
                 user.MustChangePassword,
                 user.LockedUntil,
-                user.LastLoginIp
+                user.LastLoginIp,
+                user.AutoJumpToUnread
             }, commandType: CommandType.StoredProcedure);
         }
 

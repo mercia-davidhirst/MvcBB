@@ -33,5 +33,8 @@ namespace MvcBB.App.Interfaces
         Task SubscribeToThreadAsync(int threadId, bool notifyViaMessage, bool notifyViaEmail);
 
         Task UnsubscribeFromThreadAsync(int threadId);
+
+        /// <summary>Records that the current user has read the thread up to the given post (only ever moves forward).</summary>
+        Task MarkThreadReadAsync(int threadId, int postId);
     }
 } 

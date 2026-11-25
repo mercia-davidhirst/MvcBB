@@ -4,6 +4,7 @@ using MvcBB.Shared.Models.Board;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
+using MvcBB.Shared.Models.ThreadRead;
 using MvcBB.Shared.Models.ThreadSubscription;
 using MvcBB.Shared.Interfaces;
 using MvcBB.Shared.Services;
@@ -22,6 +23,7 @@ namespace MvcBB.API.Controllers
         private readonly IPollRepository _pollRepository;
         private readonly IWordFilterRepository _wordFilterRepository;
         private readonly IThreadSubscriptionRepository _subscriptionRepository;
+        private readonly IThreadReadRepository _threadReadRepository;
         private readonly MvcBB.API.Services.IDisplaySettingsService _displaySettingsService;
         private readonly MvcBB.API.Services.IContentVisibilityService _visibility;
 
@@ -33,6 +35,7 @@ namespace MvcBB.API.Controllers
             IPollRepository pollRepository,
             IWordFilterRepository wordFilterRepository,
             IThreadSubscriptionRepository subscriptionRepository,
+            IThreadReadRepository threadReadRepository,
             MvcBB.API.Services.IDisplaySettingsService displaySettingsService,
             MvcBB.API.Services.IContentVisibilityService visibility)
         {
@@ -43,6 +46,7 @@ namespace MvcBB.API.Controllers
             _pollRepository = pollRepository;
             _wordFilterRepository = wordFilterRepository;
             _subscriptionRepository = subscriptionRepository;
+            _threadReadRepository = threadReadRepository;
             _displaySettingsService = displaySettingsService;
             _visibility = visibility;
         }
@@ -118,7 +122,53 @@ namespace MvcBB.API.Controllers
             thread.ViewCount++;
             _threadRepository.Update(thread);
 
-            return Ok(MapToThreadResponses(new[] { thread }).Single());
+            var response = MapToThreadResponses(new[] { thread }).Single();
+
+            // Only the single-thread view needs the viewer's read position
+            // (to open at their first unread post), so lists don't pay for it.
+            var userId = CurrentUserId;
+            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var parsedUserId))
+            {
+                var read = _threadReadRepository.GetByThreadAndUser(id, userId);
+                response.ReadState = new ThreadReadState
+                {
+                    LastReadPostId = read?.LastReadPostId,
+                    LastReadPostAt = read?.LastReadPostAt,
+                    AutoJumpToUnread = _userRepository.GetById(parsedUserId)?.AutoJumpToUnread ?? true
+                };
+            }
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Records that the signed-in member has read the thread up to the
+        /// given post. Only ever moves their position forward.
+        /// </summary>
+        [HttpPut("{id}/read")]
+        [Authorize]
+        public ActionResult MarkThreadRead(int id, MarkThreadReadRequest request)
+        {
+            var userId = CurrentUserId;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not found" });
+            }
+
+            var thread = _threadRepository.GetById(id);
+            if (thread == null || !_visibility.CanSeeThread(thread))
+            {
+                return NotFound(new { message = "Thread not found" });
+            }
+
+            var post = _postRepository.GetById(request.PostId);
+            if (post == null || post.ThreadId != id)
+            {
+                return NotFound(new { message = "Post not found in this thread" });
+            }
+
+            _threadReadRepository.MarkRead(id, userId, post.Id, post.CreatedAt);
+            return NoContent();
         }
 
         [HttpPost]

@@ -41,6 +41,8 @@ namespace MvcBB.App.Mods
                 new SlotDefinition(CoreSlots.HomeCenter, typeof(PageSlotContext), SlotWrapper.Block),
                 new SlotDefinition(CoreSlots.HomeRight, typeof(PageSlotContext), SlotWrapper.Block),
                 new SlotDefinition(CoreSlots.LayoutHead, typeof(PageSlotContext), SlotWrapper.None),
+                new SlotDefinition(CoreSlots.LayoutNavbar, typeof(PageSlotContext), SlotWrapper.None),
+                new SlotDefinition(CoreSlots.LayoutToasts, typeof(PageSlotContext), SlotWrapper.None),
             }.ToDictionary(s => s.Name, StringComparer.Ordinal);
 
         private static readonly IReadOnlyList<Entry> NoEntries = Array.Empty<Entry>();

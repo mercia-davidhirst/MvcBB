@@ -2,6 +2,7 @@
 
 DROP PROCEDURE IF EXISTS public.sp_user_update(integer, varchar, varchar, varchar, timestamptz, smallint, varchar, varchar, varchar, boolean, varchar);
 DROP PROCEDURE IF EXISTS public.sp_user_update(integer, varchar, varchar, varchar, timestamptz, smallint, varchar, varchar, varchar, boolean, varchar, boolean, timestamptz, varchar);
+DROP PROCEDURE IF EXISTS public.sp_user_update(integer, varchar, varchar, varchar, timestamptz, smallint, varchar, varchar, varchar, boolean, varchar, boolean, timestamptz, varchar, boolean);
 
 CREATE PROCEDURE public.sp_user_update(
     p_id INTEGER,
@@ -17,7 +18,8 @@ CREATE PROCEDURE public.sp_user_update(
     p_custom_title VARCHAR(70) DEFAULT NULL,
     p_must_change_password BOOLEAN DEFAULT FALSE,
     p_locked_until TIMESTAMPTZ DEFAULT NULL,
-    p_last_login_ip VARCHAR(45) DEFAULT NULL
+    p_last_login_ip VARCHAR(45) DEFAULT NULL,
+    p_auto_jump_to_unread BOOLEAN DEFAULT TRUE
 )
 LANGUAGE plpgsql
 AS $$
@@ -35,7 +37,8 @@ BEGIN
         custom_title = p_custom_title,
         must_change_password = p_must_change_password,
         locked_until = p_locked_until,
-        last_login_ip = p_last_login_ip
+        last_login_ip = p_last_login_ip,
+        auto_jump_to_unread = p_auto_jump_to_unread
     WHERE id = p_id;
 END;
 $$;

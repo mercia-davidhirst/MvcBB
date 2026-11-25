@@ -19,6 +19,18 @@
             UserIds = posts.Select(p => p.CreatedByUserId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList(),
             PostIds = posts.Select(p => p.Id).ToList()
         };
+
+    // Read tracking (signed-in members only). Posts newer than the saved
+    // position are unread, except the viewer's own. With no saved position
+    // (first visit) nothing is marked unread and the page opens at the top.
+    var readState = Model.ReadState;
+    var lastReadAt = readState?.LastReadPostAt;
+    var unreadPostIds = posts == null || !lastReadAt.HasValue
+        ? new HashSet<int>()
+        : posts.Where(p => p.CreatedAt > lastReadAt.Value && p.Id != readState!.LastReadPostId && p.CreatedByUserId != currentUserId)
+               .Select(p => p.Id)
+               .ToHashSet();
+    var firstUnreadPostId = unreadPostIds.Count == 0 ? (int?)null : posts!.First(p => unreadPostIds.Contains(p.Id)).Id;
 }
 
 <div class="container mt-4">
@@ -132,7 +144,7 @@
         </div>
     }
 
-    <div class="d-flex flex-wrap gap-4 text-muted mb-4 small">
+    <div class="d-flex flex-wrap align-items-center gap-4 text-muted mb-4 small">
         <span><i class="bi bi-chat-left-text"></i> @Model.ReplyCount @(Model.ReplyCount == 1 ? "Reply" : "Replies")</span>
         <span><i class="bi bi-eye"></i> @Model.ViewCount @(Model.ViewCount == 1 ? "View" : "Views")</span>
         <span><i class="bi bi-hand-thumbs-up"></i> @Model.TotalLikes @(Model.TotalLikes == 1 ? "Like" : "Likes")</span>
@@ -140,6 +152,12 @@
         @if (!string.IsNullOrEmpty(Model.LastPostByUsername))
         {
             <span><i class="bi bi-clock-history"></i> Last post by <strong>@Model.LastPostByUsername</strong> @(Model.LastPostAt.HasValue ? await Html.FormatDateTimeAsync(Model.LastPostAt.Value) : "")</span>
+        }
+        @if (firstUnreadPostId.HasValue)
+        {
+            <a href="#post-@firstUnreadPostId" id="jumpToUnreadBtn" class="btn btn-sm btn-primary ms-md-auto">
+                <i class="bi bi-chevron-double-down"></i> Jump to first unread (@unreadPostIds.Count new)
+            </a>
         }
     </div>
 
@@ -194,9 +212,20 @@
 
     @if (posts != null && posts.Any())
     {
-        <div class="thread-posts mb-4">
+        @* Token for the read-position saves, kept outside .thread-posts so
+           the first/last-child card corner rules there still match. *@
+        @if (readState != null)
+        {
+            <form id="markReadForm" class="d-none">@Html.AntiForgeryToken()</form>
+        }
+        <div class="thread-posts mb-4" id="threadPosts"
+             data-track-reads="@(readState != null ? "true" : "false")"
+             data-auto-jump="@(readState?.AutoJumpToUnread == true ? "true" : "false")"
+             data-first-unread="@(firstUnreadPostId.HasValue ? $"post-{firstUnreadPostId}" : "")"
+             data-mark-read-url="@Url.Action("MarkRead", "Threads", new { threadId = Model.Id })">
             @foreach (var post in posts)
             {
+                var isUnread = unreadPostIds.Contains(post.Id);
                 var postSlot = new PostSlotContext
                 {
                     PostId = post.Id,
@@ -207,7 +236,7 @@
                     ViewerUserId = currentUserId,
                     Page = slotPage
                 };
-                <div class="card" id="post-@post.Id">
+                <div class="card thread-post@(isUnread ? " post-unread" : "")" id="post-@post.Id" data-post-id="@post.Id">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
                             @if (!string.IsNullOrEmpty(post.CreatedByAvatarUrl))
@@ -235,6 +264,10 @@
                                 @if (post.IsImportedData)
                                 {
                                     <i class="bi bi-archive text-muted ms-1" title="Imported from legacy forum data"></i>
+                                }
+                                @if (isUnread)
+                                {
+                                    <span class="badge post-new-badge ms-1">New</span>
                                 }
                                 @if (!string.IsNullOrEmpty(post.CreatedByRankTitle))
                                 {
@@ -394,6 +427,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/thread-reading.js" asp-append-version="true"></script>
     <script>
         let previewVisible = true;
 

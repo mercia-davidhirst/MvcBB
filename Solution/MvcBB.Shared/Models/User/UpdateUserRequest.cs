@@ -24,6 +24,9 @@ namespace MvcBB.Shared.Models.User
 
         public bool ShowEmail { get; set; }
 
+        /// <summary>Scroll straight to the first unread post when opening a discussion. Null leaves the current choice unchanged.</summary>
+        public bool? AutoJumpToUnread { get; set; }
+
         /// <summary>Receive emails admins send from the admin panel. Null leaves the current choice unchanged.</summary>
         public bool? AllowAdminEmails { get; set; }
 

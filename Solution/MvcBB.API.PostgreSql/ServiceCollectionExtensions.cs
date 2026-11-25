@@ -39,6 +39,7 @@ namespace MvcBB.API.PostgreSql
             services.AddScoped<IRankRepository, PostgreSqlRankRepository>();
             services.AddScoped<IWordFilterRepository, PostgreSqlWordFilterRepository>();
             services.AddScoped<IThreadSubscriptionRepository, PostgreSqlThreadSubscriptionRepository>();
+            services.AddScoped<IThreadReadRepository, PostgreSqlThreadReadRepository>();
             services.AddScoped<IMessageRepository, PostgreSqlMessageRepository>();
             services.AddScoped<IReportRepository, PostgreSqlReportRepository>();
             services.AddScoped<IBBCodeTagRepository, PostgreSqlBBCodeTagRepository>();

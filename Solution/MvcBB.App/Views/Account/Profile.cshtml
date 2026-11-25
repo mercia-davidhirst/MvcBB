@@ -199,6 +199,14 @@
                                 <label class="form-check-label" for="showEmail">Show email on my public profile</label>
                             </div>
 
+                            @* Same checkbox-then-hidden-false pattern as AllowAdminEmails below. *@
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="AutoJumpToUnread" value="true" class="form-check-input" id="autoJumpToUnread" checked="@Model.AutoJumpToUnread" />
+                                <input type="hidden" name="AutoJumpToUnread" value="false" />
+                                <label class="form-check-label" for="autoJumpToUnread">Open discussions at my first unread post</label>
+                                <small class="form-text text-muted d-block">When off, discussions open at the top and a button takes you to the first unread post.</small>
+                            </div>
+
                             @* Checkbox first, hidden "false" second: the first value posted wins,
                                so unticked still sends an explicit false (AllowAdminEmails is
                                nullable, and null means "leave it as it is"). *@

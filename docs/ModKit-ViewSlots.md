@@ -55,12 +55,15 @@ namespace MvcBB.ModKit
         public const string HomeCenter     = "home.center";
         public const string HomeRight      = "home.right";
         public const string LayoutHead     = "layout.head";
+        public const string LayoutNavbar   = "layout.navbar";
+        public const string LayoutToasts   = "layout.toasts";
     }
 }
 ```
 
 `home.sidebar` and `layout.head` were added to the first set during
-implementation (see section 7).
+implementation (see section 7). `layout.navbar` and `layout.toasts` came
+later, for mod alerts (see 7.2).
 
 ### 3.2 Contributions
 
@@ -396,6 +399,28 @@ sections), `members.row` (Members list, per row, uses the same batching),
 script tags), and `message.author` (private message view). Admin pages get
 no slots for now, see 10.
 
+### 7.2 Alert slots
+
+Core alerts moderators and administrators to things waiting for them the
+same way everywhere: an icon with a count badge in the navbar, and a toast
+when the count goes up while they're on a page (the new-PM and open-reports
+alerts, polled by `site.js`). These two slots let a mod do the same for its
+own queue:
+
+| Slot | Page and position | Context | Layout |
+| --- | --- | --- | --- |
+| `layout.navbar` | Main layout navbar, right-hand icon group, before core's open-reports flag and "Report an issue" bug. Signed-in members only. | `PageSlotContext` | No wrapper. Each contribution writes whole `<li class="nav-item">` elements: an icon link, optionally with a badge, like core's icons beside it. |
+| `layout.toasts` | Main layout, inside the bottom-left toast container that holds core's open-reports toast. Signed-in members only. | `PageSlotContext` | No wrapper. Bootstrap `.toast` elements and the script tag that drives them. Bootstrap's own script loads after this point, so use `defer`. |
+
+The contexts carry no roles. A mod whose alert is for administrators or
+moderators checks `User.IsInRole(...)` in its view component and renders
+nothing otherwise, and its count endpoint carries the same
+`[Authorize(Roles = ...)]`. Load the count once per page (both slots want
+it; `HttpContext.Items` works), and have the polling endpoint fail with an
+error status rather than a zero, so a hiccup isn't followed by a toast for
+requests that were already there. The Feature Board mod's new-request alert
+is the worked example.
+
 ## 8. When a mod is disabled, incompatible or missing
 
 | State | What renders | Restart needed |
@@ -537,7 +562,8 @@ MvcBB.App:
 - `Views/Account/Profile.cshtml`: adds `profile.sidebar`
 - `Views/Home/Index.cshtml`: adds `home.sidebar`, then (7.1) `home.left`,
   `home.center.top`, `home.center` and `home.right`
-- `Views/Shared/_Layout.cshtml`: adds `layout.head`
+- `Views/Shared/_Layout.cshtml`: adds `layout.head`, then (7.2)
+  `layout.navbar` and `layout.toasts`
 - `README.md`: Mods section mentions slots and mod static files
 
 MvcBB.Gallery: no changes. Builds and runs unchanged against ModKit 1.1.0.

@@ -493,6 +493,10 @@ namespace MvcBB.API.Controllers
             user.Bio = request.Bio;
             user.AvatarUrl = request.AvatarUrl;
             user.ShowEmail = request.ShowEmail;
+            if (request.AutoJumpToUnread.HasValue)
+            {
+                user.AutoJumpToUnread = request.AutoJumpToUnread.Value;
+            }
             _userRepository.Update(user);
 
             // Null (an older client that doesn't send it) leaves it as it is.
@@ -811,6 +815,7 @@ namespace MvcBB.API.Controllers
                     Bio = u.Bio,
                     AvatarUrl = u.AvatarUrl,
                     ShowEmail = u.ShowEmail,
+                    AutoJumpToUnread = u.AutoJumpToUnread,
                     RankTitle = hasCustomTitle ? u.CustomTitle : rank?.Title,
                     RankImagePath = rank?.ImagePath,
                     CustomTitle = u.CustomTitle,

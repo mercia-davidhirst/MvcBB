@@ -46,6 +46,7 @@ BEGIN
         MustChangePassword BIT             NOT NULL CONSTRAINT DF_Users_MustChangePassword DEFAULT (0),
         LockedUntil     DATETIME2(3)       NULL,
         LastLoginIp     NVARCHAR(45)       NULL,
+        AutoJumpToUnread BIT               NOT NULL CONSTRAINT DF_Users_AutoJumpToUnread DEFAULT (1),
         CONSTRAINT PK_Users PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT UQ_Users_Username UNIQUE (Username),
         CONSTRAINT UQ_Users_Email UNIQUE (Email),

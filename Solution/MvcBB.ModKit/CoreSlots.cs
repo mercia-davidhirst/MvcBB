@@ -81,5 +81,25 @@ namespace MvcBB.ModKit
         /// wrapper element is written here). Context: <see cref="PageSlotContext"/>.
         /// </summary>
         public const string LayoutHead = "layout.head";
+
+        /// <summary>
+        /// Main layout navbar, in the right-hand group of icons, before core's
+        /// open-reports flag and "Report an issue" bug. Rendered for signed-in
+        /// members only, on every page that uses the layout. No wrapper: each
+        /// contribution writes whole &lt;li class="nav-item"&gt; elements holding an
+        /// icon link (optionally with a badge), like core's own icons there.
+        /// Context: <see cref="PageSlotContext"/>.
+        /// </summary>
+        public const string LayoutNavbar = "layout.navbar";
+
+        /// <summary>
+        /// Main layout, inside the bottom-left toast container that holds core's
+        /// open-reports alert, so a mod's toasts stack with core's instead of
+        /// overlapping them. Rendered for signed-in members only. No wrapper:
+        /// each contribution writes Bootstrap .toast elements and any script tag
+        /// that drives them. Bootstrap's script loads after this point, so mod
+        /// scripts should use <c>defer</c>. Context: <see cref="PageSlotContext"/>.
+        /// </summary>
+        public const string LayoutToasts = "layout.toasts";
     }
 }

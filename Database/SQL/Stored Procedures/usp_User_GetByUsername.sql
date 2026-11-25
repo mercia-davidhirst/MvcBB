@@ -13,7 +13,7 @@ BEGIN
 
     SELECT Id, Username, PasswordHash, Email, CreatedAt, LastLoginAt, Role,
            Signature, Bio, AvatarUrl, ShowEmail, CustomTitle,
-           MustChangePassword, LockedUntil, LastLoginIp
+           MustChangePassword, LockedUntil, LastLoginIp, AutoJumpToUnread
     FROM dbo.Users
     WHERE Username = @Username;
 END;

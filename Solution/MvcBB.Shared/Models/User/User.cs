@@ -19,6 +19,12 @@ namespace MvcBB.Shared.Models.User
         public bool ShowEmail { get; set; }
 
         /// <summary>
+        /// Opening a discussion scrolls straight to the first post they
+        /// haven't read yet. On by default; changed on their profile.
+        /// </summary>
+        public bool AutoJumpToUnread { get; set; } = true;
+
+        /// <summary>
         /// Admin-set override shown next to the user's name instead of their
         /// computed rank (see RankCalculator.GetRank) - null means "use the
         /// computed rank" (the default for everyone). Not self-service; only
