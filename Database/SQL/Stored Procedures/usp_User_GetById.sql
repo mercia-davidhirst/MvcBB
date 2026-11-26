@@ -11,7 +11,8 @@ BEGIN
 
     SELECT Id, Username, PasswordHash, Email, CreatedAt, LastLoginAt, Role,
            Signature, Bio, AvatarUrl, ShowEmail, CustomTitle,
-           MustChangePassword, LockedUntil, LastLoginIp, AutoJumpToUnread
+           MustChangePassword, LockedUntil, LastLoginIp, AutoJumpToUnread,
+           BirthDay, BirthMonth, BirthYear
     FROM dbo.Users
     WHERE Id = @Id;
 END;

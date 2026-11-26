@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Exceptions;
 using MvcBB.App.Extensions;
+using MvcBB.App.Models;
 using MvcBB.Shared.Models.ForumThread;
 using MvcBB.Shared.Models.Poll;
 using MvcBB.Shared.Models.Post;
@@ -33,15 +34,30 @@ namespace MvcBB.App.Controllers
             _logger = logger;
         }
 
-        public async Task<IActionResult> Details(int id)
+        /// <summary>
+        /// A page of a discussion. With postId, the page holding that post
+        /// (link to it as Details?postId=N#post-N, or use GoToPost); with
+        /// last=true, the last page. With none of page/postId/last, a member
+        /// whose profile has "jump to first unread" on gets the page holding
+        /// their first unread post; everyone else gets page 1.
+        /// </summary>
+        public async Task<IActionResult> Details(int id, int? page = null, int? postId = null, bool last = false)
         {
             try
             {
                 var thread = await _threadService.GetThreadAsync(id);
-                var posts = await _threadService.GetThreadPostsAsync(id);
+                var openAtUnread = page == null && postId == null && !last && thread.ReadState?.AutoJumpToUnread == true;
+                var postPage = await _threadService.GetThreadPostPageAsync(id, page, postId, openAtUnread, last);
+                var posts = postPage.Posts;
 
                 ViewData["Posts"] = posts;
+                ViewData["PostPage"] = postPage;
                 ViewData["Smilies"] = await _bbCodeService.GetAvailableSmiliesAsync();
+                // Every real member @mentioned on the page, so the view can link them.
+                ViewData["MentionedUsernames"] = posts
+                    .SelectMany(p => p.MentionedUsernames)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 return View(thread);
             }
             catch (ServiceException ex)
@@ -51,6 +67,30 @@ namespace MvcBB.App.Controllers
                 return RedirectToAction("Index", "Boards");
             }
         }
+
+        /// <summary>
+        /// Opens whichever page of its discussion a post is on, scrolled to the
+        /// post - for links that only know the post (search results, a
+        /// member's recent posts, reports, notifications).
+        /// </summary>
+        public async Task<IActionResult> GoToPost(int postId)
+        {
+            try
+            {
+                var post = await _threadService.GetPostAsync(postId);
+                return Redirect(PostUrl(post.ThreadId, post.Id));
+            }
+            catch (ServiceException ex)
+            {
+                _logger.LogWarning(ex, "Failed to find post {PostId}", postId);
+                TempData["Error"] = "That post is no longer available.";
+                return RedirectToAction("Index", "Boards");
+            }
+        }
+
+        /// <summary>The page of the discussion holding the post, scrolled to it.</summary>
+        private string PostUrl(int threadId, int postId) =>
+            Url.Action(nameof(Details), new { id = threadId, postId }) + $"#post-{postId}";
 
         [Authorize]
         public async Task<IActionResult> Reply(int threadId)
@@ -156,6 +196,13 @@ namespace MvcBB.App.Controllers
             try
             {
                 var thread = await _threadService.CreateThreadAsync(request);
+                TempData[DraftKeys.ClearDraftTempDataKey] = DraftKeys.NewThread(request.BoardId);
+                if (thread == null)
+                {
+                    TempData["Success"] = "Thanks! Your discussion will appear once a moderator has approved it. You'll get a notification when they have.";
+                    return RedirectToAction("Details", "Boards", new { id = request.BoardId });
+                }
+
                 TempData["Success"] = "Thread created successfully.";
                 return RedirectToAction(nameof(Details), new { id = thread.Id });
             }
@@ -189,8 +236,17 @@ namespace MvcBB.App.Controllers
                     ? await _imageUploadService.SaveImageAsync(imageFile, "posts")
                     : null;
 
-                await _threadService.CreatePostAsync(threadId, request);
-                TempData["Success"] = "Reply posted successfully.";
+                var post = await _threadService.CreatePostAsync(threadId, request);
+                TempData[DraftKeys.ClearDraftTempDataKey] = DraftKeys.Reply(threadId);
+                if (post == null)
+                {
+                    TempData["Success"] = "Thanks! Your reply will appear once a moderator has approved it. You'll get a notification when they have.";
+                }
+                else
+                {
+                    TempData["Success"] = "Reply posted successfully.";
+                    return Redirect(PostUrl(threadId, post.Id));
+                }
             }
             catch (SessionExpiredException)
             {
@@ -224,8 +280,7 @@ namespace MvcBB.App.Controllers
                 TempData["Error"] = ex.Message;
             }
 
-            var url = Url.Action(nameof(Details), new { id = threadId }) + $"#post-{id}";
-            return Redirect(url);
+            return Redirect(PostUrl(threadId, id));
         }
 
         [HttpPost]
@@ -504,8 +559,9 @@ namespace MvcBB.App.Controllers
                 }
 
                 await _threadService.UpdatePostAsync(id, request);
+                TempData[DraftKeys.ClearDraftTempDataKey] = DraftKeys.Edit(id);
                 TempData["Success"] = "Post updated successfully.";
-                return RedirectToAction(nameof(Details), new { id = post.ThreadId });
+                return Redirect(PostUrl(post.ThreadId, id));
             }
             catch (SessionExpiredException)
             {

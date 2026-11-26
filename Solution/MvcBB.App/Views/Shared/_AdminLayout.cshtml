@@ -1,5 +1,11 @@
+@using MvcBB.App.Interfaces
+@inject MvcBB.App.Mods.ModAdminRegistry ModAdminRegistry
+@inject IModsService ModsService
 @{
     Layout = "_Layout";
+    // Admin pages added by enabled mods (IAppMod.GetAdminItems), listed under the core links.
+    var modAdminItems = await ModAdminRegistry.GetEnabledAsync(Context, ModsService);
+    var currentController = ViewContext.RouteData.Values["Controller"]?.ToString();
 }
 
 <div class="container-fluid">
@@ -51,6 +57,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link @(currentController == "Moderation" ? "active" : "")"
+                           asp-controller="Moderation" asp-action="Index">
+                            <i class="bi bi-shield-check me-2"></i>
+                            Moderation
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Mods" ? "active" : "")"
                            asp-controller="Mods" asp-action="Index">
                             <i class="bi bi-puzzle me-2"></i>
@@ -72,7 +85,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Settings" ? "active" : "")"
+                        <a class="nav-link @(currentController == "Admin" && ViewContext.RouteData.Values["Action"]?.ToString() == "Settings" ? "active" : "")"
                            asp-controller="Admin" asp-action="Settings">
                             <i class="bi bi-gear me-2"></i>
                             Settings
@@ -100,6 +113,23 @@
                         </a>
                     </li>
                 </ul>
+                @if (modAdminItems.Count > 0)
+                {
+                    <h6 class="sidebar-heading px-3 mt-3 mb-1 text-muted text-uppercase small">Mods</h6>
+                    <ul class="nav flex-column mb-2">
+                        @foreach (var adminItem in modAdminItems)
+                        {
+                            var isActive = string.Equals(currentController, adminItem.Item.Controller, StringComparison.OrdinalIgnoreCase);
+                            <li class="nav-item">
+                                <a class="nav-link @(isActive ? "active" : "")" aria-current="@(isActive ? "page" : null)"
+                                   asp-controller="@adminItem.Item.Controller" asp-action="@adminItem.Item.Action">
+                                    <i class="bi @adminItem.Item.IconCssClass me-2"></i>
+                                    @adminItem.Item.Text
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
             </div>
         </div>
 

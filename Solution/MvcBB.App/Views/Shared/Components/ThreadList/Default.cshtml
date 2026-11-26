@@ -42,7 +42,7 @@
                            class="text-decoration-none">
                             @thread.LastPostByUsername
                         </a>
-                        on @(await Html.FormatDateTimeAsync(thread.LastPostAt.Value))
+                        on <a asp-controller="Threads" asp-action="Details" asp-route-id="@thread.Id" asp-route-last="true" class="text-decoration-none" title="Go to the last post">@(await Html.FormatDateTimeAsync(thread.LastPostAt.Value)) <i class="bi bi-box-arrow-in-down-right"></i></a>
                     </small>
                 </div>
             }

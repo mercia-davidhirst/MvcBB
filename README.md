@@ -41,6 +41,25 @@ can run any community.
   reason, author attribution preserved).
 - Posts: BBCode formatting with a toolbar and live preview, smilies, a single
   attached image, quoting another post, edit history, like/unlike.
+- **Spoilers**: `[spoiler]text[/spoiler]` or `[spoiler=Title]text[/spoiler]`
+  hides text in a box the reader clicks to open. Spoiler text stays hidden in
+  plain-text summaries too (notifications, recent posts).
+- **@mentions**: `@Name`, or `@"Some Name"` for a username with spaces or
+  other characters. The editor suggests members as you type after `@`. A
+  mention of a real member links to their profile and notifies them (not
+  when it's inside a quote or code block, and not again when the post is
+  edited).
+- **Draft autosave**: what a member types into a new discussion, reply or
+  edit is saved in their browser as they go. If the page is closed, the
+  session expires or posting fails, opening that editor again offers to
+  restore the draft. A draft is deleted once its post has been saved, and
+  drafts older than 14 days are cleared. Drafts never leave the browser.
+- **Paged discussions**: a thread shows a page of posts at a time ("Posts
+  per page" in Admin > Settings, default 20), paged in the database, with
+  page links above and below. Links to a particular post (quotes, search
+  results, recent posts, reports, notifications) open the page it's on, the
+  last-post links open the last page, and a member who opens at their first
+  unread post lands on whichever page that is.
 - Thread polls: single-choice, attached only at thread-creation time, with
   live vote counts and results.
 - Thread statistics: reply count, view count, total likes, participant count,
@@ -83,7 +102,8 @@ can run any community.
 
 ### Members & profiles
 - Registration, login, password reset (emailed link — logged to console in
-  the absence of a configured SMTP server), profile editing, avatar upload.
+  the absence of a configured SMTP server), profile editing, avatar upload,
+  and an optional birthday (day and month, year optional).
 - Optional **Cloudflare Turnstile** challenge on the registration form,
   switched on by setting a Turnstile site key and secret key.
 - Registration can be turned off entirely from the admin settings, leaving
@@ -96,6 +116,13 @@ can run any community.
   Administrators/Moderators.
 - Private messaging (PMs) between members, with an on-screen toast alert and
   a live-updating unread-count badge for new messages.
+- **Notification centre**: a bell in the navbar, with a live unread count,
+  opens one list of everything involving the member: replies in discussions
+  they started or watch, @mentions, quotes of their posts, likes, private
+  messages, and moderators' decisions on their held posts. Each member gets
+  one notification per post at most, never about their own posts and never
+  about boards they can't see. Opening a discussion or message marks its
+  notifications as read, and read notifications are cleared after 90 days.
 
 ### Moderation & content tools
 - Three roles (User, Moderator, Administrator) plus a `Deleted` state used
@@ -113,6 +140,17 @@ can run any community.
   with a live count of reports still Pending or Investigating, plus an
   on-screen toast when a new one arrives (refreshed the same way as the
   unread PM badge).
+- **Moderation queue**: optionally hold new members' posts (their first one,
+  or first few, set in Moderation > Settings) until a moderator approves
+  them. A held post isn't visible anywhere else. Approving publishes it as
+  if it had just been posted; turning it down (with an optional reason)
+  deletes it. Either way the member gets a notification. Moderators and
+  administrators see a navbar badge with the number waiting.
+- **Moderation log**: every action by a moderator or administrator
+  (approving or turning down held posts, deleting or editing others' posts,
+  locking, pinning, renaming and deleting threads, locking members, changing
+  roles and custom titles, anonymizing, updating reports, changing
+  moderation settings) is recorded with who, when, what and any reason.
 - Site-wide search across threads, posts and members.
 - Admin-managed **word filter**: a censor list applied to post content and
   thread titles at write time (so stored data is already clean, not filtered
@@ -121,8 +159,8 @@ can run any community.
 
 ### Site administration
 - Admin dashboard linking every management area: Announcements, BBCode,
-  Boards, Email Users, Ranks, Reports, Settings, Smilies, Users, Word
-  Filter, plus Mods.
+  Boards, Email Users, Moderation, Ranks, Reports, Settings, Smilies, Users,
+  Word Filter, plus Mods.
 - **Announcements**: site-wide banners shown on every page, each with an
   active flag, sort order and optional start/end dates.
 - Display settings: site name/title/logo, welcome message, threads-per-page,
@@ -181,6 +219,14 @@ can run any community.
   open reports: an icon with a count badge in the navbar (`layout.navbar`)
   and a toast that stacks with core's report toast (`layout.toasts`). The
   Feature Board mod uses them to alert Administrators to new requests.
+- **Mod admin pages** (ModKit 1.3.0): an App-side mod lists its
+  administration pages from `IAppMod.GetAdminItems()`, and core shows each
+  one in all three admin entry points: a card on the Admin Dashboard, an item
+  under "Mods" in the navbar's Admin dropdown, and a link under "Mods" in the
+  admin sidebar. Administrators only, enabled mods only. The page itself is
+  an action on the mod's own controller, which must carry
+  `[Authorize(Roles = "Administrator")]`, and can use core's `_AdminLayout`.
+  The Calendar mod uses it for its settings and categories.
 - A mod can embed static files (CSS, images) in its App-side DLL; they're
   served at `/_mods/{modId}/...` while the mod is enabled.
 
@@ -274,8 +320,12 @@ direct database access and calls the API over HTTP. With the default
 - `AdminEmail:SendLogRetentionDays` (API, default 30): how many days of the
   email send log (times and kinds of email only, no addresses or subjects)
   are kept for Sending activity. Older rows are deleted daily.
+- `Notifications:RetentionDays` (API, default 90, at least 7): read
+  notifications older than this are deleted daily. Unread ones are kept.
 - `MvcBB.App/appsettings.json`: `Api:BaseUrl`, the matching `Api` client
-  id/secret, and optional `Turnstile` keys.
+  id/secret, optional `Turnstile` keys, and `Navigation:MaxModLinks` (how
+  many mod links the navbar shows before the rest go into a "More" menu,
+  default 3).
 - For SQL Server or PostgreSQL, deploy the schema first with the
   `install.ps1` script in `Database/SQL` or `Database/PostGresSql`.
 
@@ -283,6 +333,84 @@ Change the placeholder JWT key and client secret before deploying anywhere
 public.
 
 ## Release history
+
+### v1.4.0
+
+New features:
+
+- **Birthdays on profiles.** Members can add their birthday on their
+  profile: day and month, with the year optional for anyone who'd rather
+  not show their age. It shows in the profile's details card. Clearing all
+  three removes it. Anonymizing an account removes it too. Mods can read it
+  (the Calendar mod shows members' birthdays each year).
+- **Mod admin pages.** A mod can list its administration pages from
+  `IAppMod.GetAdminItems()` (ModKit 1.3.0), and core shows each one as a card
+  on the Admin Dashboard, under "Mods" in the navbar's Admin dropdown and
+  under "Mods" in the admin sidebar, for enabled mods only. Existing mods
+  load and run unchanged.
+- **"More" menu for mod links.** Once enabled mods add more navbar links than
+  `Navigation:MaxModLinks` (App appsettings.json, default 3), the extra ones
+  move into a "More" menu, so the navbar doesn't outgrow the page.
+- **Spoiler tag.** `[spoiler]...[/spoiler]` and `[spoiler=Title]...[/spoiler]`,
+  with a toolbar button. Closed until clicked, and hidden in plain-text
+  summaries.
+- **Draft autosave.** New discussions, replies and post edits are saved in
+  the browser while being written and offered back if the post never made
+  it (closed tab, expired session, an error). Deleted once the post is
+  saved.
+- **@mentions.** `@Name` / `@"Some Name"`, with member suggestions in the
+  editor. Mentions of real members link to their profiles and notify them.
+- **Notification centre.** A navbar bell and a Notifications page bringing
+  together replies, mentions, quotes, likes, private messages and moderation
+  decisions, with an unread count. Watching a thread by PM or email works as
+  before, alongside it.
+- **Paged discussions.** Threads now show "Posts per page" posts at a time
+  (Admin > Settings, default 20) instead of every post at once, which made
+  very long discussions slow to open (tens of seconds, or minutes, for
+  threads with tens of thousands of posts) and produced huge pages. Only the
+  posts on the page are read from the database. Links to a post, the
+  last-post links, jump to first unread and notifications all open the right
+  page. `GET api/posts/thread/{id}/page` is the new endpoint;
+  `GET api/posts/thread/{id}` still returns every post, for anything that
+  relied on it.
+- **Moderation queue and log.** A new Moderation page (Admin Dashboard card,
+  navbar Admin dropdown, admin sidebar; a navbar link and badge for
+  moderators) with three tabs: the queue of held posts to approve or turn
+  down, the moderation log of every moderator action, and (administrators
+  only) the setting to hold new members' first posts, off by default.
+
+Fixes and changes:
+
+- **Quick Links**: the home page's Quick Links card now lists every enabled
+  mod's links too, after core's own (all of them, even those in the navbar's
+  "More" menu).
+- **Profile errors**: when the API refused a profile change with a plain
+  message (for example "Username is already taken"), the page showed
+  "Failed to update profile" instead. It now shows the API's message. A
+  profile form the App itself rejects now says why, too.
+- **Reply errors**: when the API refuses a reply (for example because the
+  thread was locked meanwhile), the page now shows why.
+- After posting a reply, the page now opens at the new post.
+- **Deleting a thread** failed on SQL Server and PostgreSQL for any thread
+  with posts (a foreign key error), after already taking one off the board's
+  thread count. It now deletes the thread with its posts, likes, poll,
+  watchers and notifications in one transaction, unlinks quotes of its posts
+  elsewhere, and only then lowers the board's thread and post counts.
+
+Upgrading from v1.3.1: deploy the new build of the App and API (and rebuild
+any mods; ModKit is now 1.3.0), then re-run `install.ps1` for your database.
+`Upgrades/v1.4.0.sql` adds `Users.BirthDay`, `BirthMonth` and `BirthYear` /
+`users.birth_day`, `birth_month` and `birth_year` (empty for existing
+members), and the user procedures are recreated with them. It also adds the
+Spoiler row to an already-seeded BBCode tag list and
+`DisplaySettings.PostsPerPage` / `display_settings.posts_per_page` (20). The new tables
+(`Notifications`, `ModerationQueue`, `ModerationLog`, `ModerationSettings` /
+`notifications`, `moderation_queue`, `moderation_log`,
+`moderation_settings`) are created by their `Tables/` scripts, and
+moderation settings are seeded with holding switched off, so nothing changes
+for members until an administrator turns it on. Existing rows aren't
+touched. Optionally set `Navigation:MaxModLinks` in the App's
+appsettings.json and `Notifications:RetentionDays` in the API's.
 
 ### v1.3.1
 

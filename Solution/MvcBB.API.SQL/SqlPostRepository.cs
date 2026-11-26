@@ -35,6 +35,30 @@ namespace MvcBB.API.SQL
             return rows.Select(MapToPost).ToList();
         }
 
+        public IReadOnlyList<Post> GetThreadPage(int threadId, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<PostRow>(
+                "dbo.usp_Post_GetThreadPage",
+                new { ThreadId = threadId, Skip = Math.Max(0, skip), Take = Math.Max(1, take) },
+                commandType: CommandType.StoredProcedure);
+            return rows.Select(MapToPost).ToList();
+        }
+
+        public ThreadPostLocation GetThreadLocation(int threadId, int? postId = null, DateTime? unreadAfter = null, int? excludeUserId = null)
+        {
+            // DATETIME2, not Dapper's default DATETIME, so a post created in
+            // the same 1/300 s as the saved read position isn't miscounted.
+            var parameters = new DynamicParameters();
+            parameters.Add("ThreadId", threadId);
+            parameters.Add("PostId", postId);
+            parameters.Add("UnreadAfter", unreadAfter, DbType.DateTime2);
+            parameters.Add("ExcludeUserId", excludeUserId);
+
+            using var connection = _connectionFactory.CreateConnection();
+            return connection.QuerySingle<ThreadPostLocation>("dbo.usp_Post_GetThreadLocation", parameters, commandType: CommandType.StoredProcedure);
+        }
+
         public Post? GetById(int id)
         {
             using var connection = _connectionFactory.CreateConnection();

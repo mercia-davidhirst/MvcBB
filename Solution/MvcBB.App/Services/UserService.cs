@@ -455,7 +455,12 @@ namespace MvcBB.App.Services
                         throw new ServiceException(message);
                     }
                 }
-                else if (document.RootElement.TryGetProperty("message", out var messageProp) && messageProp.ValueKind == JsonValueKind.String)
+
+                // A plain { "message": "..." } body (e.g. "Username is already taken").
+                // The root is an object too, so this is checked after the "errors"
+                // map rather than as its alternative, or the message would be lost.
+                if (document.RootElement.ValueKind == JsonValueKind.Object
+                    && document.RootElement.TryGetProperty("message", out var messageProp) && messageProp.ValueKind == JsonValueKind.String)
                 {
                     var message = messageProp.GetString();
                     if (!string.IsNullOrEmpty(message))

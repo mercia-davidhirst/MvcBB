@@ -1,0 +1,111 @@
+@using MvcBB.Shared.Interfaces
+@model IReadOnlyList<ModerationQueueItem>
+@inject IBBCodeService BBCodeService
+@{
+    ViewData["Title"] = "Moderation";
+    Layout = "_AdminLayout";
+    var smilies = ViewData["Smilies"] as Dictionary<string, string>;
+    var settings = ViewData["Settings"] as ModerationSettings;
+    var approvedThreadId = TempData["ApprovedThreadId"] as int?;
+    var approvedPostId = TempData["ApprovedPostId"] as int?;
+}
+
+<partial name="_ModerationTabs" />
+
+@if (approvedThreadId.HasValue)
+{
+    <p>
+        <a asp-controller="Threads" asp-action="Details" asp-route-id="@approvedThreadId" asp-route-postId="@approvedPostId" asp-fragment="post-@approvedPostId">
+            <i class="bi bi-box-arrow-up-right"></i> View the post you just approved
+        </a>
+    </p>
+}
+
+@if (settings != null)
+{
+    <div class="alert @(settings.HoldNewMemberPosts ? "alert-secondary" : "alert-warning") small">
+        @if (settings.HoldNewMemberPosts)
+        {
+            <span><i class="bi bi-shield-check me-1"></i>New members' first @settings.NewMemberPostThreshold @(settings.NewMemberPostThreshold == 1 ? "post is" : "posts are") held here until a moderator approves @(settings.NewMemberPostThreshold == 1 ? "it" : "them").</span>
+        }
+        else
+        {
+            <span><i class="bi bi-info-circle me-1"></i>Holding new members' posts is switched off, so nothing new will arrive here.</span>
+        }
+        @if (User.IsInRole("Administrator"))
+        {
+            <a asp-action="Settings" class="ms-1">Change</a>
+        }
+    </div>
+}
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-success">
+        <i class="bi bi-check-circle"></i> Nothing is waiting for approval.
+    </div>
+}
+else
+{
+    <p class="text-muted">@Model.Count @(Model.Count == 1 ? "post is" : "posts are") waiting, oldest first. Approving publishes the post as if it had just been posted; turning it down deletes it. Either way the member gets a notification.</p>
+
+    @foreach (var item in Model)
+    {
+        <div class="card mb-3">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    @if (item.Kind == QueuedPostKind.NewThread)
+                    {
+                        <span class="badge bg-primary me-1">New discussion</span>
+                        <strong>@item.Title</strong>
+                        <span class="text-muted">in @(item.BoardName ?? "a board that no longer exists")</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary me-1">Reply</span>
+                        <span class="text-muted">in</span>
+                        @if (item.ThreadId.HasValue && item.ThreadTitle != null)
+                        {
+                            <a asp-controller="Threads" asp-action="Details" asp-route-id="@item.ThreadId">@item.ThreadTitle</a>
+                        }
+                        else
+                        {
+                            <em>a discussion that no longer exists</em>
+                        }
+                    }
+                </div>
+                <small class="text-muted">
+                    by <a asp-controller="Account" asp-action="Profile" asp-route-username="@item.Username">@item.Username</a>,
+                    @(await Html.FormatDateTimeAsync(item.CreatedAt))
+                </small>
+            </div>
+            <div class="card-body">
+                <div class="moderation-content mb-3">
+                    @Html.Raw(BBCodeService.ParseBBCode(item.Content, smilies))
+                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                    {
+                        <div class="mt-3">
+                            <img src="@item.ImageUrl" alt="Attached image" class="img-fluid rounded" style="max-height: 300px;" />
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(item.PollJson))
+                    {
+                        <div class="mt-3 small text-muted"><i class="bi bi-bar-chart-line"></i> Includes a poll.</div>
+                    }
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-items-start">
+                    <form asp-action="Approve" asp-route-id="@item.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i> Approve</button>
+                    </form>
+                    <form asp-action="Reject" asp-route-id="@item.Id" method="post" class="d-flex flex-wrap gap-2 flex-grow-1">
+                        @Html.AntiForgeryToken()
+                        <input type="text" name="reason" class="form-control form-control-sm" style="max-width: 420px;" maxlength="500"
+                               placeholder="Reason (optional, shown to the member)" aria-label="Reason for turning it down" />
+                        <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-lg"></i> Turn down</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+}

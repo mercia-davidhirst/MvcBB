@@ -83,7 +83,7 @@
                             case "post":
                                 <h5 class="mb-1">
                                     <a asp-controller="Threads" asp-action="Details" 
-                                       asp-route-id="@result.ThreadId" asp-fragment="post-@result.Id">
+                                       asp-route-id="@result.ThreadId" asp-route-postId="@result.Id" asp-fragment="post-@result.Id">
                                         Re: @result.ThreadTitle
                                     </a>
                                 </h5>

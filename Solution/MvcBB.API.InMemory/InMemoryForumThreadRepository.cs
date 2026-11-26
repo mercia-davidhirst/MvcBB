@@ -35,7 +35,30 @@ namespace MvcBB.API.InMemory
                 _store.Threads[index] = thread;
         }
 
-        public void Remove(ForumThread thread) => _store.Threads.Remove(thread);
+        // Matches usp_Thread_Delete / sp_thread_delete: the thread goes with
+        // its posts, likes, poll, watchers, read positions, notifications and
+        // held replies, and other threads' quotes of its posts are unlinked.
+        public void Remove(ForumThread thread)
+        {
+            var postIds = _store.Posts.Where(p => p.ThreadId == thread.Id).Select(p => p.Id).ToHashSet();
+            foreach (var quoting in _store.Posts.Where(p => p.ThreadId != thread.Id && p.QuotedPostId.HasValue && postIds.Contains(p.QuotedPostId.Value)))
+            {
+                quoting.QuotedPostId = null;
+            }
+            _store.PostLikes.RemoveAll(l => postIds.Contains(l.PostId));
+            _store.Posts.RemoveAll(p => p.ThreadId == thread.Id);
+
+            var pollIds = _store.Polls.Where(p => p.ThreadId == thread.Id).Select(p => p.Id).ToHashSet();
+            _store.PollVotes.RemoveAll(v => pollIds.Contains(v.PollId));
+            _store.PollOptions.RemoveAll(o => pollIds.Contains(o.PollId));
+            _store.Polls.RemoveAll(p => p.ThreadId == thread.Id);
+
+            _store.ThreadSubscriptions.RemoveAll(s => s.ThreadId == thread.Id);
+            _store.ThreadReads.RemoveAll(r => r.ThreadId == thread.Id);
+            _store.Notifications.RemoveAll(n => n.ThreadId == thread.Id);
+            _store.ModerationQueue.RemoveAll(q => q.ThreadId == thread.Id);
+            _store.Threads.RemoveAll(t => t.Id == thread.Id);
+        }
 
         public (IReadOnlyList<ForumThread> Items, int TotalCount) GetPage(int skip, int take, bool includePrivateBoards, int? boardId = null)
         {

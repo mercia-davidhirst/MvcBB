@@ -715,4 +715,88 @@ footer.footer {
     to {
         opacity: 0;
     }
-}
+}
+/* [spoiler] BBCode: a <details> box that stays closed until clicked. */
+.bbcode-spoiler {
+    border: 1px dashed #adb5bd;
+    border-radius: 4px;
+    margin: 0.5rem 0;
+    padding: 0.25rem 0.75rem;
+    background-color: #f8f9fa;
+}
+
+.bbcode-spoiler > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #6c757d;
+}
+
+.bbcode-spoiler[open] > summary {
+    margin-bottom: 0.5rem;
+}
+
+:root[data-theme="dark"] .bbcode-spoiler {
+    background-color: var(--mvcbb-dark-surface-alt);
+    border-color: var(--mvcbb-dark-border);
+}
+
+:root[data-theme="dark"] .bbcode-spoiler > summary {
+    color: var(--mvcbb-dark-text-muted);
+}
+
+/* @mentions in posts. */
+a.mention {
+    font-weight: 600;
+    text-decoration: none;
+    background-color: rgba(111, 66, 193, 0.1);
+    border-radius: 3px;
+    padding: 0 0.15rem;
+}
+
+:root[data-theme="dark"] a.mention {
+    background-color: rgba(181, 156, 230, 0.15);
+}
+
+/* Draft autosave (post-editor.js). */
+.draft-status {
+    font-size: 0.8rem;
+}
+
+.draft-restore {
+    font-size: 0.9rem;
+}
+
+/* @mention suggestions under the post editor (post-editor.js). */
+.mention-suggestions {
+    position: absolute;
+    z-index: 1050;
+    min-width: 220px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.mention-suggestions .list-group-item.active {
+    color: #fff;
+}
+
+/* Notification centre. */
+.notification-item.notification-unread {
+    border-left: 3px solid var(--mvcbb-light-purple-dark, #6f42c1);
+    background-color: rgba(111, 66, 193, 0.05);
+}
+
+:root[data-theme="dark"] .notification-item.notification-unread {
+    background-color: rgba(181, 156, 230, 0.08);
+}
+
+.notification-icon {
+    font-size: 1.25rem;
+    width: 2rem;
+    text-align: center;
+}
+
+/* Moderation queue: the held post's content, as it will look. */
+.moderation-content {
+    max-height: 400px;
+    overflow-y: auto;
+}

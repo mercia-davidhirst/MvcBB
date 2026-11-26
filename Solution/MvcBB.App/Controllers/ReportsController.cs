@@ -175,7 +175,7 @@ namespace MvcBB.App.Controllers
                     // which thread it belongs to so the redirect actually lands
                     // somewhere instead of treating the post id as a thread id.
                     var post = await _postService.GetPostAsync(request.ContentId);
-                    var url = Url.Action("Details", "Threads", new { id = post.ThreadId }) + $"#post-{post.Id}";
+                    var url = Url.Action("Details", "Threads", new { id = post.ThreadId, postId = post.Id }) + $"#post-{post.Id}";
                     return Redirect(url);
                 }
 

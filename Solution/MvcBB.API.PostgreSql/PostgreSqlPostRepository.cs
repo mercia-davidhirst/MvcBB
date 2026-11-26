@@ -45,6 +45,29 @@ namespace MvcBB.API.PostgreSql
             return rows.Select(MapToPost).ToList();
         }
 
+        public IReadOnlyList<Post> GetThreadPage(int threadId, int skip, int take)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<PostRow>(
+                $"SELECT {SelectColumns} FROM public.fn_post_get_thread_page(@ThreadId, @Skip, @Take)",
+                new { ThreadId = threadId, Skip = Math.Max(0, skip), Take = Math.Max(1, take) });
+            return rows.Select(MapToPost).ToList();
+        }
+
+        public ThreadPostLocation GetThreadLocation(int threadId, int? postId = null, DateTime? unreadAfter = null, int? excludeUserId = null)
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            return connection.QuerySingle<ThreadPostLocation>(
+                "SELECT * FROM public.fn_post_get_thread_location(@ThreadId, @PostId, @UnreadAfter, @ExcludeUserId)",
+                new
+                {
+                    ThreadId = threadId,
+                    PostId = postId,
+                    UnreadAfter = unreadAfter.HasValue ? DateTime.SpecifyKind(unreadAfter.Value, DateTimeKind.Utc) : (DateTime?)null,
+                    ExcludeUserId = excludeUserId
+                });
+        }
+
         public Post? GetById(int id)
         {
             using var connection = _connectionFactory.CreateConnection();

@@ -4,6 +4,7 @@ DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, var
 DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean, varchar, varchar);
 DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean, varchar, varchar, varchar);
 DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean, varchar, varchar, varchar, integer, integer);
+DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean, varchar, varchar, varchar, integer, integer, integer);
 
 CREATE PROCEDURE public.sp_display_settings_update(
     p_threads_per_page INTEGER,
@@ -17,13 +18,15 @@ CREATE PROCEDURE public.sp_display_settings_update(
     p_time_format VARCHAR(20),
     p_time_zone_id VARCHAR(100) DEFAULT '',
     p_max_emails_per_hour INTEGER DEFAULT 0,
-    p_max_emails_per_day INTEGER DEFAULT 0
+    p_max_emails_per_day INTEGER DEFAULT 0,
+    p_posts_per_page INTEGER DEFAULT 20
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
     UPDATE public.display_settings
     SET threads_per_page = p_threads_per_page,
+        posts_per_page = COALESCE(p_posts_per_page, 20),
         site_title = p_site_title,
         welcome_message = p_welcome_message,
         site_name = p_site_name,

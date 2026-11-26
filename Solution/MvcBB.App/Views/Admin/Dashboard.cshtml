@@ -1,6 +1,10 @@
+@using MvcBB.App.Interfaces
+@inject MvcBB.App.Mods.ModAdminRegistry ModAdminRegistry
+@inject IModsService ModsService
 @{
     ViewData["Title"] = "Dashboard";
     Layout = "_AdminLayout";
+    var modAdminItems = await ModAdminRegistry.GetEnabledAsync(Context, ModsService);
 }
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
@@ -44,6 +48,17 @@
                 }
                 <a asp-controller="AdminEmails" asp-action="Index" class="btn btn-outline-primary btn-sm">Email Users</a>
                 <a asp-controller="AdminEmails" asp-action="Activity" class="btn btn-outline-secondary btn-sm">Sending activity</a>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-shield-check me-2"></i>Moderation</h5>
+                <p class="card-text text-muted">Approve or turn down new members' held posts, read the log of moderator actions, and choose which posts are held.</p>
+                <a asp-controller="Moderation" asp-action="Index" class="btn btn-outline-primary btn-sm">Moderation queue</a>
+                <a asp-controller="Moderation" asp-action="Log" class="btn btn-outline-secondary btn-sm">Moderation log</a>
+                <a asp-controller="Moderation" asp-action="Settings" class="btn btn-outline-secondary btn-sm">Settings</a>
             </div>
         </div>
     </div>
@@ -110,4 +125,17 @@
             </div>
         </div>
     </div>
+    @* Admin pages added by enabled mods (IAppMod.GetAdminItems). *@
+    @foreach (var adminItem in modAdminItems)
+    {
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi @adminItem.Item.IconCssClass me-2"></i>@adminItem.Item.Text</h5>
+                    <p class="card-text text-muted">@(adminItem.Item.Description ?? "Settings for the " + adminItem.Item.Text + " mod.")</p>
+                    <a asp-controller="@adminItem.Item.Controller" asp-action="@adminItem.Item.Action" class="btn btn-outline-primary btn-sm">@(adminItem.Item.ButtonText ?? "Manage " + adminItem.Item.Text)</a>
+                </div>
+            </div>
+        </div>
+    }
 </div>

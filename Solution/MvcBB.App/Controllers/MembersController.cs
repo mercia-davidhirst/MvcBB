@@ -10,10 +10,32 @@ namespace MvcBB.App.Controllers
     public class MembersController : Controller
     {
         private readonly IUserService _userService;
+        private readonly INotificationsService _notificationsService;
 
-        public MembersController(IUserService userService)
+        public MembersController(IUserService userService, INotificationsService notificationsService)
         {
             _userService = userService;
+            _notificationsService = notificationsService;
+        }
+
+        /// <summary>Member names for the post editor's @mention autocomplete (post-editor.js).</summary>
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        [HttpGet]
+        public async Task<IActionResult> MentionSuggestions(string? q)
+        {
+            if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
+            {
+                return Json(Array.Empty<string>());
+            }
+
+            try
+            {
+                return Json(await _notificationsService.GetMentionSuggestionsAsync(q.Trim()));
+            }
+            catch (Exception)
+            {
+                return Json(Array.Empty<string>());
+            }
         }
 
         public async Task<IActionResult> Index(string search = null, UserRole? role = null, 

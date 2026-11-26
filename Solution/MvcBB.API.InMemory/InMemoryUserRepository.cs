@@ -75,6 +75,17 @@ namespace MvcBB.API.InMemory
             return _store.Users.Where(u => idSet.Contains(u.Id)).ToDictionary(u => u.Id, u => u.Username);
         }
 
+        public IReadOnlyDictionary<string, int> GetIdsByUsernames(IEnumerable<string> usernames)
+        {
+            var nameSet = new HashSet<string>(usernames.Where(n => !string.IsNullOrWhiteSpace(n)), StringComparer.OrdinalIgnoreCase);
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var user in _store.Users.Where(u => nameSet.Contains(u.Username)))
+            {
+                result[user.Username] = user.Id;
+            }
+            return result;
+        }
+
         public IReadOnlyDictionary<string, int> GetPostCountsByUsernames(IEnumerable<string> usernames)
         {
             var nameSet = usernames.ToHashSet(StringComparer.OrdinalIgnoreCase);

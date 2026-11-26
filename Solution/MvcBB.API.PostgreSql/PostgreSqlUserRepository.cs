@@ -15,7 +15,7 @@ namespace MvcBB.API.PostgreSql
     public class PostgreSqlUserRepository : IUserRepository
     {
         private const string SelectColumns =
-            "id, username::text AS username, password_hash, email::text AS email, created_at, last_login_at, role, signature, bio, avatar_url, show_email, custom_title, must_change_password, locked_until, last_login_ip, auto_jump_to_unread";
+            "id, username::text AS username, password_hash, email::text AS email, created_at, last_login_at, role, signature, bio, avatar_url, show_email, custom_title, must_change_password, locked_until, last_login_ip, auto_jump_to_unread, birth_day, birth_month, birth_year";
 
         private readonly IPostgreSqlConnectionFactory _connectionFactory;
 
@@ -55,7 +55,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             var newId = connection.QuerySingle<int>(
-                "CALL public.sp_user_insert(@Username, @PasswordHash, @Email, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp, @AutoJumpToUnread, NULL)",
+                "CALL public.sp_user_insert(@Username, @PasswordHash, @Email, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp, @AutoJumpToUnread, @BirthDay, @BirthMonth, @BirthYear, NULL)",
                 new
                 {
                     user.Username,
@@ -70,7 +70,10 @@ namespace MvcBB.API.PostgreSql
                     user.MustChangePassword,
                     user.LockedUntil,
                     user.LastLoginIp,
-                    user.AutoJumpToUnread
+                    user.AutoJumpToUnread,
+                    BirthDay = (short?)user.BirthDay,
+                    BirthMonth = (short?)user.BirthMonth,
+                    BirthYear = (short?)user.BirthYear
                 });
 
             return connection.QuerySingle<User>($"SELECT {SelectColumns} FROM public.fn_user_get_by_id(@Id)", new { Id = newId });
@@ -80,7 +83,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             connection.Execute(
-                "CALL public.sp_user_update(@Id, @Username, @PasswordHash, @Email, @LastLoginAt, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp, @AutoJumpToUnread)",
+                "CALL public.sp_user_update(@Id, @Username, @PasswordHash, @Email, @LastLoginAt, @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp, @AutoJumpToUnread, @BirthDay, @BirthMonth, @BirthYear)",
                 new
                 {
                     user.Id,
@@ -97,7 +100,10 @@ namespace MvcBB.API.PostgreSql
                     user.MustChangePassword,
                     user.LockedUntil,
                     user.LastLoginIp,
-                    user.AutoJumpToUnread
+                    user.AutoJumpToUnread,
+                    BirthDay = (short?)user.BirthDay,
+                    BirthMonth = (short?)user.BirthMonth,
+                    BirthYear = (short?)user.BirthYear
                 });
         }
 
@@ -159,6 +165,28 @@ namespace MvcBB.API.PostgreSql
         {
             public int Id { get; set; }
             public string Username { get; set; } = string.Empty;
+        }
+
+        public IReadOnlyDictionary<string, int> GetIdsByUsernames(IEnumerable<string> usernames)
+        {
+            var nameList = usernames.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (nameList.Length == 0)
+            {
+                return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            // username is citext, so comparing it with citext values matches
+            // case-insensitively, the same as the unique index.
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<UsernameRow>(
+                "SELECT id, username::text AS username FROM public.users WHERE username = ANY(@Usernames::citext[])",
+                new { Usernames = nameList });
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in rows)
+            {
+                result[row.Username] = row.Id;
+            }
+            return result;
         }
 
         public IReadOnlyDictionary<string, int> GetPostCountsByUsernames(IEnumerable<string> usernames)

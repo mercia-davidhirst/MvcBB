@@ -29,6 +29,8 @@ BEGIN
         -- AdminEmail:MaxPerHour / MaxPerDay. Added in v1.3.0.
         MaxEmailsPerHour    INT            NOT NULL CONSTRAINT DF_DisplaySettings_MaxEmailsPerHour DEFAULT (0),
         MaxEmailsPerDay     INT            NOT NULL CONSTRAINT DF_DisplaySettings_MaxEmailsPerDay DEFAULT (0),
+        -- Posts shown per page of a discussion. Added in v1.4.0.
+        PostsPerPage        INT            NOT NULL CONSTRAINT DF_DisplaySettings_PostsPerPage DEFAULT (20),
         CONSTRAINT PK_DisplaySettings PRIMARY KEY CLUSTERED (Id)
     );
 END

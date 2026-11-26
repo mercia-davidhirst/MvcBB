@@ -8,11 +8,20 @@ namespace MvcBB.App.Interfaces
     {
         Task<ThreadListResponse> GetThreadsAsync(int? boardId = null, int page = 1, int? pageSize = null);
         Task<ThreadResponse> GetThreadAsync(int id);
-        Task<ThreadResponse> CreateThreadAsync(CreateForumThreadRequest request);
+        /// <summary>Null when the thread was held for a moderator's approval instead.</summary>
+        Task<ThreadResponse?> CreateThreadAsync(CreateForumThreadRequest request);
         Task UpdateThreadAsync(int id, UpdateForumThreadRequest request);
         Task DeleteThreadAsync(int id);
         Task<IEnumerable<PostResponse>> GetThreadPostsAsync(int threadId);
-        Task<PostResponse> CreatePostAsync(int threadId, CreatePostRequest request);
+
+        /// <summary>
+        /// One page of a thread's posts: the page holding postId when given,
+        /// else the page holding the member's first unread post when unread
+        /// is true, else the last page when last is true, else page (default 1).
+        /// </summary>
+        Task<ThreadPostPage> GetThreadPostPageAsync(int threadId, int? page = null, int? postId = null, bool unread = false, bool last = false);
+        /// <summary>Null when the reply was held for a moderator's approval instead.</summary>
+        Task<PostResponse?> CreatePostAsync(int threadId, CreatePostRequest request);
         Task<PostResponse> GetPostAsync(int id);
         Task UpdatePostAsync(int id, UpdatePostRequest request);
 

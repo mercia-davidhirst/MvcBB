@@ -17,15 +17,19 @@ CREATE PROCEDURE dbo.usp_User_Insert
     @MustChangePassword BIT = 0,
     @LockedUntil DATETIME2(3) = NULL,
     @LastLoginIp NVARCHAR(45) = NULL,
-    @AutoJumpToUnread BIT = 1
+    @AutoJumpToUnread BIT = 1,
+    @BirthDay TINYINT = NULL,
+    @BirthMonth TINYINT = NULL,
+    @BirthYear SMALLINT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    INSERT INTO dbo.Users (Username, PasswordHash, Email, CreatedAt, Role, Signature, Bio, AvatarUrl, ShowEmail, CustomTitle, MustChangePassword, LockedUntil, LastLoginIp, AutoJumpToUnread)
+    INSERT INTO dbo.Users (Username, PasswordHash, Email, CreatedAt, Role, Signature, Bio, AvatarUrl, ShowEmail, CustomTitle, MustChangePassword, LockedUntil, LastLoginIp, AutoJumpToUnread, BirthDay, BirthMonth, BirthYear)
     OUTPUT inserted.Id, inserted.Username, inserted.PasswordHash, inserted.Email, inserted.CreatedAt,
            inserted.LastLoginAt, inserted.Role, inserted.Signature, inserted.Bio, inserted.AvatarUrl, inserted.ShowEmail,
-           inserted.CustomTitle, inserted.MustChangePassword, inserted.LockedUntil, inserted.LastLoginIp, inserted.AutoJumpToUnread
-    VALUES (@Username, @PasswordHash, @Email, ISNULL(@CreatedAt, SYSUTCDATETIME()), @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp, @AutoJumpToUnread);
+           inserted.CustomTitle, inserted.MustChangePassword, inserted.LockedUntil, inserted.LastLoginIp, inserted.AutoJumpToUnread,
+           inserted.BirthDay, inserted.BirthMonth, inserted.BirthYear
+    VALUES (@Username, @PasswordHash, @Email, ISNULL(@CreatedAt, SYSUTCDATETIME()), @Role, @Signature, @Bio, @AvatarUrl, @ShowEmail, @CustomTitle, @MustChangePassword, @LockedUntil, @LastLoginIp, @AutoJumpToUnread, @BirthDay, @BirthMonth, @BirthYear);
 END;
 GO

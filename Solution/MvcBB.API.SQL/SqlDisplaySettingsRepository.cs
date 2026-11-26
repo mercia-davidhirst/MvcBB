@@ -31,6 +31,7 @@ namespace MvcBB.API.SQL
             connection.Execute("dbo.usp_DisplaySettings_Update", new
             {
                 settings.ThreadsPerPage,
+                settings.PostsPerPage,
                 settings.SiteTitle,
                 settings.WelcomeMessage,
                 settings.SiteName,

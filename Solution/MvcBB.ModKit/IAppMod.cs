@@ -41,5 +41,18 @@ namespace MvcBB.ModKit
         /// 1.0.0 still load unchanged and simply contribute nothing.
         /// </remarks>
         IEnumerable<ModSlotContribution> GetSlotContributions() => Array.Empty<ModSlotContribution>();
+
+        /// <summary>
+        /// Administration pages this mod adds to core's admin entry points (the
+        /// Admin Dashboard, the navbar's Admin dropdown and the admin sidebar).
+        /// Shown to Administrators only, and filtered by the enabled-mod set
+        /// like <see cref="GetNavItems"/>. The mod's own controller still has
+        /// to restrict the page to Administrators.
+        /// </summary>
+        /// <remarks>
+        /// Has a default body (added in ModKit 1.3.0) so mods compiled against
+        /// older versions still load unchanged and simply add no admin pages.
+        /// </remarks>
+        IEnumerable<ModAdminItem> GetAdminItems() => Array.Empty<ModAdminItem>();
     }
 }

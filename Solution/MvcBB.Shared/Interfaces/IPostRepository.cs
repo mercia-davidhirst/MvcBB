@@ -6,6 +6,23 @@ namespace MvcBB.Shared.Interfaces
     {
         IReadOnlyList<Post> GetAll();
         IReadOnlyList<Post> GetByThreadId(int threadId);
+
+        /// <summary>
+        /// One page of a discussion's posts, in order (CreatedAt, then Id),
+        /// paged in the data layer - a discussion can have tens of thousands
+        /// of posts, so GetByThreadId is never used to show one.
+        /// </summary>
+        IReadOnlyList<Post> GetThreadPage(int threadId, int skip, int take);
+
+        /// <summary>
+        /// How many posts the discussion has, plus where one post sits in it:
+        /// postId when given (null result when it isn't in this thread), or
+        /// else the first post created after unreadAfter that isn't by
+        /// excludeUserId (the reader's first unread post). Used to open a
+        /// discussion at the page that post is on.
+        /// </summary>
+        ThreadPostLocation GetThreadLocation(int threadId, int? postId = null, DateTime? unreadAfter = null, int? excludeUserId = null);
+
         Post? GetById(int id);
         Post Add(Post post);
         void Update(Post post);

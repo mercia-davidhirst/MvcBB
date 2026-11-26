@@ -3,6 +3,7 @@
 DROP PROCEDURE IF EXISTS public.sp_user_update(integer, varchar, varchar, varchar, timestamptz, smallint, varchar, varchar, varchar, boolean, varchar);
 DROP PROCEDURE IF EXISTS public.sp_user_update(integer, varchar, varchar, varchar, timestamptz, smallint, varchar, varchar, varchar, boolean, varchar, boolean, timestamptz, varchar);
 DROP PROCEDURE IF EXISTS public.sp_user_update(integer, varchar, varchar, varchar, timestamptz, smallint, varchar, varchar, varchar, boolean, varchar, boolean, timestamptz, varchar, boolean);
+DROP PROCEDURE IF EXISTS public.sp_user_update(integer, varchar, varchar, varchar, timestamptz, smallint, varchar, varchar, varchar, boolean, varchar, boolean, timestamptz, varchar, boolean, smallint, smallint, smallint);
 
 CREATE PROCEDURE public.sp_user_update(
     p_id INTEGER,
@@ -19,7 +20,10 @@ CREATE PROCEDURE public.sp_user_update(
     p_must_change_password BOOLEAN DEFAULT FALSE,
     p_locked_until TIMESTAMPTZ DEFAULT NULL,
     p_last_login_ip VARCHAR(45) DEFAULT NULL,
-    p_auto_jump_to_unread BOOLEAN DEFAULT TRUE
+    p_auto_jump_to_unread BOOLEAN DEFAULT TRUE,
+    p_birth_day SMALLINT DEFAULT NULL,
+    p_birth_month SMALLINT DEFAULT NULL,
+    p_birth_year SMALLINT DEFAULT NULL
 )
 LANGUAGE plpgsql
 AS $$
@@ -38,7 +42,10 @@ BEGIN
         must_change_password = p_must_change_password,
         locked_until = p_locked_until,
         last_login_ip = p_last_login_ip,
-        auto_jump_to_unread = p_auto_jump_to_unread
+        auto_jump_to_unread = p_auto_jump_to_unread,
+        birth_day = p_birth_day,
+        birth_month = p_birth_month,
+        birth_year = p_birth_year
     WHERE id = p_id;
 END;
 $$;

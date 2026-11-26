@@ -21,6 +21,14 @@ namespace MvcBB.Shared.Interfaces
         /// <summary>Username for each of the given ids, in one query - for when only the name is needed.</summary>
         IReadOnlyDictionary<int, string> GetUsernamesByIds(IEnumerable<int> ids);
 
+        /// <summary>
+        /// The id of each of the given usernames that belongs to a member,
+        /// in one query, keyed by the username as stored (matching is
+        /// case-insensitive; names that aren't members are left out). Used to
+        /// resolve @mentions.
+        /// </summary>
+        IReadOnlyDictionary<string, int> GetIdsByUsernames(IEnumerable<string> usernames);
+
         /// <summary>Post counts for several usernames at once, in one query.</summary>
         IReadOnlyDictionary<string, int> GetPostCountsByUsernames(IEnumerable<string> usernames);
 

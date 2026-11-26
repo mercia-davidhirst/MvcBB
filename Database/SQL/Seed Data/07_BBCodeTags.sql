@@ -22,6 +22,7 @@ BEGIN
         (N'Color', N'\[color=(.*?)\](.*?)\[/color\]', N'<span style="color: $1">$2</span>', N'Colors text', N'[color=red]colored text[/color]', 1, 11),
         (N'Size', N'\[size=(.*?)\](.*?)\[/size\]', N'<span style="font-size: $1px">$2</span>', N'Changes text size', N'[size=20]sized text[/size]', 1, 12),
         (N'Center', N'\[center\](.*?)\[/center\]', N'<div class="text-center">$1</div>', N'Centers text', N'[center]centered text[/center]', 1, 13),
-        (N'Right', N'\[right\](.*?)\[/right\]', N'<div class="text-end">$1</div>', N'Right-aligns text', N'[right]right-aligned text[/right]', 1, 14);
+        (N'Right', N'\[right\](.*?)\[/right\]', N'<div class="text-end">$1</div>', N'Right-aligns text', N'[right]right-aligned text[/right]', 1, 14),
+        (N'Spoiler', N'\[spoiler(=(.*?))?\](.*?)\[/spoiler\]', N'<details class="bbcode-spoiler"><summary>$2</summary>$3</details>', N'Hides text until the reader clicks it, with an optional title', N'[spoiler=Ending]hidden text[/spoiler]', 1, 15);
 END;
 GO

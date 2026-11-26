@@ -31,6 +31,7 @@ namespace MvcBB.API.Services
         public void UpdateDisplaySettings(DisplaySettings settings)
         {
             settings.ThreadsPerPage = Math.Clamp(settings.ThreadsPerPage, 1, 100);
+            settings.PostsPerPage = Math.Clamp(settings.PostsPerPage, 5, 100);
             settings.MaxEmailsPerHour = Math.Max(0, settings.MaxEmailsPerHour);
             settings.MaxEmailsPerDay = Math.Max(0, settings.MaxEmailsPerDay);
 

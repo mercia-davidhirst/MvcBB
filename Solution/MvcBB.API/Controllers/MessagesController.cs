@@ -13,11 +13,19 @@ namespace MvcBB.API.Controllers
     {
         private readonly IMessageRepository _messageRepository;
         private readonly IUserRepository _userRepository;
+        private readonly MvcBB.API.Services.INotificationService _notifications;
+        private readonly INotificationRepository _notificationRepository;
 
-        public MessagesController(IMessageRepository messageRepository, IUserRepository userRepository)
+        public MessagesController(
+            IMessageRepository messageRepository,
+            IUserRepository userRepository,
+            MvcBB.API.Services.INotificationService notifications,
+            INotificationRepository notificationRepository)
         {
             _messageRepository = messageRepository;
             _userRepository = userRepository;
+            _notifications = notifications;
+            _notificationRepository = notificationRepository;
         }
 
         [HttpGet]
@@ -71,6 +79,19 @@ namespace MvcBB.API.Controllers
             {
                 message.ReadAt = DateTime.UtcNow;
                 _messageRepository.Update(message);
+
+                // Reading the message covers its notification too.
+                if (int.TryParse(userId, out var readerId))
+                {
+                    try
+                    {
+                        _notificationRepository.MarkReadForMessage(readerId, message.Id);
+                    }
+                    catch (Exception)
+                    {
+                        // Never let the notification centre stop a message from opening.
+                    }
+                }
             }
 
             return Ok(MapToResponse(message));
@@ -110,6 +131,7 @@ namespace MvcBB.API.Controllers
             };
 
             message = _messageRepository.Add(message);
+            _notifications.NotifyMessage(message);
 
             return CreatedAtAction(nameof(GetMessage), new { id = message.Id }, MapToResponse(message));
         }

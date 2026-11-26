@@ -3,8 +3,12 @@
 @inject ISettingsService SettingsService
 @inject IMessageService MessageService
 @inject IReportService ReportService
+@inject INotificationsService NotificationsService
+@inject IModerationService ModerationService
 @inject IModsService ModsService
 @inject IReadOnlyList<IAppMod> DiscoveredAppMods
+@inject MvcBB.App.Mods.ModAdminRegistry ModAdminRegistry
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
     var displaySettings = await SettingsService.GetDisplaySettingsAsync();
     // Mod-contributed nav items (see MvcBB.ModKit.IAppMod) - skipped for any
@@ -17,12 +21,23 @@
         .Where(m => enabledModIds.Contains(m.Id))
         .SelectMany(m => m.GetNavItems())
         .ToList();
+    // Mod links beyond Navigation:MaxModLinks (appsettings.json, default 3) go
+    // into a "More" menu, so each new mod doesn't widen the navbar. When there
+    // are too many, the last visible place goes to the menu itself.
+    var maxModLinks = Math.Max(1, Configuration.GetValue("Navigation:MaxModLinks", 3));
+    var visibleModItems = navModItems.Count <= maxModLinks ? navModItems : navModItems.Take(maxModLinks - 1).ToList();
+    var overflowModItems = navModItems.Skip(visibleModItems.Count).ToList();
+    // Admin pages added by enabled mods, for the Admin dropdown (Administrators only).
+    var modAdminItems = User.IsInRole("Administrator")
+        ? await ModAdminRegistry.GetEnabledAsync(Context, ModsService)
+        : Array.Empty<MvcBB.App.Mods.ModAdminRegistry.Entry>();
     // Whatever Version/AssemblyVersion the MvcBB.App project is built with -
     // GetEntryAssembly() (not GetExecutingAssembly()) so this reads the app's
     // own version even though Razor views compile into their own assembly.
     var appVersion = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
     var appVersionText = appVersion != null ? $"v{appVersion.Major}.{appVersion.Minor}.{appVersion.Build}" : null;
     var unreadMessageCount = 0;
+    var unreadNotificationCount = 0;
     if (User.Identity?.IsAuthenticated == true)
     {
         try
@@ -32,6 +47,14 @@
         catch
         {
             // Don't let a transient API/session hiccup break every page's layout.
+        }
+        try
+        {
+            unreadNotificationCount = await NotificationsService.GetUnreadCountAsync();
+        }
+        catch
+        {
+            // Same: the bell just shows no count this time.
         }
     }
     // Open (Pending/Investigating) report count for the moderator/admin
@@ -49,6 +72,21 @@
             // Same as above: never break the layout over the badge.
         }
     }
+    // Posts waiting in the moderation queue, for the moderator/admin badge.
+    var moderationQueueCount = 0;
+    if (canModerate)
+    {
+        try
+        {
+            moderationQueueCount = await ModerationService.GetQueueCountAsync();
+        }
+        catch
+        {
+            // Same as above.
+        }
+    }
+    // A draft the controller has just saved for real (see DraftKeys), for post-editor.js to delete.
+    var clearDraftKey = TempData[DraftKeys.ClearDraftTempDataKey] as string;
     // The page the member is on, offered (not forced) on the Report an issue form.
     var currentPageUrl = Context.Request.PathBase + Context.Request.Path + Context.Request.QueryString;
 }
@@ -73,6 +111,10 @@
             }
         })();
     </script>
+    @if (!string.IsNullOrEmpty(clearDraftKey))
+    {
+        <meta name="mvcbb-clear-draft" content="@clearDraftKey" data-user="@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value" />
+    }
     <link rel="icon" href='@Url.Content("~/favicon.ico")'>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.css" />
@@ -110,12 +152,31 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-controller="Members" asp-action="Index">Members</a>
                         </li>
-                        @foreach (var navItem in navModItems)
+                        @foreach (var navItem in visibleModItems)
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="@navItem.Controller" asp-action="@navItem.Action">
                                     <i class="bi @navItem.IconCssClass"></i> @navItem.Text
                                 </a>
+                            </li>
+                        }
+                        @if (overflowModItems.Count > 0)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link text-dark dropdown-toggle" href="#" id="moreModsDropdown" role="button"
+                                   data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-list"></i> More
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="moreModsDropdown">
+                                    @foreach (var navItem in overflowModItems)
+                                    {
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="@navItem.Controller" asp-action="@navItem.Action">
+                                                <i class="bi @navItem.IconCssClass me-2"></i>@navItem.Text
+                                            </a>
+                                        </li>
+                                    }
+                                </ul>
                             </li>
                         }
                         @if (User.Identity?.IsAuthenticated == true)
@@ -165,6 +226,11 @@
                                             </a>
                                         </li>
                                         <li>
+                                            <a class="dropdown-item" asp-controller="Moderation" asp-action="Index">
+                                                <i class="bi bi-shield-check me-2"></i>Moderation
+                                            </a>
+                                        </li>
+                                        <li>
                                             <a class="dropdown-item" asp-controller="Mods" asp-action="Index">
                                                 <i class="bi bi-puzzle me-2"></i>Mods
                                             </a>
@@ -199,6 +265,20 @@
                                                 <i class="bi bi-chat-square-text me-2"></i>Word Filter
                                             </a>
                                         </li>
+                                        @if (modAdminItems.Count > 0)
+                                        {
+                                            @* Admin pages added by enabled mods (IAppMod.GetAdminItems). *@
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Mods</h6></li>
+                                            @foreach (var adminItem in modAdminItems)
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" asp-controller="@adminItem.Item.Controller" asp-action="@adminItem.Item.Action">
+                                                        <i class="bi @adminItem.Item.IconCssClass me-2"></i>@adminItem.Item.Text
+                                                    </a>
+                                                </li>
+                                            }
+                                        }
                                     </ul>
                                 </li>
                             }
@@ -206,6 +286,9 @@
                             {
                                 <li class="nav-item">
                                     <a class="nav-link text-dark" asp-controller="Reports" asp-action="Index">Reports</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-controller="Moderation" asp-action="Index">Moderation</a>
                                 </li>
                             }
                         }
@@ -222,8 +305,22 @@
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <mod-slot name="@CoreSlots.LayoutNavbar" context="@(new PageSlotContext { ViewerUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value })" />
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Notifications" asp-action="Index"
+                                   title="Notifications" aria-label="Notifications" data-bs-toggle="tooltip" data-bs-placement="bottom">
+                                    <i class="bi bi-bell"></i>
+                                    <span id="unreadNotificationBadge" class="badge rounded-pill bg-danger @(unreadNotificationCount > 0 ? "" : "d-none")">@unreadNotificationCount</span>
+                                </a>
+                            </li>
                             if (canModerate)
                             {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-controller="Moderation" asp-action="Index"
+                                       title="Posts waiting for approval" aria-label="Posts waiting for approval" data-bs-toggle="tooltip" data-bs-placement="bottom">
+                                        <i class="bi bi-hourglass-split"></i>
+                                        <span id="moderationQueueBadge" class="badge rounded-pill bg-info text-dark @(moderationQueueCount > 0 ? "" : "d-none")">@moderationQueueCount</span>
+                                    </a>
+                                </li>
                                 <li class="nav-item">
                                     <a class="nav-link text-dark" asp-controller="Reports" asp-action="Index"
                                        title="Open reports" aria-label="Open reports" data-bs-toggle="tooltip" data-bs-placement="bottom">
@@ -329,6 +426,7 @@
             // Baseline for the new-PM polling in site.js - avoids toasting for
             // messages already reflected in the navbar badge on page load.
             window.mvcbbInitialUnreadCount = @unreadMessageCount;
+            window.mvcbbInitialNotificationCount = @unreadNotificationCount;
         </script>
         @* Moderation alerts. Mods add their own toasts here (layout.toasts) so
            they stack with the open-reports one instead of overlapping it. *@
@@ -353,6 +451,7 @@
             <script>
                 // Baseline for the open-reports polling in site.js.
                 window.mvcbbInitialOpenReportCount = @openReportCount;
+                window.mvcbbInitialModerationQueueCount = @moderationQueueCount;
             </script>
         }
     }
@@ -360,6 +459,7 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/post-editor.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

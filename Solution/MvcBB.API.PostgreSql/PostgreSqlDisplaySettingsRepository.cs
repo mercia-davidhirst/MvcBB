@@ -29,10 +29,11 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             connection.Execute(
-                "CALL public.sp_display_settings_update(@ThreadsPerPage, @SiteTitle, @WelcomeMessage, @SiteName, @LogoPath, @FooterDisclaimer, @RegistrationEnabled, @DateFormat, @TimeFormat, @TimeZoneId, @MaxEmailsPerHour, @MaxEmailsPerDay)",
+                "CALL public.sp_display_settings_update(@ThreadsPerPage, @SiteTitle, @WelcomeMessage, @SiteName, @LogoPath, @FooterDisclaimer, @RegistrationEnabled, @DateFormat, @TimeFormat, @TimeZoneId, @MaxEmailsPerHour, @MaxEmailsPerDay, @PostsPerPage)",
                 new
                 {
                     settings.ThreadsPerPage,
+                    settings.PostsPerPage,
                     settings.SiteTitle,
                     settings.WelcomeMessage,
                     settings.SiteName,

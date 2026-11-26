@@ -62,7 +62,7 @@
                                         break;
                                     case ReportType.Post when Model.ContentThreadId.HasValue:
                                         @* ContentId is the post's id: link to its thread, anchored at the post. *@
-                                        <a asp-controller="Threads" asp-action="Details" asp-route-id="@Model.ContentThreadId" asp-fragment="post-@Model.ContentId">
+                                        <a asp-controller="Threads" asp-action="Details" asp-route-id="@Model.ContentThreadId" asp-route-postId="@Model.ContentId" asp-fragment="post-@Model.ContentId">
                                             @Model.ContentTitle (post #@Model.ContentId)
                                         </a>
                                         break;

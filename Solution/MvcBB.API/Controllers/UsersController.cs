@@ -28,6 +28,7 @@ namespace MvcBB.API.Controllers
         private readonly IPasswordPolicyService _passwordPolicyService;
         private readonly JwtTokenService _jwtTokenService;
         private readonly IAdminEmailRepository _adminEmailRepository;
+        private readonly IModerationLogger _moderationLog;
 
         public UsersController(
             IConfiguration configuration,
@@ -38,8 +39,10 @@ namespace MvcBB.API.Controllers
             IDisplaySettingsService displaySettingsService,
             IPasswordPolicyService passwordPolicyService,
             JwtTokenService jwtTokenService,
-            IAdminEmailRepository adminEmailRepository)
+            IAdminEmailRepository adminEmailRepository,
+            IModerationLogger moderationLog)
         {
+            _moderationLog = moderationLog;
             _configuration = configuration;
             _userRepository = userRepository;
             _passwordResetTokenRepository = passwordResetTokenRepository;
@@ -418,6 +421,33 @@ namespace MvcBB.API.Controllers
             });
         }
 
+        /// <summary>
+        /// Up to 8 members whose username contains the query, those starting
+        /// with it first - for the @mention autocomplete in the post editor.
+        /// Signed-in members only; anonymized accounts and the System account
+        /// are left out.
+        /// </summary>
+        [Authorize]
+        [HttpGet("mention-suggestions")]
+        public ActionResult<IEnumerable<string>> GetMentionSuggestions([FromQuery] string? q)
+        {
+            var query = (q ?? string.Empty).Trim().TrimStart('@').Trim('"');
+            if (query.Length < 1 || query.Length > 50)
+            {
+                return Ok(Array.Empty<string>());
+            }
+
+            var (users, _) = _userRepository.GetMembersPage(null, query, "username", false, 0, 30);
+            var names = users
+                .Where(u => u.Role != UserRole.Deleted && u.Username != SystemUserProvider.Username)
+                .Select(u => u.Username)
+                .OrderBy(name => name.StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .Take(8)
+                .ToList();
+            return Ok(names);
+        }
+
         // Lets MvcBB.App confirm, on each request, that a signed-in member's
         // session is still valid. The real check happens while the token is
         // authenticated (JwtTokenService.CheckUserSession); getting here at
@@ -493,6 +523,19 @@ namespace MvcBB.API.Controllers
             user.Bio = request.Bio;
             user.AvatarUrl = request.AvatarUrl;
             user.ShowEmail = request.ShowEmail;
+            if (request.UpdateBirthday)
+            {
+                var birthdayProblem = Birthday.Validate(request.BirthDay, request.BirthMonth, request.BirthYear, DateTime.UtcNow);
+                if (birthdayProblem != null)
+                {
+                    return BadRequest(new { message = birthdayProblem });
+                }
+
+                var hasBirthday = request.BirthDay.HasValue && request.BirthMonth.HasValue;
+                user.BirthDay = hasBirthday ? request.BirthDay : null;
+                user.BirthMonth = hasBirthday ? request.BirthMonth : null;
+                user.BirthYear = hasBirthday ? request.BirthYear : null;
+            }
             if (request.AutoJumpToUnread.HasValue)
             {
                 user.AutoJumpToUnread = request.AutoJumpToUnread.Value;
@@ -616,8 +659,13 @@ namespace MvcBB.API.Controllers
             user.LockedUntil = request.LockedUntil;
             _userRepository.Update(user);
 
-            var message = user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow
-                ? $"User locked until {user.LockedUntil.Value:u}."
+            var isLocked = user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow;
+            _moderationLog.Log(isLocked ? MvcBB.Shared.Models.Moderation.ModerationActions.LockUser : MvcBB.Shared.Models.Moderation.ModerationActions.UnlockUser,
+                "User", user.Id, user.Id,
+                isLocked ? $"Locked {user.Username} until {user.LockedUntil!.Value:yyyy-MM-dd HH:mm} UTC" : $"Unlocked {user.Username}");
+
+            var message = isLocked
+                ? $"User locked until {user.LockedUntil!.Value:u}."
                 : "User unlocked.";
             return Ok(new { message });
         }
@@ -701,8 +749,16 @@ namespace MvcBB.API.Controllers
                 return BadRequest(new { message = "Cannot change your own role" });
             }
 
+            var oldRole = user.Role;
             user.Role = request.NewRole;
             _userRepository.Update(user);
+
+            if (oldRole != user.Role)
+            {
+                _moderationLog.Log(MvcBB.Shared.Models.Moderation.ModerationActions.ChangeRole, "User", user.Id, user.Id,
+                    $"Changed {user.Username} from {oldRole} to {user.Role}");
+            }
+
             return Ok(new { message = "User role updated successfully" });
         }
 
@@ -721,8 +777,16 @@ namespace MvcBB.API.Controllers
                 return NotFound(new { message = "User not found" });
             }
 
+            var oldTitle = user.CustomTitle;
             user.CustomTitle = string.IsNullOrWhiteSpace(request.CustomTitle) ? null : request.CustomTitle.Trim();
             _userRepository.Update(user);
+
+            if (oldTitle != user.CustomTitle)
+            {
+                _moderationLog.Log(MvcBB.Shared.Models.Moderation.ModerationActions.SetCustomTitle, "User", user.Id, user.Id,
+                    user.CustomTitle == null ? $"Cleared {user.Username}'s custom title" : $"Set {user.Username}'s custom title to \"{user.CustomTitle}\"");
+            }
+
             return Ok(new { message = "Custom title updated successfully" });
         }
 
@@ -747,6 +811,10 @@ namespace MvcBB.API.Controllers
                 return BadRequest(new { message = "User is already deleted" });
             }
 
+            // Logged before the name is overwritten, so the log says who it was.
+            _moderationLog.Log(MvcBB.Shared.Models.Moderation.ModerationActions.AnonymizeUser, "User", user.Id, user.Id,
+                $"Anonymized {user.Username} (now DeletedUser{user.Id})");
+
             // Overwrite the identifying fields with deterministic placeholders
             // (deterministic so Username/Email still satisfy their unique
             // constraints) rather than deleting the row, so existing posts/
@@ -760,6 +828,9 @@ namespace MvcBB.API.Controllers
             user.Bio = null;
             user.AvatarUrl = null;
             user.ShowEmail = false;
+            user.BirthDay = null;
+            user.BirthMonth = null;
+            user.BirthYear = null;
             user.Role = UserRole.Deleted;
             _userRepository.Update(user);
 
@@ -816,6 +887,9 @@ namespace MvcBB.API.Controllers
                     AvatarUrl = u.AvatarUrl,
                     ShowEmail = u.ShowEmail,
                     AutoJumpToUnread = u.AutoJumpToUnread,
+                    BirthDay = u.BirthDay,
+                    BirthMonth = u.BirthMonth,
+                    BirthYear = u.BirthYear,
                     RankTitle = hasCustomTitle ? u.CustomTitle : rank?.Title,
                     RankImagePath = rank?.ImagePath,
                     CustomTitle = u.CustomTitle,

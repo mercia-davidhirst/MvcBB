@@ -1,10 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using MvcBB.Shared.Models.AdminEmail;
+using MvcBB.Shared.Models.Moderation;
 using MvcBB.Shared.Models.Post;
 using MvcBB.Shared.Models.ForumThread;
-using MvcBB.Shared.Models.Board;
-using MvcBB.Shared.Models.Message;
 using MvcBB.Shared.Interfaces;
 using MvcBB.Shared.Services;
 using MvcBB.API.Services;
@@ -18,42 +16,125 @@ namespace MvcBB.API.Controllers
     {
         private readonly IPostRepository _postRepository;
         private readonly IForumThreadRepository _threadRepository;
-        private readonly IBoardRepository _boardRepository;
         private readonly IUserRepository _userRepository;
         private readonly IPostLikeRepository _postLikeRepository;
         private readonly IRankRepository _rankRepository;
         private readonly IWordFilterRepository _wordFilterRepository;
-        private readonly IThreadSubscriptionRepository _subscriptionRepository;
-        private readonly IMessageRepository _messageRepository;
-        private readonly IEmailSender _emailSender;
+        private readonly IModerationQueueRepository _moderationQueue;
+        private readonly IForumPostingService _posting;
+        private readonly INotificationService _notifications;
+        private readonly IModerationLogger _moderationLog;
         private readonly IContentVisibilityService _visibility;
+        private readonly IThreadReadRepository _threadReadRepository;
+        private readonly IDisplaySettingsService _displaySettings;
 
         public PostsController(
             IPostRepository postRepository,
             IForumThreadRepository threadRepository,
-            IBoardRepository boardRepository,
             IUserRepository userRepository,
             IPostLikeRepository postLikeRepository,
             IRankRepository rankRepository,
             IWordFilterRepository wordFilterRepository,
-            IThreadSubscriptionRepository subscriptionRepository,
-            IMessageRepository messageRepository,
-            IEmailSender emailSender,
-            IContentVisibilityService visibility)
+            IModerationQueueRepository moderationQueue,
+            IForumPostingService posting,
+            INotificationService notifications,
+            IModerationLogger moderationLog,
+            IContentVisibilityService visibility,
+            IThreadReadRepository threadReadRepository,
+            IDisplaySettingsService displaySettings)
         {
+            _threadReadRepository = threadReadRepository;
+            _displaySettings = displaySettings;
             _postRepository = postRepository;
             _threadRepository = threadRepository;
-            _boardRepository = boardRepository;
             _userRepository = userRepository;
             _postLikeRepository = postLikeRepository;
             _rankRepository = rankRepository;
             _wordFilterRepository = wordFilterRepository;
-            _subscriptionRepository = subscriptionRepository;
-            _messageRepository = messageRepository;
-            _emailSender = emailSender;
+            _moderationQueue = moderationQueue;
+            _posting = posting;
+            _notifications = notifications;
+            _moderationLog = moderationLog;
             _visibility = visibility;
         }
 
+        /// <summary>
+        /// One page of a discussion. Which page: the one holding postId when
+        /// given (a link to a particular post); else, with unread=true, the
+        /// one holding the caller's first unread post; else the last page
+        /// with last=true; else page (default 1). Out-of-range pages are
+        /// clamped. pageSize defaults to Admin > Settings' "Posts per page".
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("thread/{threadId}/page")]
+        public ActionResult<ThreadPostPage> GetThreadPostPage(
+            int threadId,
+            [FromQuery] int? page = null,
+            [FromQuery] int? postId = null,
+            [FromQuery] bool unread = false,
+            [FromQuery] bool last = false,
+            [FromQuery] int? pageSize = null)
+        {
+            var thread = _threadRepository.GetById(threadId);
+            if (!_visibility.CanSeeThread(thread))
+            {
+                return NotFound(new { message = "Thread not found" });
+            }
+
+            var size = Math.Clamp(pageSize ?? _displaySettings.GetDisplaySettings().PostsPerPage, 5, 100);
+
+            // The caller's first unread post (signed in, with a saved read position).
+            ThreadPostLocation? unreadLocation = null;
+            if (int.TryParse(CurrentUserId, out var readerId)
+                && _threadReadRepository.GetByThreadAndUser(threadId, CurrentUserId!) is { } readState)
+            {
+                unreadLocation = _postRepository.GetThreadLocation(threadId, unreadAfter: readState.LastReadPostAt, excludeUserId: readerId);
+            }
+
+            var target = postId.HasValue ? _postRepository.GetThreadLocation(threadId, postId: postId) : null;
+            var total = (target ?? unreadLocation ?? _postRepository.GetThreadLocation(threadId)).TotalCount;
+            var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)size));
+
+            int PageOf(int position) => position / size + 1;
+
+            int pageNumber;
+            if (target?.Position is { } targetPosition)
+            {
+                pageNumber = PageOf(targetPosition);
+            }
+            else if (unread && unreadLocation?.Position is { } unreadPosition)
+            {
+                pageNumber = PageOf(unreadPosition);
+            }
+            else if (last)
+            {
+                pageNumber = totalPages;
+            }
+            else
+            {
+                pageNumber = page ?? 1;
+            }
+            pageNumber = Math.Clamp(pageNumber, 1, totalPages);
+
+            var posts = _postRepository.GetThreadPage(threadId, (pageNumber - 1) * size, size);
+
+            return Ok(new ThreadPostPage
+            {
+                Posts = MapToPostResponses(posts),
+                Page = pageNumber,
+                PageSize = size,
+                TotalPosts = total,
+                FirstUnreadPostId = unreadLocation?.PostId,
+                FirstUnreadPage = unreadLocation?.Position is { } p ? PageOf(p) : null
+            });
+        }
+
+        /// <summary>
+        /// Every post in a discussion at once. Kept for anything that relied
+        /// on it before v1.4.0; the App pages discussions with
+        /// GET thread/{threadId}/page instead, as a long one can have tens of
+        /// thousands of posts.
+        /// </summary>
         [AllowAnonymous]
         [HttpGet("thread/{threadId}")]
         public ActionResult<IEnumerable<PostResponse>> GetThreadPosts(int threadId)
@@ -146,6 +227,10 @@ namespace MvcBB.API.Controllers
             {
                 _postLikeRepository.AddLike(id, userId);
                 liked = true;
+                if (int.TryParse(userId, out var likerId))
+                {
+                    _notifications.NotifyLike(post, likerId);
+                }
             }
 
             return Ok(new { liked, likeCount = _postLikeRepository.GetLikeCount(id) });
@@ -184,92 +269,31 @@ namespace MvcBB.API.Controllers
             }
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
+            if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out var parsedUserId))
             {
                 return Unauthorized(new { message = "User not found" });
             }
 
-            // Checked before adding the post itself, otherwise this post
-            // would always "find" itself and never count as a new participant.
-            var isNewParticipant = !_postRepository.HasPostInThread(thread.Id, userId);
-
-            var post = new Post
+            // A new member's reply waits for a moderator (see ModerationSettings).
+            // It isn't a post yet, so nothing else changes until it's approved.
+            if (_posting.ShouldHold(parsedUserId, _visibility.IsStaff))
             {
-                Content = WordFilterApplier.Apply(request.Content, _wordFilterRepository.GetAll()),
-                ThreadId = request.ThreadId,
-                CreatedByUserId = userId,
-                CreatedAt = DateTime.UtcNow,
-                QuotedPostId = request.QuotedPostId,
-                ImageUrl = request.ImageUrl
-            };
-
-            post = _postRepository.Add(post);
-
-            thread.LastPostAt = post.CreatedAt;
-            thread.LastPostByUserId = userId;
-            thread.PostCount++;
-            if (isNewParticipant)
-            {
-                thread.ParticipantCount++;
-            }
-            _threadRepository.Update(thread);
-
-            var board = _boardRepository.GetById(thread.BoardId);
-            if (board != null)
-            {
-                board.PostCount++;
-                board.LastPostAt = post.CreatedAt;
-                board.LastPostByUserId = userId;
-                _boardRepository.Update(board);
+                var item = _moderationQueue.Add(new ModerationQueueItem
+                {
+                    Kind = QueuedPostKind.Reply,
+                    UserId = parsedUserId,
+                    BoardId = thread.BoardId,
+                    ThreadId = thread.Id,
+                    Content = request.Content,
+                    QuotedPostId = request.QuotedPostId,
+                    ImageUrl = request.ImageUrl
+                });
+                return StatusCode(StatusCodes.Status202Accepted, new HeldForApprovalResponse { QueueItemId = item.Id });
             }
 
-            await NotifySubscribersAsync(thread, post, userId);
+            var post = await _posting.CreateReplyAsync(parsedUserId, thread, request.Content, request.QuotedPostId, request.ImageUrl);
 
             return CreatedAtAction(nameof(GetPost), new { id = post.Id }, MapToPostResponse(post));
-        }
-
-        // Fans out to everyone watching this thread except the replier
-        // themselves - a subscription's two flags are independent, so a
-        // watcher can get a PM, an email, both or (harmlessly) neither.
-        private async Task NotifySubscribersAsync(ForumThread thread, Post post, string replierUserId)
-        {
-            var subscribers = _subscriptionRepository.GetByThreadId(thread.Id)
-                .Where(s => s.UserId != replierUserId)
-                .ToList();
-            if (subscribers.Count == 0)
-            {
-                return;
-            }
-
-            var replierUsername = GetUsername(replierUserId);
-            var subject = $"New reply in \"{thread.Title}\"";
-            var body = $"{replierUsername} replied to a thread you're watching:\n\n{post.Content}";
-            string? systemUserId = null;
-
-            foreach (var subscription in subscribers)
-            {
-                if (subscription.NotifyViaMessage)
-                {
-                    systemUserId ??= SystemUserProvider.GetOrCreateSystemUserId(_userRepository);
-                    _messageRepository.Add(new Message
-                    {
-                        Subject = subject,
-                        Content = body,
-                        SenderUserId = systemUserId,
-                        RecipientUserId = subscription.UserId,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
-
-                if (subscription.NotifyViaEmail && int.TryParse(subscription.UserId, out var recipientId))
-                {
-                    var recipient = _userRepository.GetById(recipientId);
-                    if (recipient != null && !string.IsNullOrEmpty(recipient.Email))
-                    {
-                        await _emailSender.SendAsync(new EmailMessage { To = recipient.Email, Subject = subject, Body = body, Kind = EmailKind.Notification });
-                    }
-                }
-            }
         }
 
         [HttpPut("{id}")]
@@ -318,6 +342,17 @@ namespace MvcBB.API.Controllers
             post.UpdatedByUserId = userId;
             _postRepository.Update(post);
 
+            if (thread != null)
+            {
+                _notifications.NotifyEditedPost(thread, post);
+            }
+
+            if (post.CreatedByUserId != userId)
+            {
+                _moderationLog.Log(ModerationActions.EditPost, "Post", post.Id, ModerationLogger.ParseUserId(post.CreatedByUserId),
+                    $"Edited a post in \"{thread?.Title ?? post.ThreadTitle}\"", request.EditReason);
+            }
+
             return Ok(MapToPostResponse(post));
         }
 
@@ -342,6 +377,9 @@ namespace MvcBB.API.Controllers
             post.DeletedAt = DateTime.UtcNow;
             post.DeleteReason = reason;
             _postRepository.Update(post);
+
+            _moderationLog.Log(ModerationActions.DeletePost, "Post", post.Id, ModerationLogger.ParseUserId(post.CreatedByUserId),
+                $"Deleted a post in \"{post.ThreadTitle}\"", reason);
 
             return Ok(new { message = "Post deleted successfully" });
         }
@@ -386,6 +424,22 @@ namespace MvcBB.API.Controllers
             var creators = _userRepository.GetByIds(creatorIds);
             var ranks = _rankRepository.GetAll();
 
+            // Every @name on the page (posts and the posts they quote), checked
+            // against the member list in one query, so the page can link the
+            // real ones. Names come back as stored, keyed case-insensitively.
+            var mentionsByPost = posts.ToDictionary(
+                p => p.Id,
+                p => MentionParser.Extract(p.Content, includeQuotedText: true)
+                    .Concat(p.QuotedPostId.HasValue && quotedPosts.TryGetValue(p.QuotedPostId.Value, out var q)
+                        ? MentionParser.Extract(q.Content, includeQuotedText: true)
+                        : Array.Empty<string>())
+                    .ToList());
+            var allMentioned = mentionsByPost.Values.SelectMany(v => v).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var realMembers = allMentioned.Count == 0
+                ? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                : _userRepository.GetIdsByUsernames(allMentioned);
+            var storedNames = realMembers.Keys.ToDictionary(k => k, k => k, StringComparer.OrdinalIgnoreCase);
+
             return posts.Select(p =>
             {
                 var (rankTitle, rankImagePath) = GetDisplayRank(p.CreatedByUserId, p.UserPostCount, creators, ranks);
@@ -399,6 +453,12 @@ namespace MvcBB.API.Controllers
                 // A deleted post keeps its place in the thread, but only staff
                 // get its content back.
                 var showContent = !p.IsDeleted || _visibility.IsStaff;
+                var mentioned = mentionsByPost[p.Id]
+                    .Select(name => storedNames.TryGetValue(name, out var stored) ? stored : null)
+                    .Where(name => name != null)
+                    .Cast<string>()
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
                 return new PostResponse
                 {
@@ -428,7 +488,8 @@ namespace MvcBB.API.Controllers
                     CreatedByRankTitle = rankTitle,
                     CreatedByRankImagePath = rankImagePath,
                     CreatedByRole = p.UserRole,
-                    CreatedBySignature = p.UserSignature
+                    CreatedBySignature = p.UserSignature,
+                    MentionedUsernames = mentioned
                 };
             }).ToList();
         }
@@ -483,15 +544,6 @@ namespace MvcBB.API.Controllers
                 IsEdited = p.IsEdited,
                 EditReason = p.EditReason ?? string.Empty
             };
-        }
-
-        private string GetUsername(string? userId)
-        {
-            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var id))
-            {
-                return _userRepository.GetById(id)?.Username ?? string.Empty;
-            }
-            return string.Empty;
         }
     }
 }

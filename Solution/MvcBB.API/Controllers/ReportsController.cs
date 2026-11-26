@@ -15,14 +15,17 @@ namespace MvcBB.API.Controllers
         private readonly IPostRepository _postRepository;
         private readonly IMessageRepository _messageRepository;
         private readonly IUserRepository _userRepository;
+        private readonly MvcBB.API.Services.IModerationLogger? _moderationLog;
 
         public ReportsController(
             IReportRepository reportRepository,
             IForumThreadRepository threadRepository,
             IPostRepository postRepository,
             IMessageRepository messageRepository,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            MvcBB.API.Services.IModerationLogger? moderationLog = null)
         {
+            _moderationLog = moderationLog;
             _reportRepository = reportRepository;
             _threadRepository = threadRepository;
             _postRepository = postRepository;
@@ -137,11 +140,17 @@ namespace MvcBB.API.Controllers
                 return Unauthorized(new { message = "User not found" });
             }
 
+            var oldStatus = report.Status;
             report.Status = request.Status;
             report.ModeratorNotes = request.ModeratorNotes ?? string.Empty;
             report.ResolvedByUserId = userId;
             report.ResolvedAt = DateTime.UtcNow;
             _reportRepository.Update(report);
+
+            _moderationLog?.Log(MvcBB.Shared.Models.Moderation.ModerationActions.UpdateReport, "Report", report.Id,
+                MvcBB.API.Services.ModerationLogger.ParseUserId(report.ReporterUserId),
+                oldStatus == report.Status ? $"Updated notes on report #{report.Id} ({report.Status})" : $"Report #{report.Id}: {oldStatus} to {report.Status}",
+                string.IsNullOrWhiteSpace(report.ModeratorNotes) ? null : report.ModeratorNotes);
 
             return Ok(MapToReportResponse(report));
         }

@@ -110,6 +110,12 @@ builder.Services.AddScoped<MvcBB.API.Services.IPasswordPolicyService, MvcBB.API.
 // ContentVisibilityService.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<MvcBB.API.Services.IContentVisibilityService, MvcBB.API.Services.ContentVisibilityService>();
+// Notification centre, moderation log, and the one place new threads and
+// replies are created (straight away, or when a moderator approves a held post).
+builder.Services.AddScoped<MvcBB.API.Services.INotificationService, MvcBB.API.Services.NotificationService>();
+builder.Services.AddScoped<MvcBB.API.Services.IModerationLogger, MvcBB.API.Services.ModerationLogger>();
+builder.Services.AddScoped<MvcBB.API.Services.IForumPostingService, MvcBB.API.Services.ForumPostingService>();
+builder.Services.AddHostedService<MvcBB.API.Services.NotificationPruner>();
 
 // Configure JWT Authentication - issuing and validating both go through
 // JwtTokenService (issuer/audience checks, UTF-8 key, separate user and

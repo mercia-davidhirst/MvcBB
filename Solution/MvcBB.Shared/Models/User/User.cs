@@ -48,5 +48,14 @@ namespace MvcBB.Shared.Models.User
 
         /// <summary>Most recent login IP address, set by UsersController.Login.</summary>
         public string? LastLoginIp { get; set; }
+
+        /// <summary>
+        /// The member's birthday, from their profile: day and month together,
+        /// or both null for none. The year is optional (null when they didn't
+        /// give it). See MvcBB.Shared.Services.Birthday.
+        /// </summary>
+        public int? BirthDay { get; set; }
+        public int? BirthMonth { get; set; }
+        public int? BirthYear { get; set; }
     }
 } 

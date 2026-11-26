@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS public.display_settings
     -- AdminEmail:MaxPerHour / MaxPerDay. Added in v1.3.0.
     max_emails_per_hour  INTEGER         NOT NULL DEFAULT 0,
     max_emails_per_day   INTEGER         NOT NULL DEFAULT 0,
+    -- Posts shown per page of a discussion. Added in v1.4.0.
+    posts_per_page       INTEGER         NOT NULL DEFAULT 20,
     PRIMARY KEY (id)
 );
 

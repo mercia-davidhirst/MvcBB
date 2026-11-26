@@ -1,0 +1,101 @@
+@model NotificationPage
+@{
+    ViewData["Title"] = "Notifications";
+
+    static (string Icon, string Colour) IconFor(NotificationType type) => type switch
+    {
+        NotificationType.Reply => ("bi-reply-fill", "text-primary"),
+        NotificationType.Mention => ("bi-at", "text-info"),
+        NotificationType.Quote => ("bi-quote", "text-secondary"),
+        NotificationType.Like => ("bi-hand-thumbs-up-fill", "text-success"),
+        NotificationType.Message => ("bi-envelope-fill", "text-warning"),
+        NotificationType.Moderation => ("bi-shield-check", "text-danger"),
+        _ => ("bi-bell-fill", "text-muted")
+    };
+
+    static string Describe(Notification n)
+    {
+        var who = string.IsNullOrEmpty(n.ActorUsername) ? "Someone" : n.ActorUsername;
+        var where = string.IsNullOrEmpty(n.ThreadTitle) ? "a discussion" : $"\"{n.ThreadTitle}\"";
+        return n.Type switch
+        {
+            NotificationType.Reply => $"{who} replied in {where}",
+            NotificationType.Mention => $"{who} mentioned you in {where}",
+            NotificationType.Quote => $"{who} quoted your post in {where}",
+            NotificationType.Like => $"{who} liked your post in {where}",
+            NotificationType.Message => $"{who} sent you a private message",
+            NotificationType.Moderation => "A moderator reviewed your post",
+            _ => "Notification"
+        };
+    }
+}
+
+<div class="container mt-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="mb-0"><i class="bi bi-bell me-2"></i>Notifications</h2>
+        @if (Model.UnreadCount > 0)
+        {
+            <form asp-action="MarkAllRead" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-check2-all"></i> Mark all as read (@Model.UnreadCount)
+                </button>
+            </form>
+        }
+    </div>
+
+    <p class="text-muted small">
+        Replies in discussions you started or watch, @@mentions, quotes of your posts, likes,
+        private messages and moderators' decisions on your posts, all in one place. Opening a
+        discussion or message marks its notifications as read.
+    </p>
+
+    @if (Model.Notifications.Count == 0)
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> You have no notifications yet.
+        </div>
+    }
+    else
+    {
+        <div class="list-group mb-3">
+            @foreach (var n in Model.Notifications)
+            {
+                var (icon, colour) = IconFor(n.Type);
+                <a asp-action="Open" asp-route-id="@n.Id"
+                   class="list-group-item list-group-item-action d-flex gap-3 align-items-start notification-item @(n.IsRead ? "" : "notification-unread")">
+                    <i class="bi @icon @colour notification-icon" aria-hidden="true"></i>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="d-flex justify-content-between flex-wrap gap-2">
+                            <span class="@(n.IsRead ? "" : "fw-semibold")">@Describe(n)</span>
+                            <small class="text-muted text-nowrap">@(await Html.FormatDateTimeAsync(n.CreatedAt))</small>
+                        </div>
+                        @if (!string.IsNullOrEmpty(n.Excerpt))
+                        {
+                            <div class="small text-muted text-truncate">@n.Excerpt</div>
+                        }
+                    </div>
+                    @if (!n.IsRead)
+                    {
+                        <span class="badge rounded-pill bg-primary align-self-center">New</span>
+                    }
+                </a>
+            }
+        </div>
+
+        @if (Model.TotalPages > 1)
+        {
+            <nav aria-label="Notification pages">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@(Model.Page - 1)">Newer</a>
+                    </li>
+                    <li class="page-item disabled"><span class="page-link">Page @Model.Page of @Model.TotalPages</span></li>
+                    <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@(Model.Page + 1)">Older</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    }
+</div>

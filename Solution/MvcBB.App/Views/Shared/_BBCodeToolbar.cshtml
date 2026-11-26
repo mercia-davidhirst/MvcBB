@@ -44,6 +44,9 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('code')" title="Code">
             <i class="bi bi-code-slash"></i>
         </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertBBCode('spoiler')" title="Spoiler (hidden until clicked)">
+            <i class="bi bi-eye-slash"></i>
+        </button>
     </div>
 
     <div class="btn-group mb-2 ms-2">
@@ -282,11 +285,7 @@ function insertBBCode(tag, defaultText = '') {
 
     textarea.value = textarea.value.substring(0, start) + insertText + textarea.value.substring(end);
     textarea.focus();
-
-    // Update preview if it exists
-    if (typeof updatePreview === 'function') {
-        updatePreview();
-    }
+    notifyContentChanged(textarea);
 }
 
 function insertSmilie(smilie) {
@@ -295,9 +294,16 @@ function insertSmilie(smilie) {
 
     textarea.value = textarea.value.substring(0, start) + smilie + textarea.value.substring(start);
     textarea.focus();
+    notifyContentChanged(textarea);
+}
 
-    // Update preview if it exists
-    if (typeof updatePreview === 'function') {
+// Setting .value doesn't fire "input", so raise it by hand: the preview
+// (oninput) and the draft autosave (post-editor.js) both listen for it.
+// A page whose textarea has no oninput handler (some mods' forms) still gets
+// its updatePreview() called directly, as before.
+function notifyContentChanged(textarea) {
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    if (typeof updatePreview === 'function' && !textarea.hasAttribute('oninput')) {
         updatePreview();
     }
 }

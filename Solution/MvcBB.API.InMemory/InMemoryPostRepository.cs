@@ -17,6 +17,30 @@ namespace MvcBB.API.InMemory
         public IReadOnlyList<Post> GetByThreadId(int threadId) =>
             _store.Posts.Where(p => p.ThreadId == threadId).OrderBy(p => p.CreatedAt).Select(Hydrate).ToList();
 
+        private IEnumerable<Post> ThreadInOrder(int threadId) =>
+            _store.Posts.Where(p => p.ThreadId == threadId).OrderBy(p => p.CreatedAt).ThenBy(p => p.Id);
+
+        public IReadOnlyList<Post> GetThreadPage(int threadId, int skip, int take) =>
+            ThreadInOrder(threadId).Skip(Math.Max(0, skip)).Take(Math.Max(1, take)).Select(Hydrate).ToList();
+
+        public ThreadPostLocation GetThreadLocation(int threadId, int? postId = null, DateTime? unreadAfter = null, int? excludeUserId = null)
+        {
+            var ordered = ThreadInOrder(threadId).ToList();
+            var excluded = excludeUserId?.ToString();
+            var index = postId.HasValue
+                ? ordered.FindIndex(p => p.Id == postId.Value)
+                : unreadAfter.HasValue
+                    ? ordered.FindIndex(p => p.CreatedAt > unreadAfter.Value && (excluded == null || p.CreatedByUserId != excluded))
+                    : -1;
+
+            return new ThreadPostLocation
+            {
+                TotalCount = ordered.Count,
+                PostId = index < 0 ? null : ordered[index].Id,
+                Position = index < 0 ? null : index
+            };
+        }
+
         public Post? GetById(int id)
         {
             var post = _store.Posts.FirstOrDefault(p => p.Id == id);

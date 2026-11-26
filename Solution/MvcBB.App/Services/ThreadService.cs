@@ -90,9 +90,10 @@ namespace MvcBB.App.Services
         }
 
         /// <summary>
-        /// Creates a new thread
+        /// Creates a new thread. Returns null when the API held it for a
+        /// moderator's approval instead (HTTP 202), so it isn't a thread yet.
         /// </summary>
-        public async Task<ThreadResponse> CreateThreadAsync(CreateForumThreadRequest request)
+        public async Task<ThreadResponse?> CreateThreadAsync(CreateForumThreadRequest request)
         {
             try
             {
@@ -101,10 +102,14 @@ namespace MvcBB.App.Services
 
                 var json = JsonSerializer.Serialize(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
+
                 var response = await _httpClient.PostAsync("api/threads", content);
                 response.EnsureSuccessOrSessionExpired();
-                
+                if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
+                {
+                    return null;
+                }
+
                 var responseContent = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<ThreadResponse>(responseContent, _jsonOptions)
                     ?? throw new ServiceException("Failed to create thread");
@@ -161,6 +166,37 @@ namespace MvcBB.App.Services
         }
 
         /// <summary>
+        /// One page of a thread's posts - see IThreadService.GetThreadPostPageAsync.
+        /// </summary>
+        public async Task<ThreadPostPage> GetThreadPostPageAsync(int threadId, int? page = null, int? postId = null, bool unread = false, bool last = false)
+        {
+            try
+            {
+                AttachCurrentUserTokenIfPresent();
+                var query = new List<string>();
+                if (page.HasValue) query.Add($"page={page.Value}");
+                if (postId.HasValue) query.Add($"postId={postId.Value}");
+                if (unread) query.Add("unread=true");
+                if (last) query.Add("last=true");
+                var url = $"api/posts/thread/{threadId}/page" + (query.Count > 0 ? "?" + string.Join("&", query) : string.Empty);
+
+                var response = await _httpClient.GetAsync(url);
+                response.EnsureSuccessOrSessionExpired();
+
+                var content = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<ThreadPostPage>(content, _jsonOptions) ?? new ThreadPostPage();
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ServiceException($"Failed to retrieve posts for thread {threadId}", ex);
+            }
+            catch (JsonException ex)
+            {
+                throw new ServiceException($"Failed to parse posts data for thread {threadId}", ex);
+            }
+        }
+
+        /// <summary>
         /// Gets all posts for a specific thread
         /// </summary>
         public async Task<IEnumerable<PostResponse>> GetThreadPostsAsync(int threadId)
@@ -186,9 +222,10 @@ namespace MvcBB.App.Services
         }
 
         /// <summary>
-        /// Creates a new post in a thread
+        /// Creates a new post in a thread. Returns null when the API held it
+        /// for a moderator's approval instead (HTTP 202).
         /// </summary>
-        public async Task<PostResponse> CreatePostAsync(int threadId, CreatePostRequest request)
+        public async Task<PostResponse?> CreatePostAsync(int threadId, CreatePostRequest request)
         {
             try
             {
@@ -198,10 +235,14 @@ namespace MvcBB.App.Services
                 request.ThreadId = threadId;
                 var json = JsonSerializer.Serialize(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
+
                 var response = await _httpClient.PostAsync("api/posts", content);
-                response.EnsureSuccessOrSessionExpired();
-                
+                await response.EnsureSuccessWithMessageAsync();
+                if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
+                {
+                    return null;
+                }
+
                 var responseContent = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<PostResponse>(responseContent, _jsonOptions)
                     ?? throw new ServiceException("Failed to create post");

@@ -73,6 +73,11 @@ builder.Services.AddSingleton<IReadOnlyList<IAppMod>>(appMods);
 // contribution checked) once, straight after the app is built below.
 builder.Services.AddSingleton(sp =>
     ModSlotRegistry.Build(appMods, sp.GetRequiredService<ILogger<ModSlotRegistry>>()));
+// Admin pages mods add to the Admin Dashboard, the navbar's Admin dropdown
+// and the admin sidebar - see Mods/ModAdminRegistry.cs. Built at startup,
+// like the slot registry.
+builder.Services.AddSingleton(sp =>
+    ModAdminRegistry.Build(appMods, sp.GetRequiredService<ILogger<ModAdminRegistry>>()));
 
 // Add session support
 builder.Services.AddDistributedMemoryCache();
@@ -129,6 +134,8 @@ builder.Services.AddScoped<IWordFilterService, WordFilterService>();
 builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
 builder.Services.AddScoped<IModsService, ModsService>();
 builder.Services.AddScoped<IAdminEmailService, AdminEmailService>();
+builder.Services.AddScoped<INotificationsService, NotificationsService>();
+builder.Services.AddScoped<IModerationService, ModerationService>();
 
 // Add authentication - the App authenticates browser sessions with a cookie;
 // the JWTs issued by MvcBB.API are only ever used for the App's own outbound
@@ -176,6 +183,7 @@ var app = builder.Build();
 // Build the slot registry now, so a broken mod contribution is logged at
 // startup rather than on the first page view.
 app.Services.GetRequiredService<ModSlotRegistry>();
+app.Services.GetRequiredService<ModAdminRegistry>();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

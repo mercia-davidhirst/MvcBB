@@ -31,5 +31,13 @@ namespace MvcBB.Shared.Models.Post
         public string? CreatedByRankImagePath { get; set; }
         public string? CreatedByRole { get; set; }
         public string? CreatedBySignature { get; set; }
+
+        /// <summary>
+        /// The usernames this post (and the post it quotes) @mentions that
+        /// belong to real members, as stored. Pass them to
+        /// IBBCodeService.ParseBBCode so those mentions link to the members'
+        /// profiles.
+        /// </summary>
+        public List<string> MentionedUsernames { get; set; } = new();
     }
 } 

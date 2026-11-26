@@ -15,13 +15,15 @@ CREATE PROCEDURE dbo.usp_DisplaySettings_Update
     @TimeFormat NVARCHAR(20),
     @TimeZoneId NVARCHAR(100) = N'',
     @MaxEmailsPerHour INT = 0,
-    @MaxEmailsPerDay INT = 0
+    @MaxEmailsPerDay INT = 0,
+    @PostsPerPage INT = 20
 AS
 BEGIN
     SET NOCOUNT ON;
 
     UPDATE dbo.DisplaySettings
     SET ThreadsPerPage = @ThreadsPerPage,
+        PostsPerPage = ISNULL(@PostsPerPage, 20),
         SiteTitle = @SiteTitle,
         WelcomeMessage = @WelcomeMessage,
         SiteName = @SiteName,

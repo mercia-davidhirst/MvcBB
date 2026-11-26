@@ -39,9 +39,14 @@ CREATE TABLE IF NOT EXISTS public.users
     locked_until    TIMESTAMPTZ     NULL,
     last_login_ip   VARCHAR(45)     NULL,
     auto_jump_to_unread BOOLEAN     NOT NULL DEFAULT TRUE,
+    birth_day       SMALLINT        NULL,
+    birth_month     SMALLINT        NULL,
+    birth_year      SMALLINT        NULL,
     CONSTRAINT uq_users_username UNIQUE (username),
     CONSTRAINT uq_users_email UNIQUE (email),
-    CONSTRAINT ck_users_role CHECK (role IN (0, 1, 2, 3))
+    CONSTRAINT ck_users_role CHECK (role IN (0, 1, 2, 3)),
+    CONSTRAINT ck_users_birthday CHECK ((birth_day IS NULL AND birth_month IS NULL AND birth_year IS NULL)
+        OR (birth_day BETWEEN 1 AND 31 AND birth_month BETWEEN 1 AND 12 AND (birth_year IS NULL OR birth_year BETWEEN 1900 AND 9999)))
 );
 
 -- Schema changes for a database that already has an older version of this

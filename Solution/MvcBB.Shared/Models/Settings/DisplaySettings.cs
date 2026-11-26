@@ -7,6 +7,14 @@ namespace MvcBB.Shared.Models.Settings
         [Range(1, 100, ErrorMessage = "Threads per page must be between 1 and 100")]
         public int ThreadsPerPage { get; set; } = 20;
 
+        /// <summary>
+        /// How many posts a discussion shows per page (added in v1.4.0;
+        /// before that every post loaded at once).
+        /// </summary>
+        [Range(5, 100, ErrorMessage = "Posts per page must be between 5 and 100")]
+        [Display(Name = "Posts per page")]
+        public int PostsPerPage { get; set; } = 20;
+
         [Required(ErrorMessage = "Site title is required")]
         [StringLength(100, ErrorMessage = "Site title cannot exceed 100 characters")]
         [Display(Name = "Site Title")]

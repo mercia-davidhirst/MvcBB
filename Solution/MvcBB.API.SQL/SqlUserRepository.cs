@@ -61,7 +61,10 @@ namespace MvcBB.API.SQL
                 user.MustChangePassword,
                 user.LockedUntil,
                 user.LastLoginIp,
-                user.AutoJumpToUnread
+                user.AutoJumpToUnread,
+                user.BirthDay,
+                user.BirthMonth,
+                user.BirthYear
             }, commandType: CommandType.StoredProcedure);
         }
 
@@ -84,7 +87,10 @@ namespace MvcBB.API.SQL
                 user.MustChangePassword,
                 user.LockedUntil,
                 user.LastLoginIp,
-                user.AutoJumpToUnread
+                user.AutoJumpToUnread,
+                user.BirthDay,
+                user.BirthMonth,
+                user.BirthYear
             }, commandType: CommandType.StoredProcedure);
         }
 
@@ -152,6 +158,26 @@ namespace MvcBB.API.SQL
         {
             public int Id { get; set; }
             public string Username { get; set; } = string.Empty;
+        }
+
+        public IReadOnlyDictionary<string, int> GetIdsByUsernames(IEnumerable<string> usernames)
+        {
+            var nameList = usernames.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (nameList.Count == 0)
+            {
+                return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            using var connection = _connectionFactory.CreateConnection();
+            var rows = connection.Query<UsernameRow>(
+                "SELECT Id, Username FROM dbo.Users WHERE Username IN (SELECT value FROM OPENJSON(@Usernames))",
+                new { Usernames = SqlListParameter.ToJson(nameList) });
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in rows)
+            {
+                result[row.Username] = row.Id;
+            }
+            return result;
         }
 
         public IReadOnlyDictionary<string, int> GetPostCountsByUsernames(IEnumerable<string> usernames)

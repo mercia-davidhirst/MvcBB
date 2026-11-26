@@ -31,7 +31,7 @@
 
                 <div class="mb-3">
                     <label asp-for="Title" class="form-label">Thread Title</label>
-                    <input asp-for="Title" class="form-control" required maxlength="200" />
+                    <input asp-for="Title" class="form-control" required maxlength="200" data-draft-field="title" />
                     <span asp-validation-for="Title" class="text-danger"></span>
                 </div>
 
@@ -39,7 +39,8 @@
                     <label asp-for="Content" class="form-label">Content</label>
                     <partial name="_BBCodeToolbar" model="smilies" />
                     <textarea asp-for="Content" class="form-control" rows="10" required
-                              oninput="updatePreview()"></textarea>
+                              oninput="updatePreview()"
+                              data-draft-key="@DraftKeys.NewThread(boardId ?? 0)" data-draft-user="@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value" data-mentions="true"></textarea>
                     <span asp-validation-for="Content" class="text-danger"></span>
 
                     <div class="mt-3">

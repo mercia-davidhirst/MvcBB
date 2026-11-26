@@ -54,6 +54,11 @@ namespace MvcBB.API.InMemory
         /// <summary>User ids of members who opted out of admin emails.</summary>
         public HashSet<int> AdminEmailOptOuts { get; } = new();
 
+        public List<MvcBB.Shared.Models.Notification.Notification> Notifications { get; } = new();
+        public List<MvcBB.Shared.Models.Moderation.ModerationQueueItem> ModerationQueue { get; } = new();
+        public List<MvcBB.Shared.Models.Moderation.ModerationLogEntry> ModerationLog { get; } = new();
+        public MvcBB.Shared.Models.Moderation.ModerationSettings ModerationSettings { get; set; } = new();
+
         public InMemoryStore()
         {
             SeedBBCodeTags();
@@ -93,6 +98,7 @@ namespace MvcBB.API.InMemory
             Add("Size", @"\[size=(.*?)\](.*?)\[/size\]", "<span style=\"font-size: $1px\">$2</span>", "Changes text size", "[size=20]sized text[/size]", 12);
             Add("Center", @"\[center\](.*?)\[/center\]", "<div class=\"text-center\">$1</div>", "Centers text", "[center]centered text[/center]", 13);
             Add("Right", @"\[right\](.*?)\[/right\]", "<div class=\"text-end\">$1</div>", "Right-aligns text", "[right]right-aligned text[/right]", 14);
+            Add("Spoiler", @"\[spoiler(=(.*?))?\](.*?)\[/spoiler\]", "<details class=\"bbcode-spoiler\"><summary>$2</summary>$3</details>", "Hides text until the reader clicks it, with an optional title", "[spoiler=Ending]hidden text[/spoiler]", 15);
         }
 
         // Matches Database/SQL/Seed Data/08_Smilies.sql and

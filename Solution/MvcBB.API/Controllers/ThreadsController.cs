@@ -26,6 +26,10 @@ namespace MvcBB.API.Controllers
         private readonly IThreadReadRepository _threadReadRepository;
         private readonly MvcBB.API.Services.IDisplaySettingsService _displaySettingsService;
         private readonly MvcBB.API.Services.IContentVisibilityService _visibility;
+        private readonly MvcBB.API.Services.IForumPostingService _posting;
+        private readonly MvcBB.API.Services.IModerationLogger _moderationLog;
+        private readonly IModerationQueueRepository _moderationQueue;
+        private readonly INotificationRepository _notificationRepository;
 
         public ThreadsController(
             IForumThreadRepository threadRepository,
@@ -37,8 +41,16 @@ namespace MvcBB.API.Controllers
             IThreadSubscriptionRepository subscriptionRepository,
             IThreadReadRepository threadReadRepository,
             MvcBB.API.Services.IDisplaySettingsService displaySettingsService,
-            MvcBB.API.Services.IContentVisibilityService visibility)
+            MvcBB.API.Services.IContentVisibilityService visibility,
+            MvcBB.API.Services.IForumPostingService posting,
+            MvcBB.API.Services.IModerationLogger moderationLog,
+            IModerationQueueRepository moderationQueue,
+            INotificationRepository notificationRepository)
         {
+            _posting = posting;
+            _moderationLog = moderationLog;
+            _moderationQueue = moderationQueue;
+            _notificationRepository = notificationRepository;
             _threadRepository = threadRepository;
             _boardRepository = boardRepository;
             _postRepository = postRepository;
@@ -136,6 +148,16 @@ namespace MvcBB.API.Controllers
                     LastReadPostAt = read?.LastReadPostAt,
                     AutoJumpToUnread = _userRepository.GetById(parsedUserId)?.AutoJumpToUnread ?? true
                 };
+
+                // Opening the discussion covers any notifications about it.
+                try
+                {
+                    _notificationRepository.MarkReadForThread(parsedUserId, id);
+                }
+                catch (Exception)
+                {
+                    // Never let the notification centre stop a thread from opening.
+                }
             }
 
             return Ok(response);
@@ -187,55 +209,29 @@ namespace MvcBB.API.Controllers
             }
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
+            if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out var parsedUserId))
             {
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var wordFilters = _wordFilterRepository.GetAll();
-            var now = DateTime.UtcNow;
-            var thread = new ForumThread
+            // A new member's discussion waits for a moderator (see
+            // ModerationSettings). It isn't a thread yet, so nothing else
+            // changes until it's approved.
+            if (_posting.ShouldHold(parsedUserId, _visibility.IsStaff))
             {
-                Title = WordFilterApplier.Apply(request.Title, wordFilters),
-                BoardId = request.BoardId,
-                CreatedByUserId = userId,
-                CreatedAt = now,
-                LastPostAt = now,
-                LastPostByUserId = userId,
-                PostCount = 1,
-                ParticipantCount = 1
-            };
-
-            thread = _threadRepository.Add(thread);
-
-            // The thread's own Content is its first post - without this the thread
-            // would have zero posts and nothing for GetThreadPosts to return.
-            _postRepository.Add(new Post
-            {
-                Content = WordFilterApplier.Apply(request.Content, wordFilters),
-                ThreadId = thread.Id,
-                CreatedByUserId = userId,
-                CreatedAt = now
-            });
-
-            board.ThreadCount++;
-            board.PostCount++;
-            board.LastPostAt = now;
-            board.LastPostByUserId = userId;
-            _boardRepository.Update(board);
-
-            if (request.Poll != null)
-            {
-                _pollRepository.Add(new Poll
+                var item = _moderationQueue.Add(new MvcBB.Shared.Models.Moderation.ModerationQueueItem
                 {
-                    ThreadId = thread.Id,
-                    Question = request.Poll.Question,
-                    CreatedAt = now,
-                    Options = request.Poll.Options
-                        .Select((text, index) => new PollOption { Text = text, SortOrder = index })
-                        .ToList()
+                    Kind = MvcBB.Shared.Models.Moderation.QueuedPostKind.NewThread,
+                    UserId = parsedUserId,
+                    BoardId = board.Id,
+                    Title = request.Title,
+                    Content = request.Content,
+                    PollJson = request.Poll == null ? null : System.Text.Json.JsonSerializer.Serialize(request.Poll)
                 });
+                return StatusCode(StatusCodes.Status202Accepted, new MvcBB.Shared.Models.Moderation.HeldForApprovalResponse { QueueItemId = item.Id });
             }
+
+            var (thread, _) = _posting.CreateThread(parsedUserId, board, request.Title, request.Content, request.Poll);
 
             return CreatedAtAction(nameof(GetThread), new { id = thread.Id }, MapToThreadResponses(new[] { thread }).Single());
         }
@@ -381,6 +377,9 @@ namespace MvcBB.API.Controllers
                 return Forbid();
             }
 
+            var oldTitle = thread.Title;
+            var wasSticky = thread.IsSticky;
+            var wasLocked = thread.IsLocked;
             thread.Title = request.Title;
 
             // Only staff can pin or lock a thread. A thread's author can still
@@ -395,6 +394,25 @@ namespace MvcBB.API.Controllers
             thread.UpdatedAt = DateTime.UtcNow;
             _threadRepository.Update(thread);
 
+            // The moderation log only takes staff actions (see ModerationLogger),
+            // so an author renaming their own thread isn't logged.
+            var authorId = MvcBB.API.Services.ModerationLogger.ParseUserId(thread.CreatedByUserId);
+            if (thread.CreatedByUserId != userId && oldTitle != thread.Title)
+            {
+                _moderationLog.Log(MvcBB.Shared.Models.Moderation.ModerationActions.RenameThread, "Thread", thread.Id, authorId,
+                    $"Renamed \"{oldTitle}\" to \"{thread.Title}\"");
+            }
+            if (wasLocked != thread.IsLocked)
+            {
+                _moderationLog.Log(thread.IsLocked ? MvcBB.Shared.Models.Moderation.ModerationActions.LockThread : MvcBB.Shared.Models.Moderation.ModerationActions.UnlockThread,
+                    "Thread", thread.Id, authorId, $"\"{thread.Title}\"");
+            }
+            if (wasSticky != thread.IsSticky)
+            {
+                _moderationLog.Log(thread.IsSticky ? MvcBB.Shared.Models.Moderation.ModerationActions.PinThread : MvcBB.Shared.Models.Moderation.ModerationActions.UnpinThread,
+                    "Thread", thread.Id, authorId, $"\"{thread.Title}\"");
+            }
+
             return Ok(MapToThreadResponses(new[] { thread }).Single());
         }
 
@@ -408,14 +426,22 @@ namespace MvcBB.API.Controllers
                 return NotFound(new { message = "Thread not found" });
             }
 
+            // The thread (and its posts) go first: only once that has worked
+            // does the board lose them from its counts.
+            _threadRepository.Remove(thread);
+
             var board = _boardRepository.GetById(thread.BoardId);
             if (board != null)
             {
-                board.ThreadCount--;
+                board.ThreadCount = Math.Max(0, board.ThreadCount - 1);
+                board.PostCount = Math.Max(0, board.PostCount - thread.PostCount);
                 _boardRepository.Update(board);
             }
 
-            _threadRepository.Remove(thread);
+            _moderationLog.Log(MvcBB.Shared.Models.Moderation.ModerationActions.DeleteThread, "Thread", thread.Id,
+                MvcBB.API.Services.ModerationLogger.ParseUserId(thread.CreatedByUserId),
+                $"Deleted \"{thread.Title}\" from {(string.IsNullOrEmpty(thread.BoardName) ? "its board" : thread.BoardName)} ({thread.PostCount} {(thread.PostCount == 1 ? "post" : "posts")})");
+
             return Ok(new { message = "Thread deleted successfully" });
         }
 

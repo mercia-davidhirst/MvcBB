@@ -1,0 +1,79 @@
+@model ModerationLogPage
+@{
+    ViewData["Title"] = "Moderation";
+    Layout = "_AdminLayout";
+}
+
+<partial name="_ModerationTabs" />
+
+<p class="text-muted">Every action moderators and administrators take on posts, discussions, members and reports, newest first. Entries can't be edited or removed.</p>
+
+@if (Model.Entries.Count == 0)
+{
+    <div class="alert alert-info"><i class="bi bi-info-circle"></i> Nothing has been logged yet.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">When</th>
+                    <th scope="col">Who</th>
+                    <th scope="col">Action</th>
+                    <th scope="col">Details</th>
+                    <th scope="col">Member</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in Model.Entries)
+                {
+                    <tr>
+                        <td class="text-nowrap small">@(await Html.FormatDateTimeAsync(entry.CreatedAt))</td>
+                        <td>@(entry.ActorUsername ?? $"#{entry.ActorUserId}")</td>
+                        <td class="text-nowrap">@ModerationActions.DisplayName(entry.Action)</td>
+                        <td>
+                            @if (entry.TargetType == "Thread" && entry.TargetId.HasValue && entry.Action != ModerationActions.DeleteThread)
+                            {
+                                <a asp-controller="Threads" asp-action="Details" asp-route-id="@entry.TargetId">@entry.Summary</a>
+                            }
+                            else if (entry.TargetType == "Report" && entry.TargetId.HasValue)
+                            {
+                                <a asp-controller="Reports" asp-action="Details" asp-route-id="@entry.TargetId">@entry.Summary</a>
+                            }
+                            else
+                            {
+                                @entry.Summary
+                            }
+                            @if (!string.IsNullOrEmpty(entry.Reason))
+                            {
+                                <div class="small text-muted text-preserve-lines">Reason: @entry.Reason</div>
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(entry.TargetUsername))
+                            {
+                                <a asp-controller="Account" asp-action="Profile" asp-route-username="@entry.TargetUsername">@entry.TargetUsername</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Moderation log pages">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                    <a class="page-link" asp-action="Log" asp-route-page="@(Model.Page - 1)">Newer</a>
+                </li>
+                <li class="page-item disabled"><span class="page-link">Page @Model.Page of @Model.TotalPages</span></li>
+                <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" asp-action="Log" asp-route-page="@(Model.Page + 1)">Older</a>
+                </li>
+            </ul>
+        </nav>
+    }
+}

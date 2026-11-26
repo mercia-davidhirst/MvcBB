@@ -18,7 +18,10 @@ CREATE PROCEDURE dbo.usp_User_Update
     @MustChangePassword BIT = 0,
     @LockedUntil DATETIME2(3) = NULL,
     @LastLoginIp NVARCHAR(45) = NULL,
-    @AutoJumpToUnread BIT = 1
+    @AutoJumpToUnread BIT = 1,
+    @BirthDay TINYINT = NULL,
+    @BirthMonth TINYINT = NULL,
+    @BirthYear SMALLINT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -37,7 +40,10 @@ BEGIN
         MustChangePassword = @MustChangePassword,
         LockedUntil = @LockedUntil,
         LastLoginIp = @LastLoginIp,
-        AutoJumpToUnread = @AutoJumpToUnread
+        AutoJumpToUnread = @AutoJumpToUnread,
+        BirthDay = @BirthDay,
+        BirthMonth = @BirthMonth,
+        BirthYear = @BirthYear
     WHERE Id = @Id;
 END;
 GO

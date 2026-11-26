@@ -23,7 +23,8 @@ BEGIN
             ('Color', '\[color=(.*?)\](.*?)\[/color\]', '<span style="color: $1">$2</span>', 'Colors text', '[color=red]colored text[/color]', TRUE, 11),
             ('Size', '\[size=(.*?)\](.*?)\[/size\]', '<span style="font-size: $1px">$2</span>', 'Changes text size', '[size=20]sized text[/size]', TRUE, 12),
             ('Center', '\[center\](.*?)\[/center\]', '<div class="text-center">$1</div>', 'Centers text', '[center]centered text[/center]', TRUE, 13),
-            ('Right', '\[right\](.*?)\[/right\]', '<div class="text-end">$1</div>', 'Right-aligns text', '[right]right-aligned text[/right]', TRUE, 14);
+            ('Right', '\[right\](.*?)\[/right\]', '<div class="text-end">$1</div>', 'Right-aligns text', '[right]right-aligned text[/right]', TRUE, 14),
+            ('Spoiler', '\[spoiler(=(.*?))?\](.*?)\[/spoiler\]', '<details class="bbcode-spoiler"><summary>$2</summary>$3</details>', 'Hides text until the reader clicks it, with an optional title', '[spoiler=Ending]hidden text[/spoiler]', TRUE, 15);
     END IF;
 END;
 $$;

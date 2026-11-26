@@ -38,6 +38,10 @@ namespace MvcBB.API.SQL
             services.AddScoped<IModRepository, SqlModRepository>();
             services.AddScoped<IAdminEmailRepository, SqlAdminEmailRepository>();
             services.AddScoped<IEmailSendLogRepository, SqlEmailSendLogRepository>();
+            services.AddScoped<INotificationRepository, SqlNotificationRepository>();
+            services.AddScoped<IModerationQueueRepository, SqlModerationQueueRepository>();
+            services.AddScoped<IModerationLogRepository, SqlModerationLogRepository>();
+            services.AddScoped<IModerationSettingsRepository, SqlModerationSettingsRepository>();
             services.AddSingleton<IDatabaseHealthCheck, SqlDatabaseHealthCheck>();
 
             return services;

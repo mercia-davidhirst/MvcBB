@@ -25,6 +25,16 @@ namespace MvcBB.Shared.Services
         private static readonly Regex SafeSizePattern = new(@"^\d{1,3}$", RegexOptions.Compiled);
 
         public string ParseBBCode(string input, IReadOnlyDictionary<string, string>? smilies = null)
+            => ParseBBCode(input, smilies, mentionedUsernames: null);
+
+        /// <summary>
+        /// Same as ParseBBCode(input, smilies), and also turns every @mention
+        /// of a username in <paramref name="mentionedUsernames"/> into a link
+        /// to that member's profile (see MentionParser). A mention of anyone
+        /// else stays plain text, so a typo or an email-style "@word" never
+        /// links to a profile that doesn't exist.
+        /// </summary>
+        public string ParseBBCode(string input, IReadOnlyDictionary<string, string>? smilies, IReadOnlyCollection<string>? mentionedUsernames)
         {
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
@@ -62,6 +72,14 @@ namespace MvcBB.Shared.Services
                         case "code": return $"<pre><code>{content}</code></pre>";
                         case "center": return $"<div style=\"text-align: center;\">{content}</div>";
                         case "right": return $"<div style=\"text-align: right;\">{content}</div>";
+                        case "spoiler":
+                        {
+                            // [spoiler]text[/spoiler] or [spoiler=Title]text[/spoiler].
+                            // Both the title and the content are already
+                            // HTML-encoded (see the top of this method).
+                            var title = string.IsNullOrWhiteSpace(value) ? "Spoiler" : value.Trim();
+                            return $"<details class=\"bbcode-spoiler\"><summary>{title}</summary><div class=\"bbcode-spoiler-body\">{content}</div></details>";
+                        }
                         case "url":
                         {
                             var href = TryGetSafeUrl(value ?? content, allowMailto: true);
@@ -88,6 +106,11 @@ namespace MvcBB.Shared.Services
 
             output = ConvertLineBreaks(output);
 
+            if (mentionedUsernames != null && mentionedUsernames.Count > 0 && output.IndexOf('@') >= 0)
+            {
+                output = LinkMentions(output, mentionedUsernames);
+            }
+
             if (smilies != null && smilies.Count > 0)
             {
                 output = ReplaceSmilies(output, smilies);
@@ -100,7 +123,7 @@ namespace MvcBB.Shared.Services
         // center/right) is just how people lay the tags out on their own lines;
         // turning it into a <br /> as well would add a stray blank line.
         private static readonly Regex BlockTagNewlinePattern = new(
-            @"\n?(</?(?:blockquote|pre|div)\b[^>]*>)\n?",
+            @"\n?(</?(?:blockquote|pre|div|details|summary)\b[^>]*>)\n?",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex PreBlockPattern = new(
             @"(<pre\b[^>]*>.*?</pre>)",
@@ -160,6 +183,91 @@ namespace MvcBB.Shared.Services
             return null;
         }
 
+        public const string MentionProfileUrlPrefix = "/Account/Profile?username=";
+
+        private static readonly Regex SkipOpenTagPattern = new(@"^<(a|pre|code)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex SkipCloseTagPattern = new(@"^</(a|pre|code)\s*>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        // Runs after BBCode tag parsing, on the text between tags only, and
+        // never inside a link or a code block. Works on the decoded text (so
+        // a quoted name like @&quot;Some Name&quot; is seen as @"Some Name")
+        // and encodes everything it writes back.
+        private static string LinkMentions(string html, IReadOnlyCollection<string> mentionedUsernames)
+        {
+            var known = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var name in mentionedUsernames)
+            {
+                if (!string.IsNullOrEmpty(name))
+                {
+                    known[name] = name;
+                }
+            }
+            if (known.Count == 0)
+            {
+                return html;
+            }
+
+            var parts = HtmlTagPattern.Split(html);
+            var skipDepth = 0;
+            for (var i = 0; i < parts.Length; i++)
+            {
+                var part = parts[i];
+                if (part.Length == 0)
+                {
+                    continue;
+                }
+
+                if (part[0] == '<')
+                {
+                    if (SkipOpenTagPattern.IsMatch(part))
+                    {
+                        skipDepth++;
+                    }
+                    else if (SkipCloseTagPattern.IsMatch(part))
+                    {
+                        skipDepth = Math.Max(0, skipDepth - 1);
+                    }
+                    continue;
+                }
+
+                if (skipDepth > 0 || part.IndexOf('@') < 0)
+                {
+                    continue;
+                }
+
+                var text = WebUtility.HtmlDecode(part);
+                var result = new System.Text.StringBuilder();
+                var last = 0;
+                foreach (Match m in MentionParser.MentionPattern.Matches(text))
+                {
+                    var name = MentionParser.NameOf(m);
+                    if (!known.TryGetValue(name, out var username))
+                    {
+                        continue;
+                    }
+
+                    // A bare @word may have picked up a trailing "." or "-"
+                    // (end of a sentence) that isn't part of the name.
+                    var length = m.Groups["w"].Success ? 1 + name.Length : m.Length;
+                    result.Append(WebUtility.HtmlEncode(text.Substring(last, m.Index - last)));
+                    result.Append("<a class=\"mention\" href=\"")
+                          .Append(WebUtility.HtmlEncode(MentionProfileUrlPrefix + Uri.EscapeDataString(username)))
+                          .Append("\">@")
+                          .Append(WebUtility.HtmlEncode(username))
+                          .Append("</a>");
+                    last = m.Index + length;
+                }
+
+                if (last > 0)
+                {
+                    result.Append(WebUtility.HtmlEncode(text.Substring(last)));
+                    parts[i] = result.ToString();
+                }
+            }
+
+            return string.Concat(parts);
+        }
+
         // Runs after BBCode tag parsing. Smilies are only replaced in text between
         // HTML tags (never inside a generated tag's attributes), and on the decoded
         // text, so a code like ";)" can't land inside an entity such as "&quot;)"
@@ -196,12 +304,32 @@ namespace MvcBB.Shared.Services
             return string.Concat(parts);
         }
 
+        private static readonly Regex SpoilerBlockPattern = new(
+            @"\[spoiler(?:=[^\]]*)?\](?:(?!\[spoiler(?:=[^\]]*)?\]).)*?\[/spoiler\]",
+            RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
         public string StripBBCode(string input)
         {
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
 
-            return BBCodeStripPattern.Replace(input, string.Empty).Trim();
+            // A spoiler's text stays hidden in plain-text summaries (recent
+            // posts, notifications), innermost spoiler first so nested ones
+            // can't leak their outer text.
+            var text = input;
+            if (text.IndexOf("[spoiler", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                string previous;
+                var pass = 0;
+                do
+                {
+                    previous = text;
+                    text = SpoilerBlockPattern.Replace(text, "\u0001");
+                } while (text != previous && ++pass < 20);
+                text = text.Replace("\u0001", "(spoiler)");
+            }
+
+            return BBCodeStripPattern.Replace(text, string.Empty).Trim();
         }
 
         public bool ValidateBBCode(string input)

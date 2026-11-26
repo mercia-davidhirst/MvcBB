@@ -7,6 +7,7 @@
 DROP PROCEDURE IF EXISTS public.sp_user_insert(varchar, varchar, varchar, smallint, varchar, varchar, varchar, boolean, varchar);
 DROP PROCEDURE IF EXISTS public.sp_user_insert(varchar, varchar, varchar, smallint, varchar, varchar, varchar, boolean, varchar, boolean, timestamptz, varchar);
 DROP PROCEDURE IF EXISTS public.sp_user_insert(varchar, varchar, varchar, smallint, varchar, varchar, varchar, boolean, varchar, boolean, timestamptz, varchar, boolean);
+DROP PROCEDURE IF EXISTS public.sp_user_insert(varchar, varchar, varchar, smallint, varchar, varchar, varchar, boolean, varchar, boolean, timestamptz, varchar, boolean, smallint, smallint, smallint);
 
 CREATE PROCEDURE public.sp_user_insert(
     p_username VARCHAR(50),
@@ -22,13 +23,16 @@ CREATE PROCEDURE public.sp_user_insert(
     p_locked_until TIMESTAMPTZ,
     p_last_login_ip VARCHAR(45),
     p_auto_jump_to_unread BOOLEAN,
+    p_birth_day SMALLINT,
+    p_birth_month SMALLINT,
+    p_birth_year SMALLINT,
     OUT p_id INTEGER
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    INSERT INTO public.users (username, password_hash, email, role, signature, bio, avatar_url, show_email, custom_title, must_change_password, locked_until, last_login_ip, auto_jump_to_unread)
-    VALUES (p_username, p_password_hash, p_email, p_role, p_signature, p_bio, p_avatar_url, p_show_email, p_custom_title, p_must_change_password, p_locked_until, p_last_login_ip, p_auto_jump_to_unread)
+    INSERT INTO public.users (username, password_hash, email, role, signature, bio, avatar_url, show_email, custom_title, must_change_password, locked_until, last_login_ip, auto_jump_to_unread, birth_day, birth_month, birth_year)
+    VALUES (p_username, p_password_hash, p_email, p_role, p_signature, p_bio, p_avatar_url, p_show_email, p_custom_title, p_must_change_password, p_locked_until, p_last_login_ip, p_auto_jump_to_unread, p_birth_day, p_birth_month, p_birth_year)
     RETURNING id INTO p_id;
 END;
 $$;

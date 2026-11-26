@@ -262,6 +262,8 @@ namespace MvcBB.App.Controllers
         {
             if (!ModelState.IsValid)
             {
+                TempData["Error"] = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)
+                    .FirstOrDefault(m => !string.IsNullOrEmpty(m)) ?? "Please check your profile details and try again.";
                 return RedirectToAction(nameof(Profile));
             }
 

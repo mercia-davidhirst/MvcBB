@@ -32,6 +32,8 @@ namespace MvcBB.API.Services
         // which CoreBBCodeService (the App's real implementation) also implements.
         public string ParseBBCode(string input, IReadOnlyDictionary<string, string>? smilies = null) => _coreBBCodeService.ParseBBCode(input, smilies);
 
+        public string ParseBBCode(string input, IReadOnlyDictionary<string, string>? smilies, IReadOnlyCollection<string>? mentionedUsernames) => _coreBBCodeService.ParseBBCode(input, smilies, mentionedUsernames);
+
         public string StripBBCode(string input) => _coreBBCodeService.StripBBCode(input);
 
         public bool ValidateBBCode(string input) => _coreBBCodeService.ValidateBBCode(input);

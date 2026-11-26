@@ -1,4 +1,6 @@
 ﻿@model HomeViewModel
+@inject MvcBB.App.Interfaces.IModsService ModsService
+@inject IReadOnlyList<IAppMod> DiscoveredAppMods
 
 @{
     ViewData["Title"] = "Home";
@@ -6,6 +8,12 @@
     // home.center.top, home.center, home.right). Empty slots render nothing
     // at all, so a site without slot-using mods gets exactly the core layout.
     var homeSlot = new PageSlotContext { ViewerUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value };
+    // Enabled mods' nav links, for Quick Links (the enabled set is cached by ModsService).
+    var enabledModIds = await ModsService.GetEnabledModIdsAsync();
+    var modNavItems = DiscoveredAppMods
+        .Where(m => enabledModIds.Contains(m.Id))
+        .SelectMany(m => m.GetNavItems())
+        .ToList();
 }
 
 <div class="container-fluid">
@@ -48,6 +56,13 @@
                         <a asp-controller="Search" asp-action="Index" class="list-group-item list-group-item-action">
                             <i class="bi bi-search me-2"></i> Search
                         </a>
+                        @* The same links enabled mods add to the navbar (IAppMod.GetNavItems), all of them. *@
+                        @foreach (var navItem in modNavItems)
+                        {
+                            <a asp-controller="@navItem.Controller" asp-action="@navItem.Action" class="list-group-item list-group-item-action">
+                                <i class="bi @navItem.IconCssClass me-2"></i> @navItem.Text
+                            </a>
+                        }
                     </div>
                 </div>
             </div>
@@ -98,7 +113,7 @@
                                                 Last post by 
                                                 <a asp-controller="Account" asp-action="Profile" asp-route-username="@thread.LastPostByUsername" 
                                                    class="text-decoration-none">@thread.LastPostByUsername</a>
-                                                on @(await Html.FormatDateTimeAsync(thread.LastPostAt.Value))
+                                                on <a asp-controller="Threads" asp-action="Details" asp-route-id="@thread.Id" asp-route-last="true" class="text-decoration-none" title="Go to the last post">@(await Html.FormatDateTimeAsync(thread.LastPostAt.Value)) <i class="bi bi-box-arrow-in-down-right"></i></a>
                                             </small>
                                         </p>
                                     }

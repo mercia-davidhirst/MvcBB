@@ -81,6 +81,13 @@
                             Posts
                             <span class="badge bg-primary rounded-pill">@Model.PostCount</span>
                         </li>
+                        @if (Model.BirthDay.HasValue && Model.BirthMonth.HasValue)
+                        {
+                            <li class="list-group-item">
+                                <small class="d-block text-muted">Birthday</small>
+                                @MvcBB.Shared.Services.Birthday.Describe(Model.BirthDay, Model.BirthMonth, Model.BirthYear)
+                            </li>
+                        }
                         <li class="list-group-item">
                             <small class="d-block text-muted">Joined</small>
                             @(await Html.FormatDateAsync(Model.CreatedAt))
@@ -124,7 +131,7 @@
                         <div class="list-group list-group-flush">
                             @foreach (var post in recentPosts)
                             {
-                                <a asp-controller="Threads" asp-action="Details" asp-route-id="@post.ThreadId" asp-fragment="post-@post.Id"
+                                <a asp-controller="Threads" asp-action="Details" asp-route-id="@post.ThreadId" asp-route-postId="@post.Id" asp-fragment="post-@post.Id"
                                    class="list-group-item list-group-item-action">
                                     <p class="mb-1 text-truncate">@BBCodeService.StripBBCode(post.Content)</p>
                                     <small class="text-muted">@(await Html.FormatDateTimeAsync(post.CreatedAt))</small>
@@ -193,6 +200,40 @@
                                 <input type="file" name="avatarFile" id="avatarFile" class="form-control" accept=".png,.jpg,.jpeg,.gif" />
                                 <small class="form-text text-muted">PNG, JPG, or GIF, up to 2 MB.</small>
                             </div>
+
+                            <fieldset class="mb-3">
+                                <legend class="form-label fs-6 mb-1">Birthday</legend>
+                                @* UpdateBirthday tells the API this form sets the birthday (blank removes it). *@
+                                <input type="hidden" name="UpdateBirthday" value="true" />
+                                <div class="row g-2">
+                                    <div class="col-4">
+                                        <label for="birthDay" class="visually-hidden">Day</label>
+                                        <select name="BirthDay" id="birthDay" class="form-select">
+                                            <option value="">Day</option>
+                                            @for (var d = 1; d <= 31; d++)
+                                            {
+                                                <option value="@d" selected="@(Model.BirthDay == d)">@d</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-4">
+                                        <label for="birthMonth" class="visually-hidden">Month</label>
+                                        <select name="BirthMonth" id="birthMonth" class="form-select">
+                                            <option value="">Month</option>
+                                            @for (var m = 1; m <= 12; m++)
+                                            {
+                                                <option value="@m" selected="@(Model.BirthMonth == m)">@System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat.GetMonthName(m)</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-4">
+                                        <label for="birthYear" class="visually-hidden">Year (optional)</label>
+                                        <input type="number" name="BirthYear" id="birthYear" class="form-control" placeholder="Year (optional)"
+                                               min="@MvcBB.Shared.Services.Birthday.EarliestYear" max="@DateTime.UtcNow.Year" value="@Model.BirthYear" />
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted d-block">Shown on your profile and, where the site has a calendar, on your birthday. The year is optional: leave it out if you'd rather not show your age.</small>
+                            </fieldset>
 
                             <div class="form-check mb-3">
                                 <input type="checkbox" name="ShowEmail" value="true" class="form-check-input" id="showEmail" checked="@Model.ShowEmail" />

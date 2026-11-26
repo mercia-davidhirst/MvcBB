@@ -19,6 +19,11 @@ namespace MvcBB.Shared.Models.User
         /// <summary>Opening a discussion scrolls straight to the first unread post.</summary>
         public bool AutoJumpToUnread { get; set; } = true;
 
+        /// <summary>The member's birthday (day and month, optional year), or null when they haven't given one.</summary>
+        public int? BirthDay { get; set; }
+        public int? BirthMonth { get; set; }
+        public int? BirthYear { get; set; }
+
         // Effective display title - CustomTitle if an admin set one, else the
         // computed rank (RankCalculator.GetRank). RankImagePath is only ever
         // populated for a computed rank; a custom title has no badge image.

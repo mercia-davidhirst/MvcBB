@@ -332,3 +332,35 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 })();
+
+// Badges for the notification bell (every signed-in member) and the
+// moderation queue (moderators and administrators). Same idea as the PM and
+// report alerts above: _Layout renders the current count and a baseline,
+// and this keeps the badge up to date. No toast - the badge is enough.
+(function () {
+    var POLL_INTERVAL_MS = 30000;
+
+    function watchBadge(initial, badgeId, url) {
+        if (typeof initial === 'undefined') {
+            return; // _Layout didn't set it for this visitor.
+        }
+        setInterval(function () {
+            fetch(url, { headers: { 'Accept': 'application/json' } })
+                .then(function (response) { return response.ok ? response.json() : null; })
+                .then(function (data) {
+                    var badge = document.getElementById(badgeId);
+                    if (!data || !badge) {
+                        return;
+                    }
+                    badge.textContent = data.count;
+                    badge.classList.toggle('d-none', data.count === 0);
+                })
+                .catch(function () {
+                    // Transient hiccup - the next poll retries.
+                });
+        }, POLL_INTERVAL_MS);
+    }
+
+    watchBadge(window.mvcbbInitialNotificationCount, 'unreadNotificationBadge', '/Notifications/UnreadCount');
+    watchBadge(window.mvcbbInitialModerationQueueCount, 'moderationQueueBadge', '/Moderation/QueueCount');
+})();

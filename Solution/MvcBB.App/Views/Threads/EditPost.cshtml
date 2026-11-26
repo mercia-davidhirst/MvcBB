@@ -30,7 +30,8 @@
                     <label asp-for="Content" class="form-label">Content</label>
                     <partial name="_BBCodeToolbar" model="smilies" />
                     <textarea asp-for="Content" class="form-control" rows="10" required
-                              oninput="updatePreview()">@post.Content</textarea>
+                              oninput="updatePreview()"
+                              data-draft-key="@DraftKeys.Edit(post.Id)" data-draft-user="@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value" data-mentions="true">@post.Content</textarea>
                     <span asp-validation-for="Content" class="text-danger"></span>
 
                     <div class="mt-3">

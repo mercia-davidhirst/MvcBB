@@ -780,6 +780,7 @@ namespace MvcBB.App.Controllers
         private static DisplaySettingsViewModel ToViewModel(DisplaySettings settings, PasswordPolicy passwordPolicy) => new()
         {
             ThreadsPerPage = settings.ThreadsPerPage,
+            PostsPerPage = settings.PostsPerPage,
             SiteTitle = settings.SiteTitle,
             WelcomeMessage = settings.WelcomeMessage,
             SiteName = settings.SiteName,

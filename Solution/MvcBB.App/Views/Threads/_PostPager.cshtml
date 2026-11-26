@@ -1,0 +1,40 @@
+@model ThreadPostPage
+@{
+    // Page links for a discussion (above and below its posts). Shows the
+    // first and last pages, two either side of the current one, and "…" for
+    // the gaps, so a discussion with thousands of pages still fits on a line.
+    var threadId = (int)ViewData["ThreadId"]!;
+    var current = Model.Page;
+    var total = Model.TotalPages;
+    var pages = new SortedSet<int> { 1, total };
+    for (var p = Math.Max(1, current - 2); p <= Math.Min(total, current + 2); p++)
+    {
+        pages.Add(p);
+    }
+}
+@if (total > 1)
+{
+    <nav aria-label="Discussion pages" class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
+        <small class="text-muted">Page @current of @total · @Model.TotalPosts posts</small>
+        <ul class="pagination pagination-sm mb-0 flex-wrap">
+            <li class="page-item @(current <= 1 ? "disabled" : "")">
+                <a class="page-link" asp-action="Details" asp-route-id="@threadId" asp-route-page="@(current - 1)" aria-label="Previous page">&laquo;</a>
+            </li>
+            @{ var previous = 0; }
+            @foreach (var p in pages)
+            {
+                if (previous != 0 && p > previous + 1)
+                {
+                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                }
+                <li class="page-item @(p == current ? "active" : "")" aria-current="@(p == current ? "page" : null)">
+                    <a class="page-link" asp-action="Details" asp-route-id="@threadId" asp-route-page="@p">@p</a>
+                </li>
+                previous = p;
+            }
+            <li class="page-item @(current >= total ? "disabled" : "")">
+                <a class="page-link" asp-action="Details" asp-route-id="@threadId" asp-route-page="@(current + 1)" aria-label="Next page">&raquo;</a>
+            </li>
+        </ul>
+    </nav>
+}

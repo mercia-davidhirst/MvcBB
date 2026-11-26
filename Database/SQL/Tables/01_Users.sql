@@ -47,10 +47,15 @@ BEGIN
         LockedUntil     DATETIME2(3)       NULL,
         LastLoginIp     NVARCHAR(45)       NULL,
         AutoJumpToUnread BIT               NOT NULL CONSTRAINT DF_Users_AutoJumpToUnread DEFAULT (1),
+        BirthDay        TINYINT            NULL,
+        BirthMonth      TINYINT            NULL,
+        BirthYear       SMALLINT           NULL,
         CONSTRAINT PK_Users PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT UQ_Users_Username UNIQUE (Username),
         CONSTRAINT UQ_Users_Email UNIQUE (Email),
-        CONSTRAINT CK_Users_Role CHECK (Role IN (0, 1, 2, 3))
+        CONSTRAINT CK_Users_Role CHECK (Role IN (0, 1, 2, 3)),
+        CONSTRAINT CK_Users_Birthday CHECK ((BirthDay IS NULL AND BirthMonth IS NULL AND BirthYear IS NULL)
+            OR (BirthDay BETWEEN 1 AND 31 AND BirthMonth BETWEEN 1 AND 12 AND (BirthYear IS NULL OR BirthYear BETWEEN 1900 AND 9999)))
     );
 END
 GO
