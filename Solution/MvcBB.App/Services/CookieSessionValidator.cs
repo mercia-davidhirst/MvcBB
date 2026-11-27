@@ -17,12 +17,22 @@ namespace MvcBB.App.Services
     /// good?". If it isn't, the cookie is thrown away and the member is signed
     /// out.
     ///
+    /// A "Remember me" session also carries a refresh token. When its API
+    /// token is about to run out (or has been refused), the refresh token is
+    /// swapped for a new pair and the cookie re-issued, so the member stays
+    /// signed in. The API makes the same checks before renewing, so a lock,
+    /// demotion, password change or sign-out still ends a remembered session
+    /// straight away.
+    ///
     /// If the API can't be reached at all, the session is left alone for that
     /// request: every API call the page makes with the token is still checked,
     /// and signing everyone out during an API restart would be worse.
     /// </summary>
     public static class CookieSessionValidator
     {
+        /// <summary>Renew a remembered session this long before its API token runs out.</summary>
+        private static readonly TimeSpan RenewBefore = TimeSpan.FromMinutes(5);
+
         public static async Task ValidateAsync(CookieValidatePrincipalContext context)
         {
             if (context.Principal?.Identity?.IsAuthenticated != true)
@@ -30,11 +40,28 @@ namespace MvcBB.App.Services
                 return;
             }
 
-            var token = context.Principal.FindFirst("api_token")?.Value;
+            var token = context.Principal.FindFirst(SessionCookie.ApiTokenClaim)?.Value;
             if (string.IsNullOrEmpty(token))
             {
                 await RejectAsync(context);
                 return;
+            }
+
+            var refreshToken = SessionCookie.GetRefreshToken(context.Principal);
+            if (refreshToken != null
+                && SessionCookie.GetApiTokenExpiry(context.Principal) is { } expiresAt
+                && expiresAt - DateTime.UtcNow < RenewBefore)
+            {
+                switch (await RenewAsync(context, refreshToken))
+                {
+                    case SessionRefreshStatus.Renewed:
+                        // The API just checked the account to issue these.
+                        return;
+                    case SessionRefreshStatus.Ended:
+                        await RejectAsync(context);
+                        return;
+                    // Unavailable: carry on with the token we have.
+                }
             }
 
             var services = context.HttpContext.RequestServices;
@@ -58,9 +85,37 @@ namespace MvcBB.App.Services
             {
                 if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
                 {
-                    await RejectAsync(context);
+                    // A remembered session gets one go at renewing (its token may
+                    // simply have expired); the API refuses if the session was
+                    // ended for any other reason.
+                    var status = refreshToken != null
+                        ? await RenewAsync(context, refreshToken)
+                        : SessionRefreshStatus.Ended;
+                    if (status == SessionRefreshStatus.Ended)
+                    {
+                        await RejectAsync(context);
+                    }
                 }
             }
+        }
+
+        private static async Task<SessionRefreshStatus> RenewAsync(CookieValidatePrincipalContext context, string refreshToken)
+        {
+            var refresher = context.HttpContext.RequestServices.GetRequiredService<SessionRefresher>();
+            var result = await refresher.RefreshAsync(
+                refreshToken,
+                context.HttpContext.Connection.RemoteIpAddress?.ToString(),
+                context.HttpContext.RequestAborted);
+
+            if (result.Status == SessionRefreshStatus.Renewed && result.Response != null)
+            {
+                var tokens = SessionTokens.From(result.Response);
+                context.ReplacePrincipal(SessionCookie.CreatePrincipal(result.Response));
+                SessionCookie.ApplyExpiry(context.Properties, tokens);
+                context.ShouldRenew = true;
+            }
+
+            return result.Status;
         }
 
         private static async Task RejectAsync(CookieValidatePrincipalContext context)

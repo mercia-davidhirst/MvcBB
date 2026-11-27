@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS public.display_settings
     max_emails_per_day   INTEGER         NOT NULL DEFAULT 0,
     -- Posts shown per page of a discussion. Added in v1.4.0.
     posts_per_page       INTEGER         NOT NULL DEFAULT 20,
+    -- Home page "Who's online" card and how many minutes count as online.
+    -- Added in v1.4.1.
+    show_whos_online     BOOLEAN         NOT NULL DEFAULT TRUE,
+    online_window_minutes INTEGER        NOT NULL DEFAULT 15,
     PRIMARY KEY (id)
 );
 

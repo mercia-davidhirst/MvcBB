@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
+using MvcBB.App.Services;
 using MvcBB.Shared.Models.Common;
 using MvcBB.Shared.Models.Member;
 
@@ -14,14 +15,17 @@ public class HomeController : Controller
     private readonly IUserService _userService;
     private readonly IBoardService _boardService;
     private readonly ISettingsService _settingsService;
+    private readonly OnlineVisitorTracker _onlineVisitors;
 
     public HomeController(
         ILogger<HomeController> logger,
         IThreadService threadService,
         IUserService userService,
         IBoardService boardService,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        OnlineVisitorTracker onlineVisitors)
     {
+        _onlineVisitors = onlineVisitors;
         _logger = logger;
         _threadService = threadService;
         _userService = userService;
@@ -77,7 +81,10 @@ public class HomeController : Controller
                 NewestMembers = newestMembers,
                 Stats = stats,
                 SiteTitle = displaySettings.SiteTitle,
-                WelcomeMessage = displaySettings.WelcomeMessage
+                WelcomeMessage = displaySettings.WelcomeMessage,
+                OnlineVisitors = displaySettings.ShowWhosOnline
+                    ? _onlineVisitors.GetSnapshot(displaySettings.OnlineWindowMinutes, DateTime.UtcNow)
+                    : null
             };
 
             return View(viewModel);

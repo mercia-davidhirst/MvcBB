@@ -116,6 +116,10 @@ builder.Services.AddScoped<MvcBB.API.Services.INotificationService, MvcBB.API.Se
 builder.Services.AddScoped<MvcBB.API.Services.IModerationLogger, MvcBB.API.Services.ModerationLogger>();
 builder.Services.AddScoped<MvcBB.API.Services.IForumPostingService, MvcBB.API.Services.ForumPostingService>();
 builder.Services.AddHostedService<MvcBB.API.Services.NotificationPruner>();
+// "Remember me" refresh tokens (hashed, single-use, rotated, revocable) and
+// the daily clean-up of expired and spent ones.
+builder.Services.AddScoped<MvcBB.API.Services.RefreshTokenService>();
+builder.Services.AddHostedService<MvcBB.API.Services.RefreshTokenPruner>();
 
 // Configure JWT Authentication - issuing and validating both go through
 // JwtTokenService (issuer/audience checks, UTF-8 key, separate user and

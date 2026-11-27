@@ -792,6 +792,8 @@ namespace MvcBB.App.Controllers
             TimeZoneId = settings.TimeZoneId ?? string.Empty,
             MaxEmailsPerHour = settings.MaxEmailsPerHour,
             MaxEmailsPerDay = settings.MaxEmailsPerDay,
+            ShowWhosOnline = settings.ShowWhosOnline,
+            OnlineWindowMinutes = settings.OnlineWindowMinutes,
             PasswordPolicy = passwordPolicy
         };
     }

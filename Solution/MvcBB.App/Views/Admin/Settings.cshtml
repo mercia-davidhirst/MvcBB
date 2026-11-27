@@ -89,6 +89,23 @@
                 <small class="form-text text-muted">When off, the public registration page is disabled - new accounts can only be created by an admin (Users &gt; Create User).</small>
             </div>
 
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <div class="form-check mt-md-4">
+                        <input asp-for="ShowWhosOnline" class="form-check-input" />
+                        <label asp-for="ShowWhosOnline" class="form-check-label"></label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="OnlineWindowMinutes" class="form-label"></label>
+                    <input asp-for="OnlineWindowMinutes" class="form-control" type="number" min="1" max="60" />
+                    <span asp-validation-for="OnlineWindowMinutes" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <small class="form-text text-muted">The "Who's Online" card at the bottom of the home page counts the members, guests and bots (search engines and other automated visitors) that loaded a page within this many minutes (1–60).</small>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label asp-for="DateFormat" class="form-label"></label>

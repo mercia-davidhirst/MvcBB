@@ -10,6 +10,9 @@ namespace MvcBB.App.Models
         public ForumStatistics Stats { get; set; } = new();
         public string SiteTitle { get; set; } = "Welcome to MvcBB";
         public string WelcomeMessage { get; set; } = "A modern bulletin board system for engaging discussions and community building.";
+
+        /// <summary>The "Who's online" card's counts, or null when an admin has turned the card off.</summary>
+        public MvcBB.App.Services.OnlineVisitorsSnapshot? OnlineVisitors { get; set; }
     }
 
     public class ForumStatistics

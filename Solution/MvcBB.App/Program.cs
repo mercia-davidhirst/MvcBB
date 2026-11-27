@@ -136,6 +136,11 @@ builder.Services.AddScoped<IModsService, ModsService>();
 builder.Services.AddScoped<IAdminEmailService, AdminEmailService>();
 builder.Services.AddScoped<INotificationsService, NotificationsService>();
 builder.Services.AddScoped<IModerationService, ModerationService>();
+// Renews "Remember me" sessions with the API (and revokes them on sign-out) -
+// see CookieSessionValidator and SessionCookie.
+builder.Services.AddSingleton<SessionRefresher>();
+// Recent visitors for the home page "Who's online" card - see OnlineVisitorMiddleware.
+builder.Services.AddSingleton<OnlineVisitorTracker>();
 
 // Add authentication - the App authenticates browser sessions with a cookie;
 // the JWTs issued by MvcBB.API are only ever used for the App's own outbound
@@ -218,6 +223,7 @@ app.UseAuthorization();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<RequirePasswordChangeMiddleware>();
+app.UseMiddleware<OnlineVisitorMiddleware>();
 
 app.MapControllerRoute(
     name: "default",

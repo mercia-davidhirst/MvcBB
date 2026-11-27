@@ -16,7 +16,9 @@ CREATE PROCEDURE dbo.usp_DisplaySettings_Update
     @TimeZoneId NVARCHAR(100) = N'',
     @MaxEmailsPerHour INT = 0,
     @MaxEmailsPerDay INT = 0,
-    @PostsPerPage INT = 20
+    @PostsPerPage INT = 20,
+    @ShowWhosOnline BIT = 1,
+    @OnlineWindowMinutes INT = 15
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -34,7 +36,9 @@ BEGIN
         TimeFormat = @TimeFormat,
         TimeZoneId = ISNULL(@TimeZoneId, N''),
         MaxEmailsPerHour = ISNULL(@MaxEmailsPerHour, 0),
-        MaxEmailsPerDay = ISNULL(@MaxEmailsPerDay, 0)
+        MaxEmailsPerDay = ISNULL(@MaxEmailsPerDay, 0),
+        ShowWhosOnline = ISNULL(@ShowWhosOnline, 1),
+        OnlineWindowMinutes = ISNULL(@OnlineWindowMinutes, 15)
     WHERE Id = 1;
 END;
 GO

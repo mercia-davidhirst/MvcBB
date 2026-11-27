@@ -58,7 +58,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             return connection.QuerySingle<ThreadPostLocation>(
-                "SELECT * FROM public.fn_post_get_thread_location(@ThreadId, @PostId, @UnreadAfter, @ExcludeUserId)",
+                "SELECT total_count, post_id, post_position AS position FROM public.fn_post_get_thread_location(@ThreadId, @PostId, @UnreadAfter, @ExcludeUserId)",
                 new
                 {
                     ThreadId = threadId,

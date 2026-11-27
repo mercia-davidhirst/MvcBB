@@ -7,6 +7,7 @@ using MvcBB.App.Exceptions;
 using MvcBB.App.Extensions;
 using MvcBB.App.Interfaces;
 using MvcBB.App.Models;
+using MvcBB.App.Services;
 using MvcBB.Shared.Models.Common;
 using MvcBB.Shared.Models.Member;
 using MvcBB.Shared.Models.User;
@@ -23,6 +24,7 @@ namespace MvcBB.App.Controllers
         private readonly IImageUploadService _imageUploadService;
         private readonly ISettingsService _settingsService;
         private readonly IMvcBBCodeService _bbCodeService;
+        private readonly SessionRefresher _sessionRefresher;
 
         public AccountController(
             IUserService userService,
@@ -30,8 +32,10 @@ namespace MvcBB.App.Controllers
             ITurnstileService turnstileService,
             IImageUploadService imageUploadService,
             ISettingsService settingsService,
-            IMvcBBCodeService bbCodeService)
+            IMvcBBCodeService bbCodeService,
+            SessionRefresher sessionRefresher)
         {
+            _sessionRefresher = sessionRefresher;
             _userService = userService;
             _postService = postService;
             _turnstileService = turnstileService;
@@ -346,11 +350,12 @@ namespace MvcBB.App.Controllers
 
             try
             {
-                var newToken = await _userService.ChangePasswordAsync(userId, request);
+                request.KeepSignedIn = SessionCookie.GetRefreshToken(User) != null;
+                var newTokens = await _userService.ChangePasswordAsync(userId, request);
 
                 // Changing the password signs the member out everywhere else;
-                // swap in the fresh token so this session carries on.
-                await RefreshSessionAsync(newToken);
+                // swap in the fresh tokens so this session carries on.
+                await RefreshSessionAsync(newTokens);
                 TempData["Success"] = "Password changed successfully.";
             }
             catch (SessionExpiredException)
@@ -373,6 +378,18 @@ namespace MvcBB.App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
+            // End a "Remember me" sign-in at the API too, so the refresh token
+            // in this cookie can't be used again even if it was copied.
+            if (SessionCookie.GetRefreshToken(User) is { } refreshToken)
+            {
+                await _sessionRefresher.RevokeAsync(refreshToken, HttpContext.RequestAborted);
+            }
+            // Stop counting them as an online member (they'll show as a guest
+            // from the next page on).
+            if (User.FindFirst(ClaimTypes.NameIdentifier)?.Value is { } userId)
+            {
+                HttpContext.RequestServices.GetService<OnlineVisitorTracker>()?.RemoveMember(userId);
+            }
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             TempData["Success"] = "Logged out successfully.";
             return RedirectToAction("Index", "Home");
@@ -734,13 +751,14 @@ namespace MvcBB.App.Controllers
 
             try
             {
-                var newToken = await _userService.ChangePasswordAsync(userId, request);
+                request.KeepSignedIn = SessionCookie.GetRefreshToken(User) != null;
+                var newTokens = await _userService.ChangePasswordAsync(userId, request);
 
                 // The cookie's "must_change_password" claim was set at login and
                 // won't disappear on its own - re-sign-in without it so the
                 // requirement is actually lifted this session, carrying the
                 // fresh API token (the old one stopped working with the change).
-                await RefreshSessionAsync(newToken, removeMustChangePassword: true);
+                await RefreshSessionAsync(newTokens, removeMustChangePassword: true);
 
                 TempData["Success"] = "Password changed successfully.";
                 return RedirectToLocal(returnUrl);
@@ -757,57 +775,42 @@ namespace MvcBB.App.Controllers
             }
         }
 
+        // "Remember me" (a refresh token in the response) makes a persistent
+        // cookie that is renewed quietly; otherwise it's a browser-session
+        // cookie - see SessionCookie.
         private async Task SignInUserAsync(UserAuthResponse response)
         {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, response.User.Id.ToString()),
-                new Claim(ClaimTypes.Name, response.User.Username),
-                new Claim(ClaimTypes.Email, response.User.Email),
-                new Claim(ClaimTypes.Role, response.User.RoleName),
-                new Claim("api_token", response.Token)
-            };
-
-            if (response.User.MustChangePassword)
-            {
-                claims.Add(new Claim("must_change_password", "true"));
-            }
-
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
             await HttpContext.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
-                principal,
-                new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = response.ExpiresAt
-                });
+                SessionCookie.CreatePrincipal(response),
+                SessionCookie.CreateProperties(SessionTokens.From(response)));
         }
 
-        // Re-issues the cookie with the same claims, expiry and persistence,
-        // swapping in a new API token and optionally dropping the
-        // must_change_password flag.
-        private async Task RefreshSessionAsync(string? newApiToken, bool removeMustChangePassword = false)
+        // Re-issues the cookie with the same claims and persistence, swapping
+        // in new API tokens and optionally dropping the must_change_password
+        // flag.
+        private async Task RefreshSessionAsync(SessionTokens? newTokens, bool removeMustChangePassword = false)
         {
-            if (newApiToken == null && !removeMustChangePassword)
+            if (newTokens == null && !removeMustChangePassword)
             {
                 return;
             }
 
             var authResult = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            var claims = User.Claims
-                .Where(c => !(removeMustChangePassword && c.Type == "must_change_password"))
-                .Where(c => !(newApiToken != null && c.Type == "api_token"))
-                .ToList();
-            if (newApiToken != null)
+            var properties = authResult.Properties ?? new AuthenticationProperties();
+            ClaimsPrincipal principal;
+            if (newTokens != null)
             {
-                claims.Add(new Claim("api_token", newApiToken));
+                principal = SessionCookie.WithTokens(User, newTokens, removeMustChangePassword);
+                SessionCookie.ApplyExpiry(properties, newTokens);
+            }
+            else
+            {
+                var claims = User.Claims.Where(c => c.Type != SessionCookie.MustChangePasswordClaim).ToList();
+                principal = new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
             }
 
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), authResult.Properties);
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, properties);
         }
 
         private bool TryGetCurrentUserId(out int userId) =>

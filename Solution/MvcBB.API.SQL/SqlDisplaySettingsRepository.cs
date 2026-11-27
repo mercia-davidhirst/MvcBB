@@ -42,7 +42,9 @@ namespace MvcBB.API.SQL
                 settings.TimeFormat,
                 settings.TimeZoneId,
                 settings.MaxEmailsPerHour,
-                settings.MaxEmailsPerDay
+                settings.MaxEmailsPerDay,
+                settings.ShowWhosOnline,
+                settings.OnlineWindowMinutes
             }, commandType: CommandType.StoredProcedure);
         }
     }

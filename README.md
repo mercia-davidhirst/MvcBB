@@ -101,6 +101,9 @@ can run any community.
   title and welcome message.
 
 ### Members & profiles
+- **Remember me** on login: ticked, the member stays signed in on that
+  device (30 days from their last visit by default); unticked, they're
+  signed out when the browser closes.
 - Registration, login, password reset (emailed link — logged to console in
   the absence of a configured SMTP server), profile editing, avatar upload,
   and an optional birthday (day and month, year optional).
@@ -251,6 +254,11 @@ can run any community.
   their password changes, their role changes or their account is locked.
   Every request re-checks the token against the account, both in the API and
   for the App's sign-in cookie.
+- **Remember me tokens**: stored only as SHA-256 hashes, single-use and
+  rotated on every renewal. A spent token turning up again (a copied
+  cookie) revokes that whole sign-in. Signing out revokes that device's
+  token; a password change or reset, lock, role change or anonymization
+  revokes all of the member's.
 - **BBCode XSS protection**: post content is HTML-encoded before BBCode is
   applied, and link/image URLs are limited to http(s), mailto and
   site-relative paths (no `javascript:`, `data:` and the like).
@@ -322,6 +330,11 @@ direct database access and calls the API over HTTP. With the default
   are kept for Sending activity. Older rows are deleted daily.
 - `Notifications:RetentionDays` (API, default 90, at least 7): read
   notifications older than this are deleted daily. Unread ones are kept.
+- `Jwt:TokenExpirationHours` (API, default 1) is how long a sign-in lasts
+  without "Remember me" (or until the browser closes), and
+  `Jwt:RefreshTokenExpirationDays` (API, default 30, 1 to 365) how long a
+  remembered device stays signed in without a visit. Each visit after the
+  access token runs out renews it for that long again.
 - `MvcBB.App/appsettings.json`: `Api:BaseUrl`, the matching `Api` client
   id/secret, optional `Turnstile` keys, and `Navigation:MaxModLinks` (how
   many mod links the navbar shows before the rest go into a "More" menu,
@@ -333,6 +346,69 @@ Change the placeholder JWT key and client secret before deploying anywhere
 public.
 
 ## Release history
+
+### v1.4.1
+
+New features:
+
+- **Remember me.** The login page has a "Remember me" tick box. Ticked, the
+  member gets a persistent sign-in cookie and stays signed in on that device
+  until they sign out or haven't visited for `Jwt:RefreshTokenExpirationDays`
+  (default 30). When their short-lived access token is about to run out,
+  the App quietly swaps a refresh token for a new pair at the API, so
+  nothing interrupts them. Unticked, the cookie now lasts only for the
+  browser session (and at most `Jwt:TokenExpirationHours`, as before).
+- **Refresh tokens are kept safe.** The API stores only a SHA-256 hash of
+  each one. They're single-use: every renewal spends the token and issues a
+  new one, and a spent token presented again (someone copied the cookie)
+  revokes that whole sign-in. Each token also records the account's
+  session stamp, so a lock, role change, anonymization or password change
+  still ends a remembered session immediately, exactly as it does any
+  other. Signing out revokes that device's tokens; changing or resetting the
+  password, locking, changing the role or anonymizing revokes all of the
+  member's (a member changing their own password stays signed in on the
+  device they changed it on). Expired tokens, and spent ones after a week,
+  are deleted daily.
+- New API endpoints: `POST api/users/refresh` and `POST api/users/logout`.
+  `POST api/users/login` takes `RememberMe` and, when it's set, returns
+  `RefreshToken` and `RefreshTokenExpiresAt`.
+- **Who's online.** A "Who's Online" card at the bottom of the home page's
+  centre column counts the members, guests and bots that loaded a page in
+  the last 15 minutes. Bots (search engines, link previewers and scripts)
+  are recognised by their user agent and listed by name, so they don't
+  inflate the guest count. Admin > Settings turns the card off and sets the
+  window (1 to 60 minutes). The App keeps these counts in memory, so they
+  start from zero after a restart, and a site running several App
+  instances shows each instance's own visitors. Guests are told apart by
+  IP address and browser, without a cookie; behind a reverse proxy, forward
+  the client's IP address or guests on different browsers of the same kind
+  may count as one.
+
+Fixes:
+
+- **Admin > Settings wouldn't save with "Server local time".** Leaving the
+  time zone on its blank "Server local time" option made the form fail
+  with "The Time Zone field is required". Blank is now accepted again.
+- **PostgreSQL install**: `install.ps1` stopped with a syntax error at
+  `fn_post_get_thread_location` (added for discussion paging in v1.4.0),
+  because PostgreSQL won't accept `position` as an output column name in a
+  PL/pgSQL function. The column is now `post_position`, so the v1.4.0
+  paging functions and everything after them in the install now get
+  created.
+
+Upgrading from v1.4.0: deploy the new build of the App and API (mods don't
+need rebuilding; ModKit is unchanged at 1.3.0), then re-run `install.ps1`
+for your database. `Upgrades/v1.4.1.sql` (and `Tables/30_RefreshTokens.sql`
+/ `30_refresh_tokens.sql`) creates the new `RefreshTokens` /
+`refresh_tokens` table and adds the two Who's online settings columns to
+`DisplaySettings` / `display_settings` (the card is on, with a 15 minute
+window, until an admin changes it), and the new `usp_RefreshToken_*` /
+`fn_refresh_token_*` and `sp_refresh_token_*` procedures and functions are
+created with the rest. No existing rows change. In the API's
+appsettings.json, `Jwt:RefreshTokenExpirationDays` (previously unused) now
+sets how long a remembered sign-in lasts; it defaults to 30. Existing
+sign-ins carry on as they are, and members only get "Remember me" the next
+time they log in with it ticked.
 
 ### v1.4.0
 

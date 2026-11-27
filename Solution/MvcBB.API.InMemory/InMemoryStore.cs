@@ -34,6 +34,7 @@ namespace MvcBB.API.InMemory
         public List<BBCodeTagModel> BBCodeTags { get; } = new();
         public List<SmilieModel> Smilies { get; } = new();
         public List<PasswordResetToken> PasswordResetTokens { get; } = new();
+        public List<RefreshToken> RefreshTokens { get; } = new();
         public List<RankModel> Ranks { get; } = new();
         public List<WordFilterModel> WordFilters { get; } = new();
         public List<ThreadSubscriptionModel> ThreadSubscriptions { get; } = new();

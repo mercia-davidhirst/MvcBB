@@ -29,6 +29,7 @@ namespace MvcBB.API.Controllers
         private readonly JwtTokenService _jwtTokenService;
         private readonly IAdminEmailRepository _adminEmailRepository;
         private readonly IModerationLogger _moderationLog;
+        private readonly RefreshTokenService _refreshTokens;
 
         public UsersController(
             IConfiguration configuration,
@@ -40,9 +41,11 @@ namespace MvcBB.API.Controllers
             IPasswordPolicyService passwordPolicyService,
             JwtTokenService jwtTokenService,
             IAdminEmailRepository adminEmailRepository,
-            IModerationLogger moderationLog)
+            IModerationLogger moderationLog,
+            RefreshTokenService refreshTokens)
         {
             _moderationLog = moderationLog;
+            _refreshTokens = refreshTokens;
             _configuration = configuration;
             _userRepository = userRepository;
             _passwordResetTokenRepository = passwordResetTokenRepository;
@@ -171,25 +174,62 @@ namespace MvcBB.API.Controllers
             user.LastLoginIp = request.IpAddress;
             _userRepository.Update(user);
 
-            var token = GenerateJwtToken(user);
-            var expiresAt = DateTime.UtcNow.Add(_jwtTokenService.UserTokenLifetime);
+            // "Remember me": a refresh token the App swaps for fresh access
+            // tokens, so the member stays signed in - see RefreshTokenService.
+            var refresh = request.RememberMe ? _refreshTokens.Issue(user, request.IpAddress) : null;
+            return BuildAuthResponse(user, refresh);
+        }
 
-            return new UserAuthResponse
+        /// <summary>
+        /// Swaps a "Remember me" refresh token for a new access token and a new
+        /// refresh token (the old one is spent). 401 if the token is unknown,
+        /// expired, revoked or reused, or the account has been locked, demoted,
+        /// anonymized or had its password changed since; 409 if another request
+        /// rotated the same token a moment ago.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("refresh")]
+        public ActionResult<UserAuthResponse> Refresh(RefreshTokenRequest request)
+        {
+            var result = _refreshTokens.Rotate(request.RefreshToken, request.IpAddress);
+            return result.Outcome switch
             {
-                Token = token,
-                User = new UserResponse
-                {
-                    Id = user.Id,
-                    Username = user.Username,
-                    Email = user.Email,
-                    CreatedAt = user.CreatedAt,
-                    LastLoginAt = user.LastLoginAt,
-                    Role = user.Role,
-                    MustChangePassword = user.MustChangePassword
-                },
-                ExpiresAt = expiresAt
+                RefreshOutcome.Success => BuildAuthResponse(result.User!, result.Token),
+                RefreshOutcome.Conflict => Conflict(new { message = "This session was renewed by another request." }),
+                _ => Unauthorized(new { message = "Your session has ended. Please log in again." })
             };
         }
+
+        /// <summary>
+        /// Signing out of a "Remember me" session: revokes that device's refresh
+        /// tokens. Knowing the token is the proof, so no other credentials are
+        /// needed, and the reply is the same whether or not it matched.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("logout")]
+        public ActionResult Logout(RefreshTokenRequest request)
+        {
+            _refreshTokens.Revoke(request.RefreshToken);
+            return NoContent();
+        }
+
+        private UserAuthResponse BuildAuthResponse(User user, IssuedRefreshToken? refresh) => new()
+        {
+            Token = GenerateJwtToken(user),
+            User = new UserResponse
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                CreatedAt = user.CreatedAt,
+                LastLoginAt = user.LastLoginAt,
+                Role = user.Role,
+                MustChangePassword = user.MustChangePassword
+            },
+            ExpiresAt = DateTime.UtcNow.Add(_jwtTokenService.UserTokenLifetime),
+            RefreshToken = refresh?.Token,
+            RefreshTokenExpiresAt = refresh?.ExpiresAt
+        };
 
         [AllowAnonymous]
         [HttpPost("forgot-password")]
@@ -261,6 +301,7 @@ namespace MvcBB.API.Controllers
             user.MustChangePassword = false;
             _userRepository.Update(user);
             _passwordResetTokenRepository.MarkUsed(token.Id);
+            _refreshTokens.RevokeAllForUser(user.Id);
 
             return Ok(new { message = "Password reset successfully." });
         }
@@ -591,11 +632,17 @@ namespace MvcBB.API.Controllers
             _userRepository.Update(user);
 
             // The new password ends every existing session, including the one
-            // making this request, so hand back a fresh token for it to carry on.
+            // making this request, and every "Remember me" on other devices,
+            // so hand back a fresh token (and, if this session was remembered,
+            // a fresh refresh token) for it to carry on.
+            _refreshTokens.RevokeAllForUser(user.Id);
+            var refresh = request.KeepSignedIn ? _refreshTokens.Issue(user, null) : null;
             return Ok(new
             {
                 token = GenerateJwtToken(user),
-                expiresAt = DateTime.UtcNow.Add(_jwtTokenService.UserTokenLifetime)
+                expiresAt = DateTime.UtcNow.Add(_jwtTokenService.UserTokenLifetime),
+                refreshToken = refresh?.Token,
+                refreshTokenExpiresAt = refresh?.ExpiresAt
             });
         }
 
@@ -660,6 +707,11 @@ namespace MvcBB.API.Controllers
             _userRepository.Update(user);
 
             var isLocked = user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow;
+            if (isLocked)
+            {
+                // A lock ends "Remember me" for good, not just until it lifts.
+                _refreshTokens.RevokeAllForUser(user.Id);
+            }
             _moderationLog.Log(isLocked ? MvcBB.Shared.Models.Moderation.ModerationActions.LockUser : MvcBB.Shared.Models.Moderation.ModerationActions.UnlockUser,
                 "User", user.Id, user.Id,
                 isLocked ? $"Locked {user.Username} until {user.LockedUntil!.Value:yyyy-MM-dd HH:mm} UTC" : $"Unlocked {user.Username}");
@@ -755,6 +807,7 @@ namespace MvcBB.API.Controllers
 
             if (oldRole != user.Role)
             {
+                _refreshTokens.RevokeAllForUser(user.Id);
                 _moderationLog.Log(MvcBB.Shared.Models.Moderation.ModerationActions.ChangeRole, "User", user.Id, user.Id,
                     $"Changed {user.Username} from {oldRole} to {user.Role}");
             }
@@ -810,6 +863,8 @@ namespace MvcBB.API.Controllers
             {
                 return BadRequest(new { message = "User is already deleted" });
             }
+
+            _refreshTokens.RevokeAllForUser(user.Id);
 
             // Logged before the name is overwritten, so the log says who it was.
             _moderationLog.Log(MvcBB.Shared.Models.Moderation.ModerationActions.AnonymizeUser, "User", user.Id, user.Id,

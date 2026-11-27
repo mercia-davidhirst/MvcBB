@@ -34,6 +34,7 @@ namespace MvcBB.API.Services
             settings.PostsPerPage = Math.Clamp(settings.PostsPerPage, 5, 100);
             settings.MaxEmailsPerHour = Math.Max(0, settings.MaxEmailsPerHour);
             settings.MaxEmailsPerDay = Math.Max(0, settings.MaxEmailsPerDay);
+            settings.OnlineWindowMinutes = Math.Clamp(settings.OnlineWindowMinutes, 1, 60);
 
             // DateFormat/TimeFormat are a fixed dropdown on the admin page,
             // not free text - a request carrying anything else (e.g. a

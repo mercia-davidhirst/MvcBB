@@ -29,7 +29,7 @@ namespace MvcBB.API.PostgreSql
         {
             using var connection = _connectionFactory.CreateConnection();
             connection.Execute(
-                "CALL public.sp_display_settings_update(@ThreadsPerPage, @SiteTitle, @WelcomeMessage, @SiteName, @LogoPath, @FooterDisclaimer, @RegistrationEnabled, @DateFormat, @TimeFormat, @TimeZoneId, @MaxEmailsPerHour, @MaxEmailsPerDay, @PostsPerPage)",
+                "CALL public.sp_display_settings_update(@ThreadsPerPage, @SiteTitle, @WelcomeMessage, @SiteName, @LogoPath, @FooterDisclaimer, @RegistrationEnabled, @DateFormat, @TimeFormat, @TimeZoneId, @MaxEmailsPerHour, @MaxEmailsPerDay, @PostsPerPage, @ShowWhosOnline, @OnlineWindowMinutes)",
                 new
                 {
                     settings.ThreadsPerPage,
@@ -44,7 +44,9 @@ namespace MvcBB.API.PostgreSql
                     settings.TimeFormat,
                     settings.TimeZoneId,
                     settings.MaxEmailsPerHour,
-                    settings.MaxEmailsPerDay
+                    settings.MaxEmailsPerDay,
+                    settings.ShowWhosOnline,
+                    settings.OnlineWindowMinutes
                 });
         }
     }

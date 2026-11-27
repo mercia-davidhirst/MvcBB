@@ -20,5 +20,13 @@ namespace MvcBB.Shared.Models.User
         [DataType(DataType.Password)]
         [Display(Name = "Confirm New Password")]
         public string ConfirmNewPassword { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Set by MvcBB.App (never taken from the form) when the session making
+        /// the change was signed in with "Remember me". Changing the password
+        /// revokes every refresh token, so the API issues this session a new
+        /// one to carry on with.
+        /// </summary>
+        public bool KeepSignedIn { get; set; }
     }
 } 

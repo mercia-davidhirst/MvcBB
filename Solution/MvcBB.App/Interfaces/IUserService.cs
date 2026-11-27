@@ -26,9 +26,10 @@ namespace MvcBB.App.Interfaces
         /// <summary>
         /// Changes the signed-in member's password. Returns the fresh API token
         /// the API issues with it (the old one stops working, as do the
-        /// member's other sessions), or null if the API didn't send one.
+        /// member's other sessions) and, when request.KeepSignedIn was set, a
+        /// fresh "Remember me" refresh token; null if the API sent no token.
         /// </summary>
-        Task<string?> ChangePasswordAsync(int userId, ChangePasswordRequest request);
+        Task<MvcBB.App.Services.SessionTokens?> ChangePasswordAsync(int userId, ChangePasswordRequest request);
         Task UpdateUserRoleAsync(int userId, UserRole newRole);
 
         /// <summary>Admin-only. Null or empty clears the override and falls back to the computed rank.</summary>

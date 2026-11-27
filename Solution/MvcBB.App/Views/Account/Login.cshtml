@@ -31,6 +31,12 @@
                             <span asp-validation-for="Password" class="text-danger"></span>
                         </div>
 
+                        <div class="form-check">
+                            <input asp-for="RememberMe" class="form-check-input" />
+                            <label asp-for="RememberMe" class="form-check-label"></label>
+                            <div class="form-text">Keeps you signed in on this device. Don't tick this on a shared computer.</div>
+                        </div>
+
                         <div class="d-flex justify-content-between align-items-center mt-4">
                             <button type="submit" class="btn btn-primary">Log In</button>
                             <a asp-action="ForgotPassword" class="text-decoration-none">Forgot your password?</a>

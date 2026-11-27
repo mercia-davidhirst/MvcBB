@@ -31,6 +31,10 @@ BEGIN
         MaxEmailsPerDay     INT            NOT NULL CONSTRAINT DF_DisplaySettings_MaxEmailsPerDay DEFAULT (0),
         -- Posts shown per page of a discussion. Added in v1.4.0.
         PostsPerPage        INT            NOT NULL CONSTRAINT DF_DisplaySettings_PostsPerPage DEFAULT (20),
+        -- Home page "Who's online" card and how many minutes count as
+        -- online. Added in v1.4.1.
+        ShowWhosOnline      BIT            NOT NULL CONSTRAINT DF_DisplaySettings_ShowWhosOnline DEFAULT (1),
+        OnlineWindowMinutes INT            NOT NULL CONSTRAINT DF_DisplaySettings_OnlineWindowMinutes DEFAULT (15),
         CONSTRAINT PK_DisplaySettings PRIMARY KEY CLUSTERED (Id)
     );
 END

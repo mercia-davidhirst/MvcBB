@@ -259,7 +259,7 @@ namespace MvcBB.App.Services
             await EnsureSuccessOrThrowAsync(response);
         }
 
-        public async Task<string?> ChangePasswordAsync(int userId, ChangePasswordRequest request)
+        public async Task<SessionTokens?> ChangePasswordAsync(int userId, ChangePasswordRequest request)
         {
             var token = GetCurrentUserToken();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -276,10 +276,10 @@ namespace MvcBB.App.Services
                 return null;
             }
 
-            using var document = JsonDocument.Parse(body);
-            return document.RootElement.TryGetProperty("token", out var tokenProp) && tokenProp.ValueKind == JsonValueKind.String
-                ? tokenProp.GetString()
-                : null;
+            var tokens = JsonSerializer.Deserialize<UserAuthResponse>(body, _jsonOptions);
+            return string.IsNullOrEmpty(tokens?.Token)
+                ? null
+                : new SessionTokens(tokens.Token, tokens.ExpiresAt, tokens.RefreshToken, tokens.RefreshTokenExpiresAt);
         }
 
         private async Task<string> GetTokenAsync()

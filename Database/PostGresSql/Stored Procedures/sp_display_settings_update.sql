@@ -5,6 +5,7 @@ DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, var
 DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean, varchar, varchar, varchar);
 DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean, varchar, varchar, varchar, integer, integer);
 DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean, varchar, varchar, varchar, integer, integer, integer);
+DROP PROCEDURE IF EXISTS public.sp_display_settings_update(integer, varchar, varchar, varchar, varchar, varchar, boolean, varchar, varchar, varchar, integer, integer, integer, boolean, integer);
 
 CREATE PROCEDURE public.sp_display_settings_update(
     p_threads_per_page INTEGER,
@@ -19,7 +20,9 @@ CREATE PROCEDURE public.sp_display_settings_update(
     p_time_zone_id VARCHAR(100) DEFAULT '',
     p_max_emails_per_hour INTEGER DEFAULT 0,
     p_max_emails_per_day INTEGER DEFAULT 0,
-    p_posts_per_page INTEGER DEFAULT 20
+    p_posts_per_page INTEGER DEFAULT 20,
+    p_show_whos_online BOOLEAN DEFAULT TRUE,
+    p_online_window_minutes INTEGER DEFAULT 15
 )
 LANGUAGE plpgsql
 AS $$
@@ -37,7 +40,9 @@ BEGIN
         time_format = p_time_format,
         time_zone_id = COALESCE(p_time_zone_id, ''),
         max_emails_per_hour = COALESCE(p_max_emails_per_hour, 0),
-        max_emails_per_day = COALESCE(p_max_emails_per_day, 0)
+        max_emails_per_day = COALESCE(p_max_emails_per_day, 0),
+        show_whos_online = COALESCE(p_show_whos_online, TRUE),
+        online_window_minutes = COALESCE(p_online_window_minutes, 15)
     WHERE id = 1;
 END;
 $$;

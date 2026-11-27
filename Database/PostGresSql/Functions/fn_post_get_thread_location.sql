@@ -1,13 +1,15 @@
 -- Matches IPostRepository.GetThreadLocation(int threadId, int? postId, DateTime? unreadAfter, int? excludeUserId)
 -- Returns the discussion's post count and, for p_post_id (or, without it, the
 -- first post after p_unread_after not written by p_exclude_user_id), that
--- post's id and 0-based position in (created_at, id) order. post_id and
--- position are NULL when there's no such post. Added in v1.4.0.
+-- post's id and 0-based position (post_position) in (created_at, id) order.
+-- post_id and post_position are NULL when there's no such post. Added in
+-- v1.4.0; the column was "position" until v1.4.1, which PostgreSQL rejects
+-- (a reserved word inside PL/pgSQL), so the function failed to install.
 
 DROP FUNCTION IF EXISTS public.fn_post_get_thread_location(integer, integer, timestamptz, integer);
 
 CREATE FUNCTION public.fn_post_get_thread_location(p_thread_id INTEGER, p_post_id INTEGER, p_unread_after TIMESTAMPTZ, p_exclude_user_id INTEGER)
-RETURNS TABLE (total_count INTEGER, post_id INTEGER, position INTEGER)
+RETURNS TABLE (total_count INTEGER, post_id INTEGER, post_position INTEGER)
 LANGUAGE plpgsql
 STABLE
 AS $$

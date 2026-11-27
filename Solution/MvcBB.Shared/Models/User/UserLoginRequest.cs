@@ -14,6 +14,14 @@ namespace MvcBB.Shared.Models.User
         public string Password { get; set; } = string.Empty;
 
         /// <summary>
+        /// Keep the member signed in on this device: the API also hands back a
+        /// refresh token, which the App uses to renew the session quietly
+        /// (see UserAuthResponse.RefreshToken).
+        /// </summary>
+        [Display(Name = "Remember me")]
+        public bool RememberMe { get; set; }
+
+        /// <summary>
         /// Set by MvcBB.App's AccountController (never by the browser directly)
         /// from the request that reached the App, since MvcBB.API only ever
         /// sees the App server's own IP, not the end user's.

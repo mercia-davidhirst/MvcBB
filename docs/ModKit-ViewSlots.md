@@ -374,7 +374,7 @@ a wide centre column (Latest Discussions) and a narrow right column
 | --- | --- | --- | --- |
 | `home.left` | Home page, left column, under Quick Links and any `home.sidebar` contributions | `PageSlotContext` | Block, narrow (2 of 12 grid columns on desktop, full width on phones). Each contribution renders its own card. |
 | `home.center.top` | Home page, centre column, above Latest Discussions | `PageSlotContext` | Block, wide (8 of 12). For something meant to be seen first. Each contribution renders its own card. |
-| `home.center` | Home page, centre column, under Latest Discussions | `PageSlotContext` | Block, wide (8 of 12). The main place for a larger widget. Each contribution renders its own card. |
+| `home.center` | Home page, centre column, under Latest Discussions (and above core's Who's Online card, when an admin has it turned on) | `PageSlotContext` | Block, wide (8 of 12). The main place for a larger widget. Each contribution renders its own card. |
 | `home.right` | Home page, right column, under Statistics and Newest Members | `PageSlotContext` | Block, narrow, like `home.left`. Each contribution renders its own card. |
 
 **`home.sidebar` is kept, unchanged.** It was the only home page slot in the
